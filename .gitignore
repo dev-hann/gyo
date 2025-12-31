@@ -1,0 +1,9 @@
+# Logs
+*.ips
+*.ips.ca
+*.metriclog
+*.metriclog.anon
+
+# Dependencies
+/cli/node_modules
+/cli/dist
