@@ -1,0 +1,415 @@
+{"app_name":"PayApp","timestamp":"2023-12-08 19:30:19.00 +0900","app_version":"2.22.1","slice_uuid":"","adam_id":1464496236,"build_version":"230807.1139","bundleID":"com.kakaopay.payapp.store","duration_ms":"1065","bug_subtype":"light","share_with_app_devs":0,"is_first_party":0,"os_version":"iPhone OS 15.8 (19H370)","incident_id":"83966CAA-56A2-4F45-8741-EB6FE887129A","name":"PayApp","bug_type":"228"}
+Date/Time:        2023-12-08 19:29:34.764 +0900
+End time:         2023-12-08 19:29:35.814 +0900
+OS Version:       iPhone OS 15.8 (Build 19H370)
+Architecture:     arm64
+Report Version:   35.1
+
+Data Source:      KPerf Lightweight PET
+Kernel Cache:     0xffffffe000000000 7A2ED11D-9DF6-B2C9-21F3-5EDABB5225E3
+Shared Cache:     38F8AF2C-5494-3C96-A525-8F2721BC57F2 slid base address 0x180074000, slide 0x74000
+Shared Cache:     6246869C-D6DF-3764-95A7-06476F203C2F slid base address 0x196480000, slide 0x16480000
+Reason:           UIKit-runloop-PayApp: timeout 1065ms
+
+Command:          PayApp
+Path:             /private/var/containers/Bundle/Application/CB5C8296-AA83-4350-8413-4DA3EA74A0D3/PayApp.app/PayApp
+Identifier:       com.kakaopay.payapp.store
+Version:          2.22.1 (230807.1139)
+Adam ID:          1464496236
+Is First Party:   No
+Architecture:     arm64
+PID:              17344
+Time Since Fork:  70974s
+
+Event:            Completed Runloop Hang
+Duration:         1.10s
+Steps:            22 (50ms sampling interval)
+Report threshold: 1s
+
+Hardware model:   N69uAP
+Active cpus:      2
+HW page size:     16384
+VM page size:     16384
+
+Time Awake Since Boot: 112497s
+
+Total CPU Time:   2.097s (1913.7M cycles, 2.8G instructions, 0.69c/i)
+Memory pressure:  average 81%, highest 81%
+Available memory: average 560.73 MB, lowest 557.34 MB
+I/O statistics:
+  Overall:        98 IOs (93 IOs/s), 1508 KB (1436.19 KB/s)
+  Tier0:          87 IOs (83 IOs/s), 1268 KB (1207.62 KB/s)
+  Tier1:          6 IOs (6 IOs/s), 112 KB (106.67 KB/s)
+  Tier2:          5 IOs (5 IOs/s), 128 KB (121.90 KB/s)
+Advisory levels:  Battery -> 2, User -> 3, ThermalPressure -> 0, Combined -> 2
+Free disk space:  83.76 GB/119.19 GB, low space threshold 150 MB
+Low Power Mode:   Enabled
+
+Heaviest stack for the main thread of the target process:
+  22  ??? (<16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29> + 99536) [0x10b0d04d0]
+  22  ??? (PayApp + 48116) [0x104ecfbf4]
+  22  ??? (libswiftUIKit.dylib + 163556) [0x196d7bee4]
+  22  ??? (UIKitCore + 2617208) [0x18298ef78]
+  22  ??? (UIKitCore + 5134984) [0x182bf5a88]
+  22  ??? (GraphicsServices + 6536) [0x1a0f0e988]
+  22  ??? (CoreFoundation + 123252) [0x1803f3174]
+  21  ??? (CoreFoundation + 46328) [0x1803e04f8]
+  21  ??? (CoreFoundation + 319508) [0x180423014]
+  21  ??? (libdispatch.dylib + 67988) [0x1800d4994]
+  21  ??? (libdispatch.dylib + 68932) [0x1800d4d44]
+  21  ??? (libdispatch.dylib + 409748) [0x180128094]
+  21  ??? (libdispatch.dylib + 405652) [0x180127094]
+  21  ??? (libswiftDispatch.dylib + 4044) [0x198a32fcc]
+  21  ??? (Combine + 57112) [0x1970d9f18]
+  21  ??? (Combine + 18764) [0x1970d094c]
+  21  ??? (Combine + 27708) [0x1970d2c3c]
+  21  ??? (Combine + 18632) [0x1970d08c8]
+  21  ??? (PayApp + 17339840) [0x105f4d5c0]
+  21  ??? (Combine + 13252) [0x1970cf3c4]
+  21  ??? (Combine + 9188) [0x1970ce3e4]
+  21  ??? (Combine + 77528) [0x1970deed8]
+  21  ??? (Combine + 126524) [0x1970eae3c]
+  21  ??? (Combine + 27104) [0x1970d29e0]
+  21  ??? (Combine + 47544) [0x1970d79b8]
+  21  ??? (Combine + 251320) [0x1971095b8]
+  21  ??? (Combine + 269216) [0x19710dba0]
+  21  ??? (Combine + 92996) [0x1970e2b44]
+  21  ??? (Combine + 168484) [0x1970f5224]
+  21  ??? (Combine + 34176) [0x1970d4580]
+  21  ??? (Combine + 35588) [0x1970d4b04]
+  21  ??? (PayApp + 17309652) [0x105f45fd4]
+  15  ??? (PayApp + 10496876) [0x1058c6b6c]
+  15  ??? (libswiftUIKit.dylib + 26264) [0x196d5a698]
+  15  ??? (UIKitCore + 3221272) [0x182a22718]
+  15  ??? (UIKitCore + 3139100) [0x182a0e61c]
+  15  ??? (libdispatch.dylib + 72036) [0x1800d5964]
+  15  ??? (libdispatch.dylib + 409748) [0x180128094]
+  9   ??? (UIKitCore + 8392380) [0x182f10ebc]
+  8   ??? (UIKitCore + 2618700) [0x18298f54c]
+  8   ??? (UIKitCore + 3361208) [0x182a449b8]
+  8   ??? (UIKitCore + 605100) [0x1827a3bac]
+  8   ??? (UIKitCore + 459692) [0x1827803ac]
+  5   ??? (UIKitCore + 460060) [0x18278051c]
+  4   ??? (UIKitCore + 463992) [0x182781478]
+  3   ??? (Foundation + 47048) [0x181af37c8]
+  3   ??? (CoreFoundation + 851900) [0x1804a4fbc]
+  3   ??? (CoreFoundation + 24876) [0x1803db12c]
+  3   ??? (CoreFoundation + 344044) [0x180428fec]
+  3   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+  2   ??? (libswiftCore.dylib + 997480) [0x184c88868]
+  1   ??? (PayApp + 10375344) [0x1058a90b0]
+  1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+  1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+  1   ??? (libswiftCore.dylib + 1714568) [0x184d37988]
+  1   ??? (libswiftCore.dylib + 1301416) [0x184cd2ba8]
+  1   ??? (libswiftCore.dylib + 1303836) [0x184cd351c]
+  1   ??? (libswiftCore.dylib + 1563504) [0x184d12b70]
+  1   ??? (libswiftCore.dylib + 1776516) [0x184d46b84]
+  1   ??? (CoreFoundation + 143784) [0x1803f81a8]
+  1   ??? (CoreFoundation + 546324) [0x18045a614]
+
+
+Process:          PayApp [17344] Thread 0xb8bfd
+UUID:             AD07000D-E4A3-3486-8BA7-75606AEBF5DF
+Path:             /private/var/containers/Bundle/Application/CB5C8296-AA83-4350-8413-4DA3EA74A0D3/PayApp.app/PayApp
+Identifier:       com.kakaopay.payapp.store
+Version:          2.22.1 (230807.1139)
+Adam ID:          1464496236
+Is First Party:   No
+Shared Cache:     38F8AF2C-5494-3C96-A525-8F2721BC57F2 slid base address 0x180074000, slide 0x74000
+Architecture:     arm64
+Footprint:        157.03 MB
+Time Since Fork:  70974s
+Num samples:      22 (1-22)
+CPU Time:         1.399s (1276.3M cycles, 2.3G instructions, 0.55c/i)
+Note:             27 other threads omitted
+
+  Thread 0xb8bfd    DispatchQueue "com.apple.main-thread"(1),"com.apple.uikit.datasource.diffing"(8763)    22 samples (1-22)    priority 47 (base 47)    cpu time 0.958s (873.9M cycles, 1601.8M instructions, 0.55c/i)
+  22  ??? (<16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29> + 99536) [0x10b0d04d0]
+    22  ??? (PayApp + 48116) [0x104ecfbf4]
+      22  ??? (libswiftUIKit.dylib + 163556) [0x196d7bee4]
+        22  ??? (UIKitCore + 2617208) [0x18298ef78]
+          22  ??? (UIKitCore + 5134984) [0x182bf5a88]
+            22  ??? (GraphicsServices + 6536) [0x1a0f0e988]
+              22  ??? (CoreFoundation + 123252) [0x1803f3174]
+                21  ??? (CoreFoundation + 46328) [0x1803e04f8]
+                  21  ??? (CoreFoundation + 319508) [0x180423014]
+                    21  ??? (libdispatch.dylib + 67988) [0x1800d4994]
+                      21  ??? (libdispatch.dylib + 68932) [0x1800d4d44]
+                        21  ??? (libdispatch.dylib + 409748) [0x180128094]
+                          21  ??? (libdispatch.dylib + 405652) [0x180127094]
+                            21  ??? (libswiftDispatch.dylib + 4044) [0x198a32fcc]
+                              21  ??? (Combine + 57112) [0x1970d9f18]
+                                21  ??? (Combine + 18764) [0x1970d094c]
+                                  21  ??? (Combine + 27708) [0x1970d2c3c]
+                                    21  ??? (Combine + 18632) [0x1970d08c8]
+                                      21  ??? (PayApp + 17339840) [0x105f4d5c0]
+                                        21  ??? (Combine + 13252) [0x1970cf3c4]
+                                          21  ??? (Combine + 9188) [0x1970ce3e4]
+                                            21  ??? (Combine + 77528) [0x1970deed8]
+                                              21  ??? (Combine + 126524) [0x1970eae3c]
+                                                21  ??? (Combine + 27104) [0x1970d29e0]
+                                                  21  ??? (Combine + 47544) [0x1970d79b8]
+                                                    21  ??? (Combine + 251320) [0x1971095b8]
+                                                      21  ??? (Combine + 269216) [0x19710dba0]
+                                                        21  ??? (Combine + 92996) [0x1970e2b44]
+                                                          21  ??? (Combine + 168484) [0x1970f5224]
+                                                            21  ??? (Combine + 34176) [0x1970d4580]
+                                                              21  ??? (Combine + 35588) [0x1970d4b04]
+                                                                21  ??? (PayApp + 17309652) [0x105f45fd4]
+                                                                  15  ??? (PayApp + 10496876) [0x1058c6b6c]
+                                                                    15  ??? (libswiftUIKit.dylib + 26264) [0x196d5a698]
+                                                                      15  ??? (UIKitCore + 3221272) [0x182a22718]
+                                                                        15  ??? (UIKitCore + 3139100) [0x182a0e61c]
+                                                                          15  ??? (libdispatch.dylib + 72036) [0x1800d5964]
+                                                                            15  ??? (libdispatch.dylib + 409748) [0x180128094]
+                                                                              9   ??? (UIKitCore + 8392380) [0x182f10ebc]
+                                                                                8   ??? (UIKitCore + 2618700) [0x18298f54c]
+                                                                                  8   ??? (UIKitCore + 3361208) [0x182a449b8]
+                                                                                    8   ??? (UIKitCore + 605100) [0x1827a3bac]
+                                                                                      8   ??? (UIKitCore + 459692) [0x1827803ac]
+                                                                                        5   ??? (UIKitCore + 460060) [0x18278051c]
+                                                                                          4   ??? (UIKitCore + 463992) [0x182781478]
+                                                                                            3   ??? (Foundation + 47048) [0x181af37c8]
+                                                                                              3   ??? (CoreFoundation + 851900) [0x1804a4fbc]
+                                                                                                3   ??? (CoreFoundation + 24876) [0x1803db12c]
+                                                                                                  3   ??? (CoreFoundation + 344044) [0x180428fec]
+                                                                                                    3   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+                                                                                                      2   ??? (libswiftCore.dylib + 997480) [0x184c88868]
+                                                                                                        1   ??? (PayApp + 10375344) [0x1058a90b0]
+                                                                                                          1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+                                                                                                            1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+                                                                                                              1   ??? (libswiftCore.dylib + 1714568) [0x184d37988]
+                                                                                                                1   ??? (libswiftCore.dylib + 1301416) [0x184cd2ba8]
+                                                                                                                  1   ??? (libswiftCore.dylib + 1303836) [0x184cd351c]
+                                                                                                                    1   ??? (libswiftCore.dylib + 1563504) [0x184d12b70]
+                                                                                                                      1   ??? (libswiftCore.dylib + 1776516) [0x184d46b84]
+                                                                                                                        1   ??? (CoreFoundation + 143784) [0x1803f81a8]
+                                                                                                                          1   ??? (CoreFoundation + 546324) [0x18045a614] (running, on cpu 0)
+                                                                                                        1   ??? (PayApp + 10375196) [0x1058a901c]
+                                                                                                          1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+                                                                                                            1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+                                                                                                              1   ??? (libswiftCore.dylib + 1714568) [0x184d37988]
+                                                                                                                1   ??? (libswiftCore.dylib + 1301452) [0x184cd2bcc]
+                                                                                                                  1   ??? (libswiftCore.dylib + 1304124) [0x184cd363c] (running, on cpu 0)
+                                                                                                      1   ??? (libswiftCore.dylib + 997500) [0x184c8887c]
+                                                                                                        1   ??? (libobjc.A.dylib + 11636) [0x197c81d74] (running, on cpu 0)
+                                                                                            1   ??? (Foundation + 47072) [0x181af37e0]
+                                                                                              1   ??? (CoreFoundation + 851900) [0x1804a4fbc]
+                                                                                                1   ??? (CoreFoundation + 24876) [0x1803db12c]
+                                                                                                  1   ??? (CoreFoundation + 344044) [0x180428fec]
+                                                                                                    1   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+                                                                                                      1   ??? (libswiftCore.dylib + 997456) [0x184c88850]
+                                                                                                        1   ??? (PayApp + 10383384) [0x1058ab018]
+                                                                                                          1   ??? (libobjc.A.dylib + 12628) [0x197c82154] (running, on cpu 1)
+                                                                                          1   ??? (UIKitCore + 464100) [0x1827814e4]
+                                                                                            1   ??? (Foundation + 615380) [0x181b7e3d4]
+                                                                                              1   ??? (Foundation + 131492) [0x181b081a4]
+                                                                                                1   ??? (Foundation + 574016) [0x181b74240]
+                                                                                                  1   ??? (Foundation + 733552) [0x181b9b170]
+                                                                                                    1   ??? (Foundation + 48324) [0x181af3cc4]
+                                                                                                      1   ??? (libobjc.A.dylib + 12584) [0x197c82128] (running, on cpu 0)
+                                                                                        3   ??? (UIKitCore + 460100) [0x182780544]
+                                                                                          3   ??? (UIKitCore + 463448) [0x182781258]
+                                                                                            3   ??? (UIKitCore + 583052) [0x18279e58c]
+                                                                                              3   ??? (UIKitCore + 584256) [0x18279ea40]
+                                                                                                3   ??? (UIKitCore + 1884904) [0x1828dc2e8]
+                                                                                                  3   ??? (CoreFoundation + 743760) [0x18048a950]
+                                                                                                    3   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+                                                                                                      3   ??? (libswiftCore.dylib + 997480) [0x184c88868]
+                                                                                                        1   ??? (libobjc.A.dylib + 11636) [0x197c81d74] (running, on cpu 0)
+                                                                                                        1   ??? (PayApp + 10375344) [0x1058a90b0]
+                                                                                                          1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+                                                                                                            1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+                                                                                                              1   ??? (libswiftCore.dylib + 1714568) [0x184d37988]
+                                                                                                                1   ??? (libswiftCore.dylib + 1301452) [0x184cd2bcc]
+                                                                                                                  1   ??? (libswiftCore.dylib + 1303784) [0x184cd34e8]
+                                                                                                                    1   ??? (libobjc.A.dylib + 7456) [0x197c80d20] (running, on cpu 0)
+                                                                                                        1   ??? (PayApp + 10375196) [0x1058a901c]
+                                                                                                          1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+                                                                                                            1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+                                                                                                              1   ??? (libswiftCore.dylib + 3073440) [0x184e835a0] (running, on cpu 0)
+                                                                                1   ??? (UIKitCore + 2618768) [0x18298f590]
+                                                                                  1   ??? (UIKitCore + 3520400) [0x182a6b790]
+                                                                                    1   ??? (UIKitCore + 6279692) [0x182d0d20c]
+                                                                                      1   ??? (UIKitCore + 598060) [0x1827a202c]
+                                                                                        1   ??? (UIKitCore + 6496720) [0x182d421d0]
+                                                                                          1   ??? (Foundation + 131492) [0x181b081a4]
+                                                                                            1   ??? (Foundation + 574016) [0x181b74240]
+                                                                                              1   ??? (libobjc.A.dylib + 12584) [0x197c82128] (running, on cpu 0)
+                                                                              6   ??? (UIKitCore + 8392420) [0x182f10ee4]
+                                                                                6   ??? (UIKitCore + 8391892) [0x182f10cd4]
+                                                                                  6   ??? (UIKitCore + 595008) [0x1827a1440]
+                                                                                    6   ??? (UIKitCore + 595852) [0x1827a178c]
+                                                                                      6   ??? (UIKitCore + 4948144) [0x182bc80b0]
+                                                                                        6   ??? (UIKitCore + 3201104) [0x182a1d850]
+                                                                                          6   ??? (UIKitCore + 2821660) [0x1829c0e1c]
+                                                                                            6   ??? (UIKitCore + 1454708) [0x182873274]
+                                                                                              6   ??? (UIKitCore + 3472856) [0x182a5fdd8]
+                                                                                                2   ??? (UIKitCore + 3957368) [0x182ad6278]
+                                                                                                  2   ??? (UIKitCore + 8707196) [0x182f5dc7c]
+                                                                                                    1   ??? (UIKitCore + 362232) [0x1827686f8] (running, on cpu 0)
+                                                                                                    1   ??? (UIKitCore + 362152) [0x1827686a8] (running, on cpu 1)
+                                                                                                2   ??? (UIKitCore + 3960572) [0x182ad6efc]
+                                                                                                  1   ??? (UIKitCore + 2430576) [0x182961670]
+                                                                                                    1   ??? (UIKitCore + 1454708) [0x182873274]
+                                                                                                      1   ??? (UIKitCore + 8593692) [0x182f4211c]
+                                                                                                        1   ??? (UIKitCore + 4313448) [0x182b2d168]
+                                                                                                          1   ??? (UIKitCore + 8590712) [0x182f41578]
+                                                                                                            1   ??? (UIKitCore + 3219388) [0x182a21fbc]
+                                                                                                              1   ??? (UIKitCore + 3205284) [0x182a1e8a4]
+                                                                                                                1   ??? (libswiftUIKit.dylib + 10968) [0x196d56ad8]
+                                                                                                                  1   ??? (libswiftUIKit.dylib + 11376) [0x196d56c70]
+                                                                                                                    1   ??? (UIKitCore + 244064) [0x18274b960]
+                                                                                                                      1   ??? (libswiftUIKit.dylib + 34568) [0x196d5c708]
+                                                                                                                        1   ??? (libswiftUIKit.dylib + 35972) [0x196d5cc84]
+                                                                                                                          1   ??? (libswiftUIKit.dylib + 18892) [0x196d589cc]
+                                                                                                                            1   ??? (PayApp + 17764324) [0x105fb4fe4]
+                                                                                                                              1   ??? (PayApp + 17748576) [0x105fb1260]
+                                                                                                                                1   ??? (PayApp + 10392588) [0x1058ad40c]
+                                                                                                                                  1   ??? (PayApp + 10394024) [0x1058ad9a8]
+                                                                                                                                    1   ??? (Umbrella + 10844528) [0x10cac7970]
+                                                                                                                                      1   ??? (Umbrella + 10845320) [0x10cac7c88]
+                                                                                                                                        1   ??? (UIKitCore + 1940280) [0x1828e9b38]
+                                                                                                                                          1   ??? (UIKitCore + 1406176) [0x1828674e0]
+                                                                                                                                            1   ??? (UIKitCore + 5695408) [0x182c7e7b0]
+                                                                                                                                              1   ??? (UIKitCore + 4627188) [0x182b79af4]
+                                                                                                                                                1   ??? (UIKitCore + 2548332) [0x18297e26c]
+                                                                                                                                                  1   ??? (UIKitCore + 2184664) [0x1829255d8]
+                                                                                                                                                    1   ??? (UIKitCore + 6763996) [0x182d835dc]
+                                                                                                                                                      1   ??? (UIKitCore + 110616) [0x18272b018]
+                                                                                                                                                        1   ??? (libobjc.A.dylib + 11240) [0x197c81be8]
+                                                                                                                                                          1   ??? (libobjc.A.dylib + 25316) [0x197c852e4] (running, on cpu 1)
+                                                                                                  1   ??? (UIKitCore + 2430292) [0x182961554]
+                                                                                                    1   ??? (UIKitCore + 4051192) [0x182aed0f8]
+                                                                                                      1   ??? (UIKitCore + 6196936) [0x182cf8ec8]
+                                                                                                        1   ??? (UIKitCore + 3855896) [0x182abd618]
+                                                                                                          1   ??? (CoreFoundation + 91356) [0x1803eb4dc] (running, on cpu 1)
+                                                                                                1   ??? (UIKitCore + 3957556) [0x182ad6334]
+                                                                                                  1   ??? (UIKitCore + 3881288) [0x182ac3948]
+                                                                                                    1   ??? (UIKitCore + 3290024) [0x182a333a8]
+                                                                                                      1   ??? (UIKitCore + 91876) [0x1827266e4]
+                                                                                                        1   ??? (UIKitCore + 3712064) [0x182a9a440]
+                                                                                                          1   ??? (UIKitCore + 2577572) [0x1829854a4]
+                                                                                                            1   ??? (UIKitCore + 6615540) [0x182d5f1f4]
+                                                                                                              1   ??? (UIKitCore + 6231336) [0x182d01528]
+                                                                                                                1   ??? (UIKitCore + 5959016) [0x182cbed68]
+                                                                                                                  1   ??? (CoreFoundation + 309520) [0x180420910]
+                                                                                                                    1   ??? (CoreFoundation + 83860) [0x1803e9794]
+                                                                                                                      1   ??? (CoreFoundation + 171804) [0x1803fef1c]
+                                                                                                                        1   ??? (libsystem_malloc.dylib + 20152) [0x191671eb8]
+                                                                                                                          1   ??? (libsystem_malloc.dylib + 63392) [0x19167c7a0]
+                                                                                                                            1   ??? (libsystem_malloc.dylib + 62080) [0x19167c280]
+                                                                                                                              1   ??? (libsystem_malloc.dylib + 65328) [0x19167cf30] (running, on cpu 0)
+                                                                                                1   ??? (UIKitCore + 3952020) [0x182ad4d94]
+                                                                                                  1   ??? (CoreFoundation + 162732) [0x1803fcbac]
+                                                                                                    1   ??? (libsystem_malloc.dylib + 24316) [0x191672efc]
+                                                                                                      1   ??? (libsystem_malloc.dylib + 27936) [0x191673d20]
+                                                                                                        1   ??? (libsystem_malloc.dylib + 22960) [0x1916729b0]
+                                                                                                          1   ??? (libsystem_malloc.dylib + 33260) [0x1916751ec]
+                                                                                                            1   ??? (libsystem_kernel.dylib + 2564) [0x1bad21a04]
+                                                                                                             *1   ??? [0xfffffff007151594]
+                                                                                                               *1   ??? [0xfffffff0072a5ff8]
+                                                                                                                 *1   ??? [0xfffffff00729d0a8]
+                                                                                                                   *1   ??? [0xfffffff00717b24c]
+                                                                                                                     *1   ??? [0xfffffff007229650]
+                                                                                                                       *1   ??? [0xfffffff00722b448]
+                                                                                                                         *1   ??? [0xfffffff00722da60]
+                                                                                                                           *1   ??? [0xfffffff0071e4e94] (running, on cpu 1)
+                                                                  4   ??? (PayApp + 10496764) [0x1058c6afc]
+                                                                    4   ??? (libswiftUIKit.dylib + 26648) [0x196d5a818]
+                                                                      3   ??? (UIKitCore + 4454320) [0x182b4f7b0]
+                                                                        3   ??? (UIKitCore + 5679336) [0x182c7a8e8]
+                                                                          3   ??? (UIKitCore + 3555052) [0x182a73eec]
+                                                                            3   ??? (UIKitCore + 18373984) [0x183895d60]
+                                                                              3   ??? (UIKitCore + 18373088) [0x1838959e0]
+                                                                                3   ??? (CoreFoundation + 723456) [0x180485a00]
+                                                                                  2   ??? (CoreFoundation + 77820) [0x1803e7ffc]
+                                                                                    2   ??? (CoreFoundation + 344044) [0x180428fec]
+                                                                                      2   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+                                                                                        2   ??? (libswiftCore.dylib + 997480) [0x184c88868]
+                                                                                          1   ??? (libobjc.A.dylib + 11544) [0x197c81d18] (running, on cpu 0)
+                                                                                          1   ??? (PayApp + 10376156) [0x1058a93dc]
+                                                                                            1   ??? (PayApp + 517672) [0x104f42628]
+                                                                                              1   ??? (libswiftCore.dylib + 2900248) [0x184e59118]
+                                                                                                1   ??? (libswiftCore.dylib + 3089876) [0x184e875d4]
+                                                                                                  1   ??? (Foundation + 142092) [0x181b0ab0c]
+                                                                                                    1   ??? (CoreFoundation + 56076) [0x1803e2b0c] (running, on cpu 0)
+                                                                                  1   ??? (CoreFoundation + 76332) [0x1803e7a2c]
+                                                                                    1   ??? (libswiftCore.dylib + 719132) [0x184c4491c]
+                                                                                      1   ??? (PayApp + 10383180) [0x1058aaf4c]
+                                                                                        1   ??? (libswiftCore.dylib + 3304048) [0x184ebba70]
+                                                                                          1   ??? (CoreFoundation + 143868) [0x1803f81fc]
+                                                                                            1   ??? (CoreFoundation + 56028) [0x1803e2adc] (running, on cpu 1)
+                                                                      1   ??? (UIKitCore + 4454280) [0x182b4f788]
+                                                                        1   ??? (UIKitCore + 6127144) [0x182ce7e28]
+                                                                          1   ??? (UIKitCore + 2797496) [0x1829bafb8]
+                                                                            1   ??? (CoreFoundation + 326836) [0x180424cb4]
+                                                                              1   ??? (CoreFoundation + 389792) [0x1804342a0]
+                                                                                1   ??? (CoreFoundation + 580572) [0x180462bdc]
+                                                                                  1   ??? (libswiftCore.dylib + 3315192) [0x184ebe5f8]
+                                                                                    1   ??? (libswiftCore.dylib + 997480) [0x184c88868]
+                                                                                      1   ??? (PayApp + 10375196) [0x1058a901c]
+                                                                                        1   ??? (libswiftCore.dylib + 1710136) [0x184d36838]
+                                                                                          1   ??? (libswiftCore.dylib + 1713144) [0x184d373f8]
+                                                                                            1   ??? (libswiftCore.dylib + 1714556) [0x184d3797c]
+                                                                                              1   ??? (libswiftCore.dylib + 1301416) [0x184cd2ba8]
+                                                                                                1   ??? (libswiftCore.dylib + 1303736) [0x184cd34b8]
+                                                                                                  1   ??? (libswiftCore.dylib + 1307836) [0x184cd44bc]
+                                                                                                    1   ??? (libswiftCore.dylib + 3073316) [0x184e83524] (running, on cpu 1)
+                                                                  1   ??? (PayApp + 10497316) [0x1058c6d24]
+                                                                    1   ??? (libswiftCore.dylib + 3079200) [0x184e84c20]
+                                                                      1   ??? (libswiftCore.dylib + 511804) [0x184c11f3c]
+                                                                        1   ??? (libswiftCore.dylib + 3033696) [0x184e79a60]
+                                                                          1   ??? (PayApp + 10383020) [0x1058aaeac]
+                                                                            1   ??? (CoreFoundation + 79420) [0x1803e863c]
+                                                                             *1   ??? [0xfffffff007180968]
+                                                                  1   ??? (PayApp + 10496684) [0x1058c6aac]
+                                                                    1   ??? (PayApp + 10494728) [0x1058c6308]
+                                                                      1   ??? (PayApp + 10369144) [0x1058a7878]
+                                                                        1   ??? (PayApp + 10383536) [0x1058ab0b0]
+                                                                          1   ??? (libswiftCore.dylib + 3304048) [0x184ebba70]
+                                                                            1   ??? (CoreFoundation + 143868) [0x1803f81fc]
+                                                                              1   ??? (CoreFoundation + 56028) [0x1803e2adc] (running, on cpu 0)
+                1   ??? (CoreFoundation + 46396) [0x1803e053c]
+                  1   ??? (CoreFoundation + 51044) [0x1803e1764]
+                    1   ??? (CoreFoundation + 78848) [0x1803e8400]
+                      1   ??? (libobjc.A.dylib + 14084) [0x197c82704]
+                        1   ??? (libobjc.A.dylib + 28248) [0x197c85e58]
+                          1   ??? (CoreFoundation + 135200) [0x1803f6020]
+                            1   ??? (CoreFoundation + 56392) [0x1803e2c48]
+                              1   ??? (Foundation + 470776) [0x181b5aef8]
+                                1   ??? (libswiftCore.dylib + 3314756) [0x184ebe444]
+                                  1   ??? (PayApp + 10382892) [0x1058aae2c]
+                                    1   ??? (CoreFoundation + 79420) [0x1803e863c] (running, on cpu 1)
+
+  Binary Images:
+           0x104ec4000 -        0x106877fff  com.kakaopay.payapp.store 2.22.1 (230807.1139) <AD07000D-E4A3-3486-8BA7-75606AEBF5DF>  /private/var/containers/Bundle/Application/CB5C8296-AA83-4350-8413-4DA3EA74A0D3/PayApp.app/PayApp
+           0x10b0b8000 -                ???  ???                                            <16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29>
+           0x10c070000 -        0x10d6a7fff  Umbrella                                       <68AA5368-070D-391D-A354-13FFE4F2DE52>  /private/var/containers/Bundle/Application/CB5C8296-AA83-4350-8413-4DA3EA74A0D3/PayApp.app/Frameworks/Umbrella.framework/Umbrella
+           0x1800c4000 -        0x180146fff  libdispatch.dylib                              <9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD>  /usr/lib/system/libdispatch.dylib
+           0x1803d5000 -        0x180812fff  CoreFoundation                                 <EEC1287D-059B-38C8-9BC1-58A0C8B1E6C2>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x181ae8000 -        0x181dccfff  Foundation                                     <F9235FC7-EC4E-31C9-B56E-95CF10B07239>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x182710000 -        0x183eabfff  UIKitCore                                      <9D301877-2593-385C-8F72-F075AA0B48FA>  /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+           0x184b95000 -        0x184ff2fff  libswiftCore.dylib                             <A31C8583-DC6D-3D6F-9AC9-D721B291B35D>  /usr/lib/swift/libswiftCore.dylib
+           0x19166d000 -        0x19168dfff  libsystem_malloc.dylib                         <CE5C17D3-0E78-324E-B053-3B90D7C50630>  /usr/lib/system/libsystem_malloc.dylib
+           0x196d54000 -        0x196db3fff  libswiftUIKit.dylib                            <883D1A20-D060-3440-ADF2-7C37B7EFB6BD>  /usr/lib/swift/libswiftUIKit.dylib
+           0x1970cc000 -        0x1971c9fff  Combine                                        <498900CF-6D91-3358-AED9-10716A47195E>  /System/Library/Frameworks/Combine.framework/Combine
+           0x197c7f000 -        0x197cb6fff  libobjc.A.dylib                                <F1B36686-ED48-35EF-8896-0CEA8E9DA1C0>  /usr/lib/libobjc.A.dylib
+           0x198a32000 -        0x198a47fff  libswiftDispatch.dylib                         <07445DD6-AE4A-39EF-AE39-5B584C61A845>  /usr/lib/swift/libswiftDispatch.dylib
+           0x1a0f0d000 -        0x1a0f15fff  GraphicsServices                               <BB434D86-0991-365F-BED3-C3923CF3073C>  /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+           0x1bad21000 -        0x1bad54fff  libsystem_kernel.dylib                         <102E8613-6676-33F6-A0B4-F6E86A8636CE>  /usr/lib/system/libsystem_kernel.dylib
+
+{
+  "blockingThreadStatus" : "Search Bailed Due to High Main Thread CPU Util",
+  "HangUUID" : "AD1246E6-3355-406A-96F0-5EE93FB43D9F",
+  "displayData" : {
+    "endState" : 1,
+    "displayOnPercent" : 1,
+    "startState" : 1,
+    "displayOnIntervals" : [
+      0,
+      1065
+    ]
+  }
+}

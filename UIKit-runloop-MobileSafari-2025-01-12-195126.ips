@@ -1,0 +1,466 @@
+{"app_name":"MobileSafari","timestamp":"2025-01-12 19:51:26.00 +0900","app_version":"15.6.6","slice_uuid":"","adam_id":0,"build_version":"8613.7.1.0.15","bundleID":"com.apple.mobilesafari","duration_ms":"361","bug_subtype":"light","share_with_app_devs":0,"is_first_party":1,"os_version":"iPhone OS 15.8.3 (19H386)","incident_id":"6F2785D5-A6FE-4CB6-AE49-435E54B5B861","name":"MobileSafari","bug_type":"310"}
+Date/Time:        2025-01-12 19:51:03.709 +0900
+End time:         2025-01-12 19:51:04.009 +0900
+OS Version:       iPhone OS 15.8.3 (Build 19H386)
+Architecture:     arm64
+Report Version:   35.1
+
+Data Source:      KPerf Lightweight PET
+Kernel Cache:     0xffffffe000000000 7A2ED11D-9DF6-B2C9-21F3-5EDABB5225E3
+Shared Cache:     870E05C6-817E-3CC0-A84F-768A252872B0 slid base address 0x181608000, slide 0x1608000
+Shared Cache:     6246869C-D6DF-3764-95A7-06476F203C2F slid base address 0x186294000, slide 0x6294000
+Reason:           UIKit-runloop-MobileSafari: timeout 361ms
+
+Command:          MobileSafari
+Path:             /Applications/MobileSafari.app/MobileSafari
+Identifier:       com.apple.mobilesafari
+Version:          15.6.6 (8613.7.1.0.15)
+Architecture:     arm64
+PID:              71773
+Time Since Fork:  305132s
+
+Event:            Completed Runloop Hang
+Duration:         0.35s
+Steps:            7 (50ms sampling interval)
+Report threshold: 0.25s
+
+Hardware model:   N69uAP
+Active cpus:      2
+HW page size:     16384
+VM page size:     16384
+
+Time Awake Since Boot: 2018108s
+
+Total CPU Time:   0.604s (1077.5M cycles, 951.6M instructions, 1.13c/i)
+Memory pressure:  average 88%, highest 88%
+Available memory: average 429.30 MB, lowest 425.53 MB
+I/O statistics:
+  Overall:        684 IOs (2280 IOs/s), 18.10 MB (60.34 MB/s)
+  Tier0:          608 IOs (2027 IOs/s), 15.93 MB (53.09 MB/s)
+  Tier1:          38 IOs (127 IOs/s), 788 KB (2626.67 KB/s)
+  Tier2:          38 IOs (127 IOs/s), 1440 KB (4800.01 KB/s)
+Advisory levels:  Battery -> 3, User -> 3, ThermalPressure -> 0, Combined -> 3
+Free disk space:  63.99 GB/119.19 GB, low space threshold 150 MB
+
+Heaviest stack for the main thread of the target process:
+  7  ??? (<16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29> + 99536) [0x1026204d0]
+  7  ??? (MobileSafariUI + 104456) [0x1e5486808]
+  7  ??? (UIKitCore + 2617208) [0x183f22f78]
+  7  ??? (UIKitCore + 5134984) [0x184189a88]
+  7  ??? (GraphicsServices + 6536) [0x1a24a6988]
+  7  ??? (CoreFoundation + 123252) [0x181987174]
+  4  ??? (CoreFoundation + 44552) [0x181973e08]
+  4  ??? (CoreFoundation + 22324) [0x18196e734]
+  4  ??? (CoreFoundation + 800120) [0x181a2c578]
+  4  ??? (CoreFoundation + 734280) [0x181a1c448]
+  4  ??? (UIKitCore + 1445644) [0x183e04f0c]
+  4  ??? (UIKitCore + 1424112) [0x183dffaf0]
+  4  ??? (UIKitCore + 1469484) [0x183e0ac2c]
+  4  ??? (UIKitCore + 3353188) [0x183fd6a64]
+  4  ??? (MobileSafariUI + 1614664) [0x1e55f7348]
+  4  ??? (UIKitCore + 1645616) [0x183e35c30]
+  4  ??? (UIKitCore + 1593644) [0x183e2912c]
+  4  ??? (UIKitCore + 1388408) [0x183df6f78]
+  4  ??? (UIKitCore + 1672708) [0x183e3c604]
+  4  ??? (UIKitCore + 1446600) [0x183e052c8]
+  4  ??? (UIKitCore + 1663884) [0x183e3a38c]
+  4  ??? (UIKitCore + 1883852) [0x183e6fecc]
+  4  ??? (MobileSafari + 165708) [0x1e538f74c]
+  4  ??? (MobileSafari + 183044) [0x1e5393b04]
+  4  ??? (MobileSafari + 625960) [0x1e53ffd28]
+  4  ??? (MobileSafari + 235360) [0x1e53a0760]
+  4  ??? (MobileSafari + 236252) [0x1e53a0adc]
+  4  ??? (MobileSafari + 48528) [0x1e5372d90]
+  4  ??? (UIKitCore + 2860060) [0x183f5e41c]
+  4  ??? (UIKitCore + 4501628) [0x1840ef07c]
+  4  ??? (UIKitCore + 1528012) [0x183e190cc]
+  4  ??? (UIKitCore + 4437784) [0x1840df718]
+  4  ??? (MobileSafari + 627188) [0x1e54001f4]
+  3  ??? (MobileSafariUI + 284968) [0x1e54b2928]
+  2  ??? (MobileSafariUI + 657168) [0x1e550d710]
+  2  ??? (UIKitCore + 1454708) [0x183e07274]
+  2  ??? (MobileSafariUI + 657476) [0x1e550d844]
+  2  ??? (MobileSafariUI + 390556) [0x1e54cc59c]
+  1  ??? (MobileSafariUI + 153492) [0x1e5492794]
+  1  ??? (MobileSafariUI + 18968) [0x1e5471a18]
+  1  ??? (MobileSafari + 25228) [0x1e536d28c]
+  1  ??? (MobileSafari + 34496) [0x1e536f6c0]
+  1  ??? (MobileSafari + 27884) [0x1e536dcec]
+  1  ??? (SafariSharedUI + 8948) [0x1ac82c2f4]
+  1  ??? (SafariSharedUI + 8732) [0x1ac82c21c]
+  1  ??? (CoreGraphics + 321572) [0x183748824]
+  1  ??? (CoreGraphics + 511752) [0x183776f08]
+  1  ??? (CoreGraphics + 244904) [0x183735ca8]
+  1  ??? (CoreGraphics + 282352) [0x18373eef0]
+  1  ??? (CoreGraphics + 492900) [0x183772564]
+  1  ??? (CoreGraphics + 98636) [0x18371214c]
+  1  ??? (CoreGraphics + 307492) [0x183745124]
+  1  ??? (CoreGraphics + 281480) [0x18373eb88]
+  1  ??? (CoreGraphics + 165864) [0x1837227e8]
+  1  ??? (vImage + 8304) [0x1a82de070]
+  1  ??? (vImage + 10548) [0x1a82de934]
+  1  ??? (NewsFeed + 16894256) [0x1a3ee7930]
+ *1  ??? [0xfffffff007151594]
+ *1  ??? [0xfffffff0072a5c78]
+ *1  ??? [0xfffffff0072a66e4]
+ *1  ??? [0xfffffff007219ab8]
+ *1  ??? [0xfffffff0071ad4a4]
+
+
+Process:          MobileSafari [71773]
+UUID:             151E48F7-58CE-31F5-81A3-E32A399AA59F
+Path:             /Applications/MobileSafari.app/MobileSafari
+Identifier:       com.apple.mobilesafari
+Version:          15.6.6 (8613.7.1.0.15)
+Shared Cache:     870E05C6-817E-3CC0-A84F-768A252872B0 slid base address 0x181608000, slide 0x1608000
+Architecture:     arm64
+Footprint:        75.27 MB
+Pageins:          312 pages
+Time Since Fork:  305132s
+Num samples:      7 (1-7)
+CPU Time:         0.101s (181.6M cycles, 134.8M instructions, 1.35c/i)
+
+  Thread 0xeb8c5c    DispatchQueue "com.apple.main-thread"(1)    7 samples (1-7)    priority 47 (base 47)    cpu time 0.097s (174.9M cycles, 131.4M instructions, 1.33c/i)
+  7  ??? (<16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29> + 99536) [0x1026204d0]
+    7  ??? (MobileSafariUI + 104456) [0x1e5486808]
+      7  ??? (UIKitCore + 2617208) [0x183f22f78]
+        7  ??? (UIKitCore + 5134984) [0x184189a88]
+          7  ??? (GraphicsServices + 6536) [0x1a24a6988]
+            7  ??? (CoreFoundation + 123252) [0x181987174]
+              4  ??? (CoreFoundation + 44552) [0x181973e08]
+                4  ??? (CoreFoundation + 22324) [0x18196e734]
+                  4  ??? (CoreFoundation + 800120) [0x181a2c578]
+                    4  ??? (CoreFoundation + 734280) [0x181a1c448]
+                      4  ??? (UIKitCore + 1445644) [0x183e04f0c]
+                        4  ??? (UIKitCore + 1424112) [0x183dffaf0]
+                          4  ??? (UIKitCore + 1469484) [0x183e0ac2c]
+                            4  ??? (UIKitCore + 3353188) [0x183fd6a64]
+                              4  ??? (MobileSafariUI + 1614664) [0x1e55f7348]
+                                4  ??? (UIKitCore + 1645616) [0x183e35c30]
+                                  4  ??? (UIKitCore + 1593644) [0x183e2912c]
+                                    4  ??? (UIKitCore + 1388408) [0x183df6f78]
+                                      4  ??? (UIKitCore + 1672708) [0x183e3c604]
+                                        4  ??? (UIKitCore + 1446600) [0x183e052c8]
+                                          4  ??? (UIKitCore + 1663884) [0x183e3a38c]
+                                            4  ??? (UIKitCore + 1883852) [0x183e6fecc]
+                                              4  ??? (MobileSafari + 165708) [0x1e538f74c]
+                                                4  ??? (MobileSafari + 183044) [0x1e5393b04]
+                                                  4  ??? (MobileSafari + 625960) [0x1e53ffd28]
+                                                    4  ??? (MobileSafari + 235360) [0x1e53a0760]
+                                                      4  ??? (MobileSafari + 236252) [0x1e53a0adc]
+                                                        4  ??? (MobileSafari + 48528) [0x1e5372d90]
+                                                          4  ??? (UIKitCore + 2860060) [0x183f5e41c]
+                                                            4  ??? (UIKitCore + 4501628) [0x1840ef07c]
+                                                              4  ??? (UIKitCore + 1528012) [0x183e190cc]
+                                                                4  ??? (UIKitCore + 4437784) [0x1840df718]
+                                                                  4  ??? (MobileSafari + 627188) [0x1e54001f4]
+                                                                    3  ??? (MobileSafariUI + 284968) [0x1e54b2928]
+                                                                      2  ??? (MobileSafariUI + 657168) [0x1e550d710]
+                                                                        2  ??? (UIKitCore + 1454708) [0x183e07274]
+                                                                          2  ??? (MobileSafariUI + 657476) [0x1e550d844]
+                                                                            2  ??? (MobileSafariUI + 390556) [0x1e54cc59c]
+                                                                              1  ??? (MobileSafariUI + 153492) [0x1e5492794]
+                                                                                1  ??? (MobileSafariUI + 18968) [0x1e5471a18]
+                                                                                  1  ??? (MobileSafari + 25228) [0x1e536d28c]
+                                                                                    1  ??? (MobileSafari + 34496) [0x1e536f6c0]
+                                                                                      1  ??? (MobileSafari + 27884) [0x1e536dcec]
+                                                                                        1  ??? (SafariSharedUI + 8948) [0x1ac82c2f4]
+                                                                                          1  ??? (SafariSharedUI + 8732) [0x1ac82c21c]
+                                                                                            1  ??? (CoreGraphics + 321572) [0x183748824]
+                                                                                              1  ??? (CoreGraphics + 511752) [0x183776f08]
+                                                                                                1  ??? (CoreGraphics + 244904) [0x183735ca8]
+                                                                                                  1  ??? (CoreGraphics + 282352) [0x18373eef0]
+                                                                                                    1  ??? (CoreGraphics + 492900) [0x183772564]
+                                                                                                      1  ??? (CoreGraphics + 98636) [0x18371214c]
+                                                                                                        1  ??? (CoreGraphics + 307492) [0x183745124]
+                                                                                                          1  ??? (CoreGraphics + 281480) [0x18373eb88]
+                                                                                                            1  ??? (CoreGraphics + 165864) [0x1837227e8]
+                                                                                                              1  ??? (vImage + 8304) [0x1a82de070]
+                                                                                                                1  ??? (vImage + 10548) [0x1a82de934]
+                                                                                                                  1  ??? (NewsFeed + 16894256) [0x1a3ee7930]
+                                                                                                                   *1  ??? [0xfffffff007151594]
+                                                                                                                     *1  ??? [0xfffffff0072a5c78]
+                                                                                                                       *1  ??? [0xfffffff0072a66e4]
+                                                                                                                         *1  ??? [0xfffffff007219ab8]
+                                                                                                                           *1  ??? [0xfffffff0071ad4a4]
+                                                                              1  ??? (MobileSafariUI + 152812) [0x1e54924ec]
+                                                                                1  ??? (UIKitCore + 1547336) [0x183e1dc48]
+                                                                                  1  ??? (UIKitCore + 2455176) [0x183efb688]
+                                                                                    1  ??? (CoreAutoLayout + 31660) [0x1994f1bac]
+                                                                                      1  ??? (UIKitCore + 1882428) [0x183e6f93c]
+                                                                                        1  ??? (UIKitCore + 2747884) [0x183f42dec]
+                                                                                          1  ??? (UIKitCore + 2747884) [0x183f42dec]
+                                                                                            1  ??? (UIKitCore + 2747884) [0x183f42dec]
+                                                                                              1  ??? (UIKitCore + 2747884) [0x183f42dec]
+                                                                                                1  ??? (UIKitCore + 2747884) [0x183f42dec]
+                                                                                                  1  ??? (UIKitCore + 2748468) [0x183f43034]
+                                                                                                    1  ??? (MobileSafari + 644452) [0x1e5404564]
+                                                                                                      1  ??? (UIKitCore + 1854044) [0x183e68a5c]
+                                                                                                        1  ??? (UIKitCore + 1486252) [0x183e0edac]
+                                                                                                          1  ??? (MobileSafari + 644272) [0x1e54044b0]
+                                                                                                            1  ??? (UIKitCore + 13570296) [0x1849950f8]
+                                                                                                              1  ??? (UIKitCore + 2474400) [0x183f001a0]
+                                                                                                                1  ??? (UIKitCore + 10629728) [0x1846c7260]
+                                                                                                                  1  ??? (UIKitCore + 17390988) [0x184d39d8c]
+                                                                                                                    1  ??? (UIKitCore + 17390600) [0x184d39c08]
+                                                                                                                      1  ??? (UIKitCore + 5268520) [0x1841aa428]
+                                                                                                                        1  ??? (Foundation + 106508) [0x18309600c]
+                                                                                                                          1  ??? (CoreFoundation + 253756) [0x1819a6f3c]
+                                                                                                                            1  ??? (CoreFoundation + 131752) [0x1819892a8]
+                                                                                                                              1  ??? (CoreFoundation + 50016) [0x181975360] (running, on cpu 1)
+                                                                      1  ??? (MobileSafariUI + 657284) [0x1e550d784]
+                                                                        1  ??? (MobileSafariUI + 998504) [0x1e5560c68]
+                                                                          1  ??? (UIKitCore + 4894348) [0x18414ee8c]
+                                                                            1  ??? (UIKitCore + 2559848) [0x183f14f68]
+                                                                              1  ??? (UIKitCore + 1902960) [0x183e74970]
+                                                                                1  ??? (UIKitCore + 2499608) [0x183f06418]
+                                                                                  1  ??? (UIKitCore + 1879168) [0x183e6ec80]
+                                                                                    1  ??? (UIKitCore + 3099152) [0x183f98a10]
+                                                                                      1  ??? (UIKitCore + 3447716) [0x183fedba4]
+                                                                                        1  ??? (UIKitCore + 5921628) [0x184249b5c]
+                                                                                          1  ??? (UIKitCore + 5897508) [0x184243d24]
+                                                                                            1  ??? (UIKitCore + 3078504) [0x183f93968]
+                                                                                              1  ??? (UIKitCore + 3784580) [0x18403ff84]
+                                                                                                1  ??? (UIKitCore + 3385324) [0x183fde7ec]
+                                                                                                  1  ??? (UIKitCore + 3462096) [0x183ff13d0]
+                                                                                                    1  ??? (UIKitCore + 3240704) [0x183fbb300]
+                                                                                                      1  ??? (UIKitCore + 5340044) [0x1841bbb8c]
+                                                                                                        1  ??? (libMobileGestalt.dylib + 6604) [0x19267e9cc]
+                                                                                                          1  ??? (libMobileGestalt.dylib + 5832) [0x19267e6c8]
+                                                                                                            1  ??? (libMobileGestalt.dylib + 9700) [0x19267f5e4]
+                                                                                                              1  ??? (libMobileGestalt.dylib + 18868) [0x1926819b4]
+                                                                                                                1  ??? (libMobileGestalt.dylib + 9460) [0x19267f4f4]
+                                                                                                                  1  ??? (libsystem_kernel.dylib + 2588) [0x1bc2b9a1c]
+                                                                                                                   *1  ??? [0xfffffff007151594]
+                                                                                                                     *1  ??? [0xfffffff0072a5ff8]
+                                                                                                                       *1  ??? [0xfffffff00729d0a8]
+                                                                                                                         *1  ??? [0xfffffff00717415c]
+                                                                                                                           *1  ??? [0xfffffff00718ef54]
+                                                                                                                             *1  ??? [0xfffffff00726f76c]
+                                                                                                                               *1  ??? [0xfffffff007758ff4] (running, on cpu 1)
+                                                                    1  ??? (MobileSafari + 56912) [0x1e5374e50]
+                                                                      1  ??? (MobileSafariUI + 291960) [0x1e54b4478]
+                                                                        1  ??? (MobileSafariUI + 992088) [0x1e555f358]
+                                                                          1  ??? (UIKitCore + 2216008) [0x183ec1048]
+                                                                            1  ??? (UIKitCore + 5702612) [0x1842143d4]
+                                                                              1  ??? (UIKitCore + 5974888) [0x184256b68]
+                                                                                1  ??? (UIKitCore + 967892) [0x183d904d4]
+                                                                                  1  ??? (UIKitCore + 14476316) [0x184a7241c]
+                                                                                   *1  ??? [0xfffffff007151594]
+                                                                                     *1  ??? [0xfffffff0072a5c78]
+                                                                                       *1  ??? [0xfffffff0072a66e4]
+                                                                                         *1  ??? [0xfffffff00721a5ec]
+                                                                                           *1  ??? [0xfffffff00721df4c]
+                                                                                             *1  ??? [0xfffffff0071a6c80]
+                                                                                               *1  ??? [0xfffffff0071ad4a4]
+              3  ??? (CoreFoundation + 46328) [0x1819744f8]
+                3  ??? (CoreFoundation + 319508) [0x1819b7014]
+                  3  ??? (libdispatch.dylib + 67988) [0x181668994]
+                    3  ??? (libdispatch.dylib + 68752) [0x181668c90]
+                      3  ??? (libdispatch.dylib + 100572) [0x1816708dc]
+                        3  ??? (libdispatch.dylib + 27576) [0x18165ebb8]
+                          3  ??? (libdispatch.dylib + 409748) [0x1816bc094]
+                            3  ??? (UIKitCore + 15327852) [0x184b4226c]
+                              2  ??? (UIKitCore + 1224220) [0x183dcee1c]
+                                2  ??? (MobileSafariUI + 175140) [0x1e5497c24]
+                                  2  ??? (MobileSafariUI + 48952) [0x1e5478f38]
+                                    1  ??? (MobileSafariUI + 1302688) [0x1e55ab0a0]
+                                      1  ??? (MobileSafariUI + 1303504) [0x1e55ab3d0]
+                                        1  ??? (MobileSafariUI + 1306192) [0x1e55abe50]
+                                          1  ??? (CoreFoundation + 297416) [0x1819b19c8]
+                                            1  ??? (CoreFoundation + 53404) [0x18197609c]
+                                              1  ??? (MobileSafariUI + 1307080) [0x1e55ac1c8]
+                                                1  ??? (MobileSafariUI + 1392820) [0x1e55c10b4]
+                                                  1  ??? (WebKit + 3245060) [0x18fc8c404]
+                                                    1  ??? (WebKit + 3575536) [0x18fcdcef0]
+                                                      1  ??? (WebKit + 6476096) [0x18ffa1140]
+                                                        1  ??? (CoreFoundation + 67424) [0x181979760]
+                                                          1  ??? (CoreFoundation + 73796) [0x18197b044]
+                                                            1  ??? (CoreFoundation + 188648) [0x1819970e8]
+                                                              1  ??? (CoreFoundation + 188648) [0x1819970e8]
+                                                                1  ??? (CoreFoundation + 188748) [0x18199714c]
+                                                                  1  ??? (CoreFoundation + 188648) [0x1819970e8]
+                                                                    1  ??? (CoreFoundation + 188136) [0x181996ee8]
+                                                                      1  ??? (CoreFoundation + 451244) [0x1819d72ac] (running, on cpu 1)
+                                    1  ??? (WebBookmarks + 359388) [0x1991c3bdc]
+                                     *1  ??? [0xfffffff007151594]
+                                       *1  ??? [0xfffffff0072a5c78]
+                                         *1  ??? [0xfffffff0072a66e4]
+                                           *1  ??? [0xfffffff00721a5ec]
+                                             *1  ??? [0xfffffff00721df4c]
+                                               *1  ??? [0xfffffff0071a6c80]
+                                                 *1  ??? [0xfffffff0071ad4a4]
+                              1  ??? (UIKitCore + 1224276) [0x183dcee54]
+                                1  ??? (Foundation + 106508) [0x18309600c]
+                                  1  ??? (CoreFoundation + 253856) [0x1819a6fa0]
+                                    1  ??? (CoreFoundation + 605000) [0x1819fcb48]
+                                      1  ??? (CoreFoundation + 780336) [0x181a27830]
+                                        1  ??? (CoreFoundation + 168460) [0x18199220c]
+                                          1  ??? (UIKitCore + 16629276) [0x184c7fe1c]
+                                            1  ??? (UIKitCore + 768284) [0x183d5f91c]
+                                              1  ??? (UIKitCore + 768540) [0x183d5fa1c]
+                                                1  ??? (libobjc.A.dylib + 8416) [0x1992190e0]
+                                                  1  ??? (libobjc.A.dylib + 35392) [0x19921fa40]
+                                                   *1  ??? [0xfffffff007151594]
+                                                     *1  ??? [0xfffffff0072a5bb0]
+                                                       *1  ??? [0xfffffff0072a66e4]
+                                                         *1  ??? [0xfffffff00721a5ec]
+                                                           *1  ??? [0xfffffff00721df4c]
+                                                             *1  ??? [0xfffffff0071a6c80]
+                                                               *1  ??? [0xfffffff0071ad4a4]
+
+  Binary Images:
+           0x10258c000 -        0x10258ffff  com.apple.mobilesafari 15.6.6 (8613.7.1.0.15) <151E48F7-58CE-31F5-81A3-E32A399AA59F>  /Applications/MobileSafari.app/MobileSafari
+           0x102608000 -                ???  ???                                           <16C8EA1A-1C77-3F4F-97A6-6AE7FB25EB29>
+           0x181658000 -        0x1816dafff  libdispatch.dylib                             <9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD>  /usr/lib/system/libdispatch.dylib
+           0x181969000 -        0x181da6fff  CoreFoundation                                <EEC1287D-059B-38C8-9BC1-58A0C8B1E6C2>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x18307c000 -        0x183360fff  Foundation                                    <F9235FC7-EC4E-31C9-B56E-95CF10B07239>  /System/Library/Frameworks/Foundation.framework/Foundation
+           0x1836fa000 -        0x183ca3fff  CoreGraphics                                  <C99C6784-000C-3D9A-B7EF-AF28A0F1A28A>  /System/Library/Frameworks/CoreGraphics.framework/CoreGraphics
+           0x183ca4000 -        0x18543ffff  UIKitCore                                     <9D301877-2593-385C-8F72-F075AA0B48FA>  /System/Library/PrivateFrameworks/UIKitCore.framework/UIKitCore
+           0x18f974000 -        0x1903d0fff  WebKit                                        <0F89CC02-ABE2-3A0E-8726-78F98825D65E>  /System/Library/Frameworks/WebKit.framework/WebKit
+           0x19267d000 -        0x1926dcfff  libMobileGestalt.dylib                        <71F82BAC-04CB-35C9-937B-7AC9989A0101>  /usr/lib/libMobileGestalt.dylib
+           0x19916c000 -        0x199206fff  WebBookmarks                                  <2E8184DC-9917-3F5E-95A7-44FE983A6667>  /System/Library/PrivateFrameworks/WebBookmarks.framework/WebBookmarks
+           0x199217000 -        0x19924efff  libobjc.A.dylib                               <F1B36686-ED48-35EF-8896-0CEA8E9DA1C0>  /usr/lib/libobjc.A.dylib
+           0x1994ea000 -        0x199530fff  CoreAutoLayout                                <78CD6831-5E32-3AD8-870A-1794D99B7E96>  /System/Library/PrivateFrameworks/CoreAutoLayout.framework/CoreAutoLayout
+           0x1a24a5000 -        0x1a24adfff  GraphicsServices                              <BB434D86-0991-365F-BED3-C3923CF3073C>  /System/Library/PrivateFrameworks/GraphicsServices.framework/GraphicsServices
+           0x1a2ecb000 -        0x1a414bfff  NewsFeed                                      <D0B35E2D-B32D-3E28-9130-576B17E7A818>  /System/Library/PrivateFrameworks/NewsFeed.framework/NewsFeed
+           0x1a82dc000 -        0x1a85a6fff  vImage                                        <15C2D726-9C2C-36CD-B278-54661D7541FF>  /System/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/vImage
+           0x1ac82a000 -        0x1aca1cfff  SafariSharedUI                                <8824A3A7-B355-3C33-AF41-28201155492E>  /System/Library/PrivateFrameworks/SafariSharedUI.framework/SafariSharedUI
+           0x1bc2b9000 -        0x1bc2ecfff  libsystem_kernel.dylib                        <102E8613-6676-33F6-A0B4-F6E86A8636CE>  /usr/lib/system/libsystem_kernel.dylib
+           0x1e5367000 -        0x1e5464fff  MobileSafari                                  <F33E02EA-17AA-3461-AEF6-19B93E0EC34C>  /System/Library/PrivateFrameworks/MobileSafari.framework/MobileSafari
+           0x1e546d000 -        0x1e56fafff  MobileSafariUI                                <C764D3B8-ABEB-3936-A9D6-2F11EE5B5DB1>  /System/Library/PrivateFrameworks/MobileSafariUI.framework/MobileSafariUI
+
+
+Process:          com.apple.WebKit.WebContent [89935]
+Shared Cache:     870E05C6-817E-3CC0-A84F-768A252872B0 slid base address 0x181608000, slide 0x1608000
+Architecture:     arm64
+Footprint:        257.09 MB
+Pageins:          13 pages
+Num samples:      7 (1-7)
+CPU Time:         0.005s (9.3M cycles, 5.5M instructions, 1.67c/i)
+
+  Thread 0xf3e81b    DispatchQueue "org.webkit.ImageDecoder"(276)    7 samples (1-7)    priority 4-46 (base 4)    cpu time 0.002s (3.9M cycles, 2.5M instructions, 1.60c/i)
+  7  ??? (libsystem_pthread.dylib + 6444) [0x1dce2092c]
+    7  ??? (libsystem_pthread.dylib + 7680) [0x1dce20e00]
+      7  ??? (libdispatch.dylib + 85704) [0x18166cec8]
+        7  ??? (libdispatch.dylib + 45556) [0x1816631f4]
+          7  ??? (libdispatch.dylib + 42812) [0x18166273c]
+            7  ??? (libdispatch.dylib + 409748) [0x1816bc094]
+              7  ??? (JavaScriptCore + 662168) [0x18c239a98]
+                7  ??? (WebCore + 26182768) [0x191cc9470]
+                  7  ??? (WebCore + 26663184) [0x191d3e910]
+                    7  ??? (ImageIO + 54208) [0x18336e3c0]
+                      4  ??? (ImageIO + 136860) [0x18338269c]
+                        4  ??? (CoreFoundation + 79544) [0x18197c6b8]
+                          4  ??? (CoreGraphics + 29484) [0x18370132c]
+                            4  ??? (CoreFoundation + 79544) [0x18197c6b8]
+                              4  ??? (CoreGraphics + 69424) [0x18370af30]
+                                4  ??? (ImageIO + 17056) [0x1833652a0]
+                                  4  ??? (ImageIO + 83940) [0x1833757e4]
+                                    4  ??? (ImageIO + 17540) [0x183365484]
+                                      4  ??? (ImageIO + 86828) [0x18337632c]
+                                        4  ??? (ImageIO + 327408) [0x1833b0ef0]
+                                          4  ??? (ImageIO + 213456) [0x1833951d0]
+                                            4  ??? (AppleJPEG + 4008) [0x1c7561fa8]
+                                             *2  ??? [0xfffffff007180968]
+                                             *2  ??? [0xfffffff007151594]
+                                               *2  ??? [0xfffffff0072a5bb0]
+                                                 *2  ??? [0xfffffff0072a66e4]
+                                                   *2  ??? [0xfffffff00721a5ec]
+                                                     *2  ??? [0xfffffff00721e6d8]
+                                                       *2  ??? [0xfffffff00726b138]
+                                                         *1  ??? [0xfffffff00721e6d8]
+                                                           *1  ??? [0xfffffff00720a23c]
+                                                             *1  ??? [0xfffffff00762c7fc]
+                                                               *1  ??? [0xfffffff0067d8cbc]
+                                                                 *1  ??? [0xfffffff007310400]
+                                                                   *1  ??? [0xfffffff007310504]
+                                                                     *1  ??? [0xfffffff00730f708]
+                                                                       *1  ??? [0xfffffff007310124]
+                                                                         *1  ??? [0xfffffff0067db4dc]
+                                                                           *1  ??? [0xfffffff0067c5a90]
+                                                                             *1  ??? [0xfffffff0067c5ce0]
+                                                                               *1  ??? [0xfffffff00684a630]
+                                                                                 *1  ??? [0xfffffff006857e54]
+                                                                                   *1  ??? [0xfffffff00684ed40]
+                                                                                     *1  ??? [0xfffffff00684ee60]
+                                                                                       *1  ??? [0xfffffff006867ef0]
+                                                                                         *1  ??? [0xfffffff006868ac8]
+                                                                                           *1  ??? [0xfffffff00679640c]
+                                                                                             *1  ??? [0xfffffff00730a604]
+                                                                                               *1  ??? [0xfffffff0075ad4e0]
+                                                                                                 *1  ??? [0xfffffff00719b768]
+                                                                                                   *1  ??? [0xfffffff0071ad4a4]
+                                                         *1  ??? [0xfffffff00721df4c]
+                                                           *1  ??? [0xfffffff0071a6c80]
+                                                             *1  ??? [0xfffffff0071ad4a4]
+                      3  ??? (ImageIO + 136800) [0x183382660]
+                        3  ??? (ImageIO + 210816) [0x183394780]
+                          3  ??? (CoreGraphics + 101588) [0x183712cd4]
+                            3  ??? (CoreGraphics + 291944) [0x183741468]
+                              3  ??? (CoreGraphics + 162840) [0x183721c18]
+                                3  ??? (CoreGraphics + 364864) [0x183753140]
+                                  1  ??? (CoreGraphics + 56212) [0x183707b94]
+                                    1  ??? (CoreGraphics + 856876) [0x1837cb32c]
+                                      1  ??? (NewsFeed + 16894256) [0x1a3ee7930]
+                                       *1  ??? [0xfffffff007151594]
+                                         *1  ??? [0xfffffff0072a5c78]
+                                           *1  ??? [0xfffffff0072a66e4]
+                                             *1  ??? [0xfffffff00721a5ec]
+                                               *1  ??? [0xfffffff00721df4c]
+                                                 *1  ??? [0xfffffff0071a6c80]
+                                                   *1  ??? [0xfffffff0071ad4a4]
+                                  1  ??? (CoreGraphics + 56092) [0x183707b1c]
+                                   *1  ??? [0xfffffff007151594]
+                                     *1  ??? [0xfffffff0072a5bb0]
+                                       *1  ??? [0xfffffff0072a66b8]
+                                         *1  ??? [0xfffffff0072950ac]
+                                           *1  ??? [0xfffffff0072a4528]
+                                             *1  ??? [0xfffffff0072a4554]
+                                               *1  ??? [0xfffffff00718064c]
+                                                 *1  ??? [0xfffffff0071ad4a4]
+                                  1  ??? (CoreGraphics + 54796) [0x18370760c]
+                                    1  ??? (CoreFoundation + 80440) [0x18197ca38]
+                                      1  ??? (CoreGraphics + 18700) [0x1836fe90c]
+                                        1  ??? (CoreGraphics + 405368) [0x18375cf78]
+                                          1  ??? (CoreGraphics + 725492) [0x1837ab1f4]
+                                            1  ??? (CoreFoundation + 79544) [0x18197c6b8]
+                                              1  ??? (libCGInterfaces.dylib + 3620) [0x1836e2e24]
+                                                1  ??? (vImage + 2252976) [0x1a85020b0]
+                                                 *1  ??? [0xfffffff007180968]
+
+  Binary Images:
+           0x181658000 -        0x1816dafff  libdispatch.dylib       <9CCDBDE3-15E1-3A45-B330-4A5E2C3F92BD>  /usr/lib/system/libdispatch.dylib
+           0x181969000 -        0x181da6fff  CoreFoundation          <EEC1287D-059B-38C8-9BC1-58A0C8B1E6C2>  /System/Library/Frameworks/CoreFoundation.framework/CoreFoundation
+           0x183361000 -        0x1836e1fff  ImageIO                 <786D7A4C-4D39-38C5-BCD7-2E7AC08B623E>  /System/Library/Frameworks/ImageIO.framework/ImageIO
+           0x1836e2000 -        0x1836f9fff  libCGInterfaces.dylib   <A5249A24-66E0-3CC5-A1AC-5B3E465C55A1>  /System/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Libraries/libCGInterfaces.dylib
+           0x1836fa000 -        0x183ca3fff  CoreGraphics            <C99C6784-000C-3D9A-B7EF-AF28A0F1A28A>  /System/Library/Frameworks/CoreGraphics.framework/CoreGraphics
+           0x18c198000 -        0x18d520fff  JavaScriptCore          <E00ABA4F-5F03-3FCD-9566-9793AE6AD805>  /System/Library/Frameworks/JavaScriptCore.framework/JavaScriptCore
+           0x1903d1000 -        0x19267cfff  WebCore                 <D5120A7A-B9FC-38FE-8539-ADEB1B78814E>  /System/Library/PrivateFrameworks/WebCore.framework/WebCore
+           0x1a2ecb000 -        0x1a414bfff  NewsFeed                <D0B35E2D-B32D-3E28-9130-576B17E7A818>  /System/Library/PrivateFrameworks/NewsFeed.framework/NewsFeed
+           0x1a82dc000 -        0x1a85a6fff  vImage                  <15C2D726-9C2C-36CD-B278-54661D7541FF>  /System/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/vImage
+           0x1c7561000 -        0x1c75a5fff  AppleJPEG               <63C1E9B2-473B-3CD1-9EB5-FFB7C2C2B3E5>  /System/Library/PrivateFrameworks/AppleJPEG.framework/AppleJPEG
+           0x1dce1f000 -        0x1dce2ffff  libsystem_pthread.dylib <6679A5B3-A40A-37A7-B1C5-565A0F5CB6AB>  /usr/lib/system/libsystem_pthread.dylib
+
+{
+  "blockingThreadInfo" : {
+    "topBlockingProcess" : "com.apple.WebKit.WebContent",
+    "topBlockingThreadId" : "0xf3e81b",
+    "topBlockingPid" : 89935,
+    "topBlockingTimeMS" : 4.2229586568173545,
+    "otherBlockingThreads" : [
+
+    ]
+  },
+  "blockingThreadStatus" : "Search Found Blocking Thread",
+  "HangUUID" : "22A158BE-1098-4DCD-B56F-75A2DF6697C9",
+  "displayData" : {
+    "endState" : 1,
+    "displayOnPercent" : 1,
+    "startState" : 1,
+    "displayOnIntervals" : [
+      0,
+      361
+    ]
+  }
+}

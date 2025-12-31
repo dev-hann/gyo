@@ -1,0 +1,27 @@
+{
+  "name": "{{PROJECT_NAME}}",
+  "version": "1.0.0",
+  "serverUrl": "http://localhost:3000",
+  "platforms": {
+    "android": {
+      "enabled": true,
+      "packageName": "com.example.{{PROJECT_NAME_LOWER}}"
+    },
+    "ios": {
+      "enabled": true,
+      "bundleId": "com.example.{{PROJECT_NAME_LOWER}}"
+    },
+    "desktop": {
+      "enabled": false
+    }
+  },
+  "webview": {
+    "allowFileAccess": false,
+    "allowUniversalAccessFromFileURLs": false,
+    "userAgent": "gyo-webview/1.0"
+  },
+  "devServer": {
+    "port": 3000,
+    "host": "localhost"
+  }
+}

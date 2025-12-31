@@ -1,0 +1,16 @@
+{"timestamp":"2025-07-29 03:24:31.00 +0900","bug_type":"120","os_version":"iPhone OS 15.8.4 (19H390)","incident_id":"D8BDFA8A-C1EB-41D5-A857-1A273B01C3F2"}
+{"bug_type":"120","os_version":"iPhone OS 15.8.4 (19H390)"}
+Incident Identifier: 7DAD4412-5C52-407A-A5F4-5ECD64E43EBC
+CrashReporter Key:   3a8e7e8d91b0fbbcd0bf71b4b2f722583d6f2f50
+Date:                2025-07-29 03:24:30.687 +0900
+OS Version:          iPhone OS 15.8.4 (19H390)
+
+Screen Brightness: 0.000000
+Hardware Model: N69uAP
+Awake Time: 00:46:45 (2805)
+Standby Time: 216:11:53 (778313)
+Partial Charge: 0
+Capacity: 1
+Voltage: 3620 mV
+Voltage Droop Time: 2698072
+Voltage Droop Transitions: 77

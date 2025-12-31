@@ -1,0 +1,19 @@
+{"timestamp":"2025-01-21 05:59:52.00 +0900","bug_type":"120","os_version":"iPhone OS 15.8.3 (19H386)","incident_id":"CC3BB883-7CBB-4D78-A4E8-CB72638F0D49"}
+{"bug_type":"120","os_version":"iPhone OS 15.8.3 (19H386)"}
+Incident Identifier: 71FFF9B8-BC3E-499E-91E4-9D39E58C51AF
+CrashReporter Key:   3a8e7e8d91b0fbbcd0bf71b4b2f722583d6f2f50
+Date:                2025-01-21 05:59:51.917 +0900
+OS Version:          iPhone OS 15.8.3 (19H386)
+
+dasd: DASActivity:com.apple.CFNetwork-cc-54096-5410-Task <EA1DAC9E-28E0-42E2-9D04-56CF9BD41F20>.<23>	PreventUserIdleSystemSleep == 255, held for 00:00:19
+runningboardd: daemon<com.apple.amsengagementd>13430-52137-824991:com.apple.CFNetwork.StorageDB	SystemIsActive == 255, held for 00:00:02
+
+Screen Brightness: 0.000000
+Hardware Model: N69uAP
+Awake Time: 00:00:00 (0)
+Standby Time: 00:00:00 (0)
+Partial Charge: 0
+Capacity: 100
+Voltage: 4234 mV
+Voltage Droop Time: 126152112
+Voltage Droop Transitions: 7464

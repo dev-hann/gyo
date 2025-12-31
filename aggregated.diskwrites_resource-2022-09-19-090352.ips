@@ -1,0 +1,679 @@
+{"share_with_app_devs":0,"app_version":"","bug_type":"145","timestamp":"2022-09-19 09:03:52.00 +0800","os_version":"iPhone OS 15.7 (19H12)","slice_uuid":"741D926A-7DC4-37AE-AEA0-D90B23A17611","is_first_party":1,"build_version":"","incident_id":"CD1770CB-5062-45CA-B5FA-9A98CFB69CCD","app_name":"aggregated","name":"aggregated"}
+Date/Time:        2022-09-19 04:08:03.541 +0800
+End time:         2022-09-19 09:03:46.959 +0800
+OS Version:       iPhone OS 15.7 (Build 19H12)
+Architecture:     arm64
+Report Version:   35.1
+Incident Identifier: CD1770CB-5062-45CA-B5FA-9A98CFB69CCD
+
+Data Source:      Microstackshots
+Shared Cache:     B5B0C4DC-755F-3CE9-8378-E2D9B7084688 slid base address 0x180704000, slide 0x704000
+
+Command:          aggregated
+Path:             /System/Library/PrivateFrameworks/AggregateDictionary.framework/Support/aggregated
+Architecture:     arm64
+Parent:           launchd [1]
+PID:              5359
+
+Event:            disk writes
+Action taken:     none
+Writes:           1073.75 MB of file backed memory dirtied over 17743 seconds (60.52 KB per second average), exceeding limit of 12.43 KB per second over 86400 seconds
+Writes limit:     1073.74 MB
+Limit duration:   86400s
+Writes caused:    1073.75 MB
+Writes duration:  17743s
+Duration:         17743.42s
+Duration Sampled: 14386.39s
+Steps:            211 ( (10.49 MB/step))
+
+Hardware model:   iPhone8,4
+Active cpus:      2
+HW page size:     16384
+VM page size:     16384
+
+Advisory levels:  Battery -> 2, User -> 3, ThermalPressure -> 0, Combined -> 2
+Free disk space:  100.49 GB/119.19 GB, low space threshold 150 MB
+
+Heaviest stack for the target process:
+  3  ??? (libsystem_pthread.dylib + 6460) [0x1dbf0093c]
+  2  ??? (libsystem_pthread.dylib + 7696) [0x1dbf00e10]
+  2  ??? (libdispatch.dylib + 85704) [0x180768ec8]
+  1  ??? (libdispatch.dylib + 45604) [0x18075f224]
+  1  ??? (libdispatch.dylib + 42812) [0x18075e73c]
+  1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+  1  ??? (libdispatch.dylib + 405652) [0x1807b7094]
+  1  ??? (PowerlogCore + 53012) [0x1a8d50f14]
+  1  ??? (PowerlogCore + 72732) [0x1a8d55c1c]
+  1  ??? (PowerlogCore + 148280) [0x1a8d68338]
+  1  ??? (PowerlogCore + 17704) [0x1a8d48528]
+  1  ??? (PowerlogCore + 71648) [0x1a8d557e0]
+  1  ??? (libdispatch.dylib + 72036) [0x180765964]
+  1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+  1  ??? (PowerlogCore + 119296) [0x1a8d61200]
+  1  ??? (PowerlogCore + 13652) [0x1a8d47554]
+  1  ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+  1  ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+  1  ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+  1  ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+  1  ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+  1  ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+  1  ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+  1  ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+
+
+Powerstats for:   aggregated [5359]
+UUID:             741D926A-7DC4-37AE-AEA0-D90B23A17611
+Path:             /System/Library/PrivateFrameworks/AggregateDictionary.framework/Support/aggregated
+Architecture:     arm64
+Parent:           launchd [1]
+UID:              501
+Sudden Term:      Tracked
+Footprint:        6128 KB -> 8080 KB (+1952 KB)
+Pageins:          212 pages
+Start time:       2022-09-19 07:26:32.467 +0800
+End time:         2022-09-19 08:26:26.758 +0800
+Num samples:      3 (1%)
+Primary state:    2 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Background, Requested Thread QoS Background, Override Thread QoS Unspecified
+User Activity:    3 samples Idle, 0 samples Active
+Power Source:     2 samples on Battery, 1 samples on AC
+  3  ??? (libsystem_pthread.dylib + 6460) [0x1dbf0093c]
+    2  ??? (libsystem_pthread.dylib + 7696) [0x1dbf00e10]
+      2  ??? (libdispatch.dylib + 85704) [0x180768ec8]
+        1  ??? (libdispatch.dylib + 45604) [0x18075f224]
+          1  ??? (libdispatch.dylib + 42812) [0x18075e73c]
+            1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+              1  ??? (libdispatch.dylib + 405652) [0x1807b7094]
+                1  ??? (PowerlogCore + 53012) [0x1a8d50f14]
+                  1  ??? (PowerlogCore + 72732) [0x1a8d55c1c]
+                    1  ??? (PowerlogCore + 148280) [0x1a8d68338]
+                      1  ??? (PowerlogCore + 17704) [0x1a8d48528]
+                        1  ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                          1  ??? (libdispatch.dylib + 72036) [0x180765964]
+                            1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                              1  ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                1  ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                  1  ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                    1  ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                      1  ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                        1  ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                          1  ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                            1  ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                              1  ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                1  ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+        1  ??? (libdispatch.dylib + 45556) [0x18075f1f4]
+          1  ??? (libdispatch.dylib + 42512) [0x18075e610]
+            1  ??? (libdispatch.dylib + 118564) [0x180770f24]
+              1  ??? (libdispatch.dylib + 42512) [0x18075e610]
+                1  ??? (libdispatch.dylib + 115524) [0x180770344]
+                  1  ??? (libdispatch.dylib + 409928) [0x1807b8148]
+                    1  ??? (libxpc.dylib + 58828) [0x1dbf2c5cc]
+                      1  ??? (libxpc.dylib + 57832) [0x1dbf2c1e8]
+                        1  ??? (aggregated + 22684) [0x104f2989c]
+                          1  ??? (aggregated + 26032) [0x104f2a5b0]
+                            1  ??? (aggregated + 21244) [0x104f292fc]
+                              1  ??? (aggregated + 29668) [0x104f2b3e4]
+                                1  ??? (libsqlite3.dylib + 38972) [0x1a3f0e83c]
+                                  1  ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                    1  ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                      1  ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                        1  ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                          1  ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                            1  ??? (libsqlite3.dylib + 774384) [0x1a3fc20f0]
+                                              1  ??? (libsystem_platform.dylib + 7464) [0x1dbef3d28]
+    1  ??? (libsystem_pthread.dylib + 7636) [0x1dbf00dd4]
+      1  ??? (libdispatch.dylib + 82844) [0x18076839c]
+        1  ??? (libdispatch.dylib + 81084) [0x180767cbc]
+          1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+            1  ??? (libdispatch.dylib + 405652) [0x1807b7094]
+              1  ??? (PowerlogCore + 48880) [0x1a8d4fef0]
+                1  ??? (PowerlogCore + 332384) [0x1a8d95260]
+                  1  ??? (PowerlogCore + 387904) [0x1a8da2b40]
+                    1  ??? (PowerlogCore + 364248) [0x1a8d9ced8]
+                      1  ??? (PowerlogCore + 246236) [0x1a8d801dc]
+                        1  ??? (PowerlogCore + 53012) [0x1a8d50f14]
+                          1  ??? (PowerlogCore + 72732) [0x1a8d55c1c]
+                            1  ??? (PowerlogCore + 148280) [0x1a8d68338]
+                              1  ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                1  ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                  1  ??? (libdispatch.dylib + 72036) [0x180765964]
+                                    1  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                      1  ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                        1  ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                          1  ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                            1  ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                              1  ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                1  ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                  1  ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                    1  ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                      1  ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                        1  ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                          1  <Requested Thread QoS User Initiated>
+
+  Binary Images:
+           0x104f24000 -                ???  aggregated               <741D926A-7DC4-37AE-AEA0-D90B23A17611>  /System/Library/PrivateFrameworks/AggregateDictionary.framework/Support/aggregated
+           0x180754000 -        0x1807d6fff  libdispatch.dylib        <34EF3925-0303-30BF-9946-AD99311620DD>  /usr/lib/system/libdispatch.dylib
+           0x1a3f05000 -        0x1a4096fff  libsqlite3.dylib         <308C3AB5-238E-337F-9001-ADAE231D3DD3>  /usr/lib/libsqlite3.dylib
+           0x1a8d44000 -        0x1a8e72fff  PowerlogCore             <122006CD-7DF7-3A0A-AE2A-DD991EC96312>  /System/Library/PrivateFrameworks/PowerlogCore.framework/PowerlogCore
+           0x1bb3a4000 -        0x1bb3d7fff  libsystem_kernel.dylib   <51A45628-A8D3-36E6-8EF4-397E11B79637>  /usr/lib/system/libsystem_kernel.dylib
+           0x1dbef2000 -        0x1dbefdfff  libsystem_platform.dylib <EE143597-38ED-3BB7-A5E4-2D7B4243C068>  /usr/lib/system/libsystem_platform.dylib
+           0x1dbeff000 -        0x1dbf0ffff  libsystem_pthread.dylib  <9B3D0EE4-C9DA-33F6-B900-8413B0264128>  /usr/lib/system/libsystem_pthread.dylib
+           0x1dbf1e000 -        0x1dbf56fff  libxpc.dylib             <75ECF22D-0586-30B1-A77B-38F0E1CDDD2E>  /usr/lib/system/libxpc.dylib
+
+
+Powerstats for:   logd
+UUID:             3346CF70-966F-33DF-9C58-8B04B1EAB783
+Path:             /usr/libexec/logd
+Architecture:     arm64
+Start time:       2022-09-19 06:29:39.612 +0800
+End time:         2022-09-19 08:56:29.335 +0800
+Num samples:      120 (57%)
+Primary state:    89 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified
+User Activity:    120 samples Idle, 0 samples Active
+Power Source:     4 samples on Battery, 116 samples on AC
+  120  ??? (libsystem_pthread.dylib + 6460) [0x1dbf0093c]
+    120  ??? (libsystem_pthread.dylib + 7696) [0x1dbf00e10]
+      120  ??? (libdispatch.dylib + 85704) [0x180768ec8]
+        103  ??? (libdispatch.dylib + 45556) [0x18075f1f4]
+          103  ??? (libdispatch.dylib + 42812) [0x18075e73c]
+            103  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+              103  ??? (libdispatch.dylib + 70980) [0x180765544]
+                100  ??? (logd + 67868) [0x10054891c]
+                  100  ??? (logd + 66172) [0x10054827c]
+                    100  ??? (logd + 79124) [0x10054b514]
+                      100  ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                        11   <Requested Thread QoS Background>
+                        1    <Effective Thread QoS Background, Requested Thread QoS Background>
+                        1    <Effective Thread QoS User Initiated>
+                3    ??? (logd + 66172) [0x10054827c]
+                  3    ??? (logd + 79124) [0x10054b514]
+                    3    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                      2    <Requested Thread QoS Background>
+                      1    <Effective Thread QoS Background, Requested Thread QoS Background>
+        17   ??? (libdispatch.dylib + 45604) [0x18075f224]
+          12   ??? (libdispatch.dylib + 43024) [0x18075e810]
+            12   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+              12   ??? (libdispatch.dylib + 405652) [0x1807b7094]
+                11   ??? (logd + 26908) [0x10053e91c]
+                  11   ??? (logd + 74788) [0x10054a424]
+                    11   ??? (libdispatch.dylib + 72036) [0x180765964]
+                      11   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                        11   ??? (logd + 74956) [0x10054a4cc]
+                          11   ??? (libdispatch.dylib + 72036) [0x180765964]
+                            11   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                              7    ??? (logd + 75184) [0x10054a5b0]
+                                4    ??? (logd + 79124) [0x10054b514]
+                                  4    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                                    4    <Effective Thread QoS Background, Requested Thread QoS Background>
+                                3    ??? (logd + 79084) [0x10054b4ec]
+                                  3    ??? (libsystem_kernel.dylib + 8996) [0x1bb3a6324]
+                                    3    <Effective Thread QoS Background, Requested Thread QoS Background>
+                              4    ??? (logd + 75324) [0x10054a63c]
+                                4    ??? (logd + 79124) [0x10054b514]
+                                  4    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                                    3    <Effective Thread QoS Background, Requested Thread QoS Background>
+                                    1    <Requested Thread QoS Background>
+                1    ??? (logd + 66172) [0x10054827c]
+                  1    ??? (logd + 79124) [0x10054b514]
+                    1    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+          5    ??? (libdispatch.dylib + 42812) [0x18075e73c]
+            5    ??? (libdispatch.dylib + 409748) [0x1807b8094]
+              5    ??? (libdispatch.dylib + 70980) [0x180765544]
+                3    ??? (logd + 66172) [0x10054827c]
+                  3    ??? (logd + 79124) [0x10054b514]
+                    3    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                      3    <Effective Thread QoS User Initiated>
+                1    ??? (CacheDelete + 168952) [0x1ac23d3f8]
+                  1    ??? (logd + 102568) [0x1005510a8]
+                    1    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+                      1    <Effective Thread QoS Background, Requested Thread QoS Background>
+                1    ??? (logd + 67868) [0x10054891c]
+                  1    ??? (logd + 66172) [0x10054827c]
+                    1    ??? (logd + 79124) [0x10054b514]
+                      1    ??? (libsystem_kernel.dylib + 9320) [0x1bb3a6468]
+
+  Binary Images:
+           0x100538000 -                ???  logd                    <3346CF70-966F-33DF-9C58-8B04B1EAB783>  /usr/libexec/logd
+           0x180754000 -        0x1807d6fff  libdispatch.dylib       <34EF3925-0303-30BF-9946-AD99311620DD>  /usr/lib/system/libdispatch.dylib
+           0x1ac214000 -        0x1ac24dfff  CacheDelete             <07203CA9-D899-30E8-8458-22E6599DEEB7>  /System/Library/PrivateFrameworks/CacheDelete.framework/CacheDelete
+           0x1bb3a4000 -        0x1bb3d7fff  libsystem_kernel.dylib  <51A45628-A8D3-36E6-8EF4-397E11B79637>  /usr/lib/system/libsystem_kernel.dylib
+           0x1dbeff000 -        0x1dbf0ffff  libsystem_pthread.dylib <9B3D0EE4-C9DA-33F6-B900-8413B0264128>  /usr/lib/system/libsystem_pthread.dylib
+
+
+Powerstats for:   backupd
+UUID:             B38A8FC8-A204-35EB-AE80-7ED6E8E2B4DD
+Path:             /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+Architecture:     arm64
+Start time:       2022-09-19 07:06:44.612 +0800
+End time:         2022-09-19 07:07:50.991 +0800
+Num samples:      16 (8%)
+Primary state:    16 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Utility, Requested Thread QoS Utility, Override Thread QoS Unspecified
+User Activity:    16 samples Idle, 0 samples Active
+Power Source:     16 samples on Battery, 0 samples on AC
+  16  ??? (libsystem_pthread.dylib + 6460) [0x1dbf0093c]
+    16  ??? (libsystem_pthread.dylib + 7636) [0x1dbf00dd4]
+      16  ??? (libdispatch.dylib + 82844) [0x18076839c]
+        16  ??? (libdispatch.dylib + 81360) [0x180767dd0]
+          16  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+            16  ??? (libdispatch.dylib + 405652) [0x1807b7094]
+              16  ??? (backupd + 656084) [0x100bb82d4]
+                16  ??? (backupd + 371632) [0x100b72bb0]
+                  16  ??? (backupd + 286756) [0x100b5e024]
+                    15  ??? (backupd + 290780) [0x100b5efdc]
+                      8   ??? (backupd + 290744) [0x100b5efb8]
+                        8   ??? (backupd + 288880) [0x100b5e870]
+                          8   ??? (backupd + 398476) [0x100b7948c]
+                            8   ??? (backupd + 396244) [0x100b78bd4]
+                              8   ??? (backupd + 387368) [0x100b76928]
+                                8   ??? (backupd + 406320) [0x100b7b330]
+                                  8   ??? (backupd + 425108) [0x100b7fc94]
+                                    8   ??? (backupd + 408724) [0x100b7bc94]
+                                      8   ??? (backupd + 683568) [0x100bbee30]
+                                        8   ??? (backupd + 694004) [0x100bc16f4]
+                                          8   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                            8   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                              8   ??? (backupd + 683804) [0x100bbef1c]
+                                                4   ??? (libprequelite.dylib + 28540) [0x1db7c2f7c]
+                                                  4   ??? (libprequelite.dylib + 22144) [0x1db7c1680]
+                                                    4   ??? (libprequelite.dylib + 26416) [0x1db7c2730]
+                                                      4   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                                        4   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                                          3   ??? (libsqlite3.dylib + 278520) [0x1a3f48ff8]
+                                                            3   ??? (libsqlite3.dylib + 447016) [0x1a3f72228]
+                                                              3   ??? (libsqlite3.dylib + 660204) [0x1a3fa62ec]
+                                                                3   ??? (libsqlite3.dylib + 660636) [0x1a3fa649c]
+                                                                  3   ??? (libsqlite3.dylib + 531356) [0x1a3f86b9c]
+                                                                    3   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                      3   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                          1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                            1   ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                                              1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                                1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                                  1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                                    1   ??? (libsqlite3.dylib + 773064) [0x1a3fc1bc8]
+                                                                      1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                        1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                4   ??? (libprequelite.dylib + 28052) [0x1db7c2d94]
+                                                  2   ??? (backupd + 411876) [0x100b7c8e4]
+                                                    2   ??? (backupd + 702780) [0x100bc393c]
+                                                      2   ??? (backupd + 694260) [0x100bc17f4]
+                                                        2   ??? (backupd + 694032) [0x100bc1710]
+                                                          2   ??? (backupd + 694424) [0x100bc1898]
+                                                            2   ??? (libprequelite.dylib + 38016) [0x1db7c5480]
+                                                              2   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                                                2   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                                                  2   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                                    1   ??? (libsqlite3.dylib + 305380) [0x1a3f4f8e4]
+                                                                      1   ??? (libsqlite3.dylib + 426856) [0x1a3f6d368]
+                                                                        1   ??? (libsqlite3.dylib + 433888) [0x1a3f6eee0]
+                                                                          1   ??? (libsqlite3.dylib + 428232) [0x1a3f6d8c8]
+                                                                            1   ??? (libsqlite3.dylib + 771952) [0x1a3fc1770]
+                                                                              1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                                    1   ??? (libsqlite3.dylib + 298772) [0x1a3f4df14]
+                                                                      1   ??? (libsqlite3.dylib + 426856) [0x1a3f6d368]
+                                                                        1   ??? (libsqlite3.dylib + 430716) [0x1a3f6e27c]
+                                                                          1   ??? (libsqlite3.dylib + 822416) [0x1a3fcdc90]
+                                                                            1   ??? (libsqlite3.dylib + 777540) [0x1a3fc2d44]
+                                                                              1   ??? (libsqlite3.dylib + 770988) [0x1a3fc13ac]
+                                                                                1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                                                  1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                    1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                  2   ??? (backupd + 411764) [0x100b7c874]
+                                                    2   ??? (backupd + 706732) [0x100bc48ac]
+                                                      2   ??? (backupd + 694260) [0x100bc17f4]
+                                                        2   ??? (backupd + 694032) [0x100bc1710]
+                                                          2   ??? (backupd + 694424) [0x100bc1898]
+                                                            2   ??? (libprequelite.dylib + 38016) [0x1db7c5480]
+                                                              2   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                                                2   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                                                  2   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                                    2   ??? (libsqlite3.dylib + 299620) [0x1a3f4e264]
+                                                                      1   ??? (libsqlite3.dylib + 440600) [0x1a3f70918]
+                                                                        1   ??? (libsqlite3.dylib + 430716) [0x1a3f6e27c]
+                                                                          1   ??? (libsqlite3.dylib + 822416) [0x1a3fcdc90]
+                                                                            1   ??? (libsqlite3.dylib + 777540) [0x1a3fc2d44]
+                                                                              1   ??? (libsqlite3.dylib + 770988) [0x1a3fc13ac]
+                                                                                1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                                                  1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                    1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                                      1   ??? (libsqlite3.dylib + 440568) [0x1a3f708f8]
+                                                                        1   ??? (libsqlite3.dylib + 442676) [0x1a3f71134]
+                                                                          1   ??? (libsqlite3.dylib + 428232) [0x1a3f6d8c8]
+                                                                            1   ??? (libsqlite3.dylib + 771952) [0x1a3fc1770]
+                                                                              1   ??? (libsqlite3.dylib + 537720) [0x1a3f88478]
+                                                                                1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                  1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                      7   ??? (backupd + 290780) [0x100b5efdc]
+                        6   ??? (backupd + 290780) [0x100b5efdc]
+                          6   ??? (backupd + 290780) [0x100b5efdc]
+                            6   ??? (backupd + 290744) [0x100b5efb8]
+                              5   ??? (backupd + 288468) [0x100b5e6d4]
+                                5   ??? (backupd + 398476) [0x100b7948c]
+                                  5   ??? (backupd + 319028) [0x100b65e34]
+                                    5   ??? (backupd + 716796) [0x100bc6ffc]
+                                      5   ??? (backupd + 323768) [0x100b670b8]
+                                        5   ??? (backupd + 174840) [0x100b42af8]
+                                          5   ??? (backupd + 907700) [0x100bf59b4]
+                                            5   ??? (backupd + 760836) [0x100bd1c04]
+                                              5   ??? (backupd + 768536) [0x100bd3a18]
+                                                5   ??? (backupd + 765496) [0x100bd2e38]
+                                                  5   ??? (backupd + 1793748) [0x100ccded4]
+                                                    4   ??? (libsqlite3.dylib + 677944) [0x1a3faa838]
+                                                      4   ??? (libsqlite3.dylib + 38972) [0x1a3f0e83c]
+                                                        4   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                          4   ??? (libsqlite3.dylib + 284132) [0x1a3f4a5e4]
+                                                            2   ??? (libsqlite3.dylib + 819276) [0x1a3fcd04c]
+                                                              2   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                                2   ??? (libsqlite3.dylib + 445036) [0x1a3f71a6c]
+                                                                  2   ??? (libsqlite3.dylib + 484664) [0x1a3f7b538]
+                                                                    2   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                      2   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                            2   ??? (libsqlite3.dylib + 818820) [0x1a3fcce84]
+                                                              2   ??? (libsqlite3.dylib + 873020) [0x1a3fda23c]
+                                                                2   ??? (libsqlite3.dylib + 873220) [0x1a3fda304]
+                                                                  2   ??? (libsqlite3.dylib + 873176) [0x1a3fda2d8]
+                                                                    2   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                                      1   ??? (libsqlite3.dylib + 308048) [0x1a3f50350]
+                                                                        1   ??? (libsqlite3.dylib + 440600) [0x1a3f70918]
+                                                                          1   ??? (libsqlite3.dylib + 430088) [0x1a3f6e008]
+                                                                            1   ??? (libsqlite3.dylib + 471336) [0x1a3f78128]
+                                                                              1   ??? (libsqlite3.dylib + 777540) [0x1a3fc2d44]
+                                                                                1   ??? (libsqlite3.dylib + 771044) [0x1a3fc13e4]
+                                                                                  1   ??? (libsqlite3.dylib + 484664) [0x1a3f7b538]
+                                                                                    1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                      1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                                      1   ??? (libsqlite3.dylib + 299620) [0x1a3f4e264]
+                                                                        1   ??? (libsqlite3.dylib + 440600) [0x1a3f70918]
+                                                                          1   ??? (libsqlite3.dylib + 433680) [0x1a3f6ee10]
+                                                                            1   ??? (libsqlite3.dylib + 471336) [0x1a3f78128]
+                                                                              1   ??? (libsqlite3.dylib + 777540) [0x1a3fc2d44]
+                                                                                1   ??? (libsqlite3.dylib + 771044) [0x1a3fc13e4]
+                                                                                  1   ??? (libsqlite3.dylib + 484664) [0x1a3f7b538]
+                                                                                    1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                      1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                    1   ??? (libsqlite3.dylib + 678172) [0x1a3faa91c]
+                                                      1   ??? (libsqlite3.dylib + 38972) [0x1a3f0e83c]
+                                                        1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                          1   ??? (libsqlite3.dylib + 283768) [0x1a3f4a478]
+                                                            1   ??? (libsqlite3.dylib + 152680) [0x1a3f2a468]
+                                                              1   ??? (libsqlite3.dylib + 154504) [0x1a3f2ab88]
+                                                                1   ??? (libsqlite3.dylib + 161488) [0x1a3f2c6d0]
+                                                                  1   ??? (libsqlite3.dylib + 163596) [0x1a3f2cf0c]
+                                                                    1   ??? (libsqlite3.dylib + 775684) [0x1a3fc2604]
+                                                                      1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                              1   ??? (backupd + 289952) [0x100b5eca0]
+                                1   ??? (backupd + 684292) [0x100bbf104]
+                                  1   ??? (backupd + 694004) [0x100bc16f4]
+                                    1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                      1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                        1   ??? (libprequelite.dylib + 26416) [0x1db7c2730]
+                                          1   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                            1   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                              1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                1   ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                                  1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                    1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                      1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                        1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                          1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                            1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                        1   ??? (backupd + 290744) [0x100b5efb8]
+                          1   ??? (backupd + 288880) [0x100b5e870]
+                            1   ??? (backupd + 398476) [0x100b7948c]
+                              1   ??? (backupd + 309928) [0x100b63aa8]
+                                1   ??? (backupd + 715188) [0x100bc69b4]
+                                  1   ??? (backupd + 694260) [0x100bc17f4]
+                                    1   ??? (backupd + 694004) [0x100bc16f4]
+                                      1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                        1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                          1   ??? (backupd + 694424) [0x100bc1898]
+                                            1   ??? (libprequelite.dylib + 38072) [0x1db7c54b8]
+                                              1   ??? (libprequelite.dylib + 22144) [0x1db7c1680]
+                                                1   ??? (libprequelite.dylib + 26416) [0x1db7c2730]
+                                                  1   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                                    1   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                                      1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                        1   ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                                          1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                            1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                              1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                                1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                                  1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                    1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                    1   ??? (backupd + 290744) [0x100b5efb8]
+                      1   ??? (backupd + 288880) [0x100b5e870]
+                        1   ??? (backupd + 398476) [0x100b7948c]
+                          1   ??? (backupd + 294520) [0x100b5fe78]
+                            1   ??? (backupd + 397716) [0x100b79194]
+                              1   ??? (backupd + 666324) [0x100bbaad4]
+                                1   ??? (backupd + 673048) [0x100bbc518]
+                                  1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                    1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                      1   ??? (backupd + 673604) [0x100bbc744]
+                                        1   ??? (backupd + 680944) [0x100bbe3f0]
+                                          1   ??? (backupd + 687288) [0x100bbfcb8]
+                                            1   ??? (backupd + 685224) [0x100bbf4a8]
+                                              1   ??? (libprequelite.dylib + 33088) [0x1db7c4140]
+                                                1   ??? (libprequelite.dylib + 37800) [0x1db7c53a8]
+                                                  1   ??? (libprequelite.dylib + 37636) [0x1db7c5304]
+                                                    1   ??? (libprequelite.dylib + 37232) [0x1db7c5170]
+                                                      1   ??? (libsqlite3.dylib + 278520) [0x1a3f48ff8]
+                                                        1   ??? (libsqlite3.dylib + 447016) [0x1a3f72228]
+                                                          1   ??? (libsqlite3.dylib + 660204) [0x1a3fa62ec]
+                                                            1   ??? (libsqlite3.dylib + 660636) [0x1a3fa649c]
+                                                              1   ??? (libsqlite3.dylib + 531356) [0x1a3f86b9c]
+                                                                1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                  1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+
+  Binary Images:
+           0x100b18000 -                ???  backupd                 <B38A8FC8-A204-35EB-AE80-7ED6E8E2B4DD>  /System/Library/PrivateFrameworks/MobileBackup.framework/backupd
+           0x180754000 -        0x1807d6fff  libdispatch.dylib       <34EF3925-0303-30BF-9946-AD99311620DD>  /usr/lib/system/libdispatch.dylib
+           0x1a3f05000 -        0x1a4096fff  libsqlite3.dylib        <308C3AB5-238E-337F-9001-ADAE231D3DD3>  /usr/lib/libsqlite3.dylib
+           0x1bb3a4000 -        0x1bb3d7fff  libsystem_kernel.dylib  <51A45628-A8D3-36E6-8EF4-397E11B79637>  /usr/lib/system/libsystem_kernel.dylib
+           0x1db7bc000 -        0x1db7cffff  libprequelite.dylib     <01CD3EED-4947-3CB7-A073-1B09FD4E9903>  /usr/lib/libprequelite.dylib
+           0x1dbeff000 -        0x1dbf0ffff  libsystem_pthread.dylib <9B3D0EE4-C9DA-33F6-B900-8413B0264128>  /usr/lib/system/libsystem_pthread.dylib
+
+
+Powerstats for:   aggregated (other tasks)
+UUID:             741D926A-7DC4-37AE-AEA0-D90B23A17611
+Path:             /System/Library/PrivateFrameworks/AggregateDictionary.framework/Support/aggregated
+Architecture:     arm64
+Start time:       2022-09-19 07:02:10.400 +0800
+End time:         2022-09-19 07:04:45.190 +0800
+Num samples:      11 (5%)
+Primary state:    11 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Background, Requested Thread QoS Background, Override Thread QoS Unspecified
+User Activity:    11 samples Idle, 0 samples Active
+Power Source:     0 samples on Battery, 11 samples on AC
+  11  ??? (libsystem_pthread.dylib + 6460) [0x1dbf0093c]
+    11  ??? (libsystem_pthread.dylib + 7696) [0x1dbf00e10]
+      11  ??? (libdispatch.dylib + 85704) [0x180768ec8]
+        10  ??? (libdispatch.dylib + 45604) [0x18075f224]
+          10  ??? (libdispatch.dylib + 42812) [0x18075e73c]
+            10  ??? (libdispatch.dylib + 409748) [0x1807b8094]
+              10  ??? (libdispatch.dylib + 405652) [0x1807b7094]
+                10  ??? (PowerlogCore + 248368) [0x1a8d80a30]
+                  10  ??? (PowerlogCore + 383068) [0x1a8da185c]
+                    9   ??? (PowerlogCore + 229972) [0x1a8d7c254]
+                      8   ??? (PowerlogCore + 426572) [0x1a8dac24c]
+                        8   ??? (PowerlogCore + 293840) [0x1a8d8bbd0]
+                          3   ??? (PowerlogCore + 324476) [0x1a8d9337c]
+                            3   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                              3   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                3   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                  3   ??? (PowerlogCore + 312032) [0x1a8d902e0]
+                                    2   ??? (PowerlogCore + 348492) [0x1a8d9914c]
+                                      2   ??? (PowerlogCore + 285396) [0x1a8d89ad4]
+                                        2   ??? (PowerlogCore + 196020) [0x1a8d73db4]
+                                          2   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                            2   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                              2   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                                2   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                                  2   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                                    2   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                                      1   ??? (libsqlite3.dylib + 278520) [0x1a3f48ff8]
+                                                        1   ??? (libsqlite3.dylib + 447016) [0x1a3f72228]
+                                                          1   ??? (libsqlite3.dylib + 660204) [0x1a3fa62ec]
+                                                            1   ??? (libsqlite3.dylib + 660636) [0x1a3fa649c]
+                                                              1   ??? (libsqlite3.dylib + 531356) [0x1a3f86b9c]
+                                                                1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                  1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                                      1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                        1   ??? (libsqlite3.dylib + 336432) [0x1a3f57230]
+                                                          1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                            1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                              1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                                1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                                  1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                    1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                                    1   ??? (PowerlogCore + 347356) [0x1a8d98cdc]
+                                      1   ??? (PowerlogCore + 196020) [0x1a8d73db4]
+                                        1   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                          1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                            1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                              1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                                1   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                                  1   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                                    1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                      1   ??? (libsqlite3.dylib + 336432) [0x1a3f57230]
+                                                        1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                          1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                            1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                              1   ??? (libsqlite3.dylib + 773320) [0x1a3fc1cc8]
+                                                                1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                  1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                          2   ??? (PowerlogCore + 290296) [0x1a8d8adf8]
+                            2   ??? (PowerlogCore + 392476) [0x1a8da3d1c]
+                              2   ??? (libsqlite3.dylib + 668636) [0x1a3fa83dc]
+                                2   ??? (libsqlite3.dylib + 549716) [0x1a3f8b354]
+                                  2   ??? (libsystem_kernel.dylib + 40516) [0x1bb3ade44]
+                          1   ??? (PowerlogCore + 370312) [0x1a8d9e688]
+                            1   ??? (PowerlogCore + 393432) [0x1a8da40d8]
+                              1   ??? (PowerlogCore + 192576) [0x1a8d73040]
+                                1   ??? (libsystem_c.dylib + 62212) [0x18b1d3304]
+                                  1   ??? (libsystem_c.dylib + 38644) [0x18b1cd6f4]
+                                    1   ??? (libsystem_c.dylib + 37584) [0x18b1cd2d0]
+                                      1   ??? (libsystem_c.dylib + 33828) [0x18b1cc424]
+                                        1   ??? (libsystem_kernel.dylib + 10520) [0x1bb3a6918]
+                          1   ??? (PowerlogCore + 254268) [0x1a8d8213c]
+                            1   ??? (PowerlogCore + 321544) [0x1a8d92808]
+                              1   ??? (PowerlogCore + 148280) [0x1a8d68338]
+                                1   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                  1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                    1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                      1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                        1   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                          1   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                            1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                              1   ??? (libsqlite3.dylib + 336432) [0x1a3f57230]
+                                                1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                  1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                    1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                      1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                        1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                          1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                          1   ??? (PowerlogCore + 254220) [0x1a8d8210c]
+                            1   ??? (PowerlogCore + 347932) [0x1a8d98f1c]
+                              1   ??? (PowerlogCore + 196020) [0x1a8d73db4]
+                                1   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                  1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                    1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                      1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                        1   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                          1   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                            1   ??? (libsqlite3.dylib + 278520) [0x1a3f48ff8]
+                                              1   ??? (libsqlite3.dylib + 447016) [0x1a3f72228]
+                                                1   ??? (libsqlite3.dylib + 660204) [0x1a3fa62ec]
+                                                  1   ??? (libsqlite3.dylib + 660636) [0x1a3fa649c]
+                                                    1   ??? (libsqlite3.dylib + 531356) [0x1a3f86b9c]
+                                                      1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                        1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                      1   ??? (PowerlogCore + 427124) [0x1a8dac474]
+                        1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                          1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                            1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                              1   ??? (PowerlogCore + 695880) [0x1a8dede48]
+                                1   ??? (PowerlogCore + 321544) [0x1a8d92808]
+                                  1   ??? (PowerlogCore + 148280) [0x1a8d68338]
+                                    1   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                      1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                        1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                          1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                            1   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                              1   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                                1   ??? (libsqlite3.dylib + 278520) [0x1a3f48ff8]
+                                                  1   ??? (libsqlite3.dylib + 447016) [0x1a3f72228]
+                                                    1   ??? (libsqlite3.dylib + 660204) [0x1a3fa62ec]
+                                                      1   ??? (libsqlite3.dylib + 660636) [0x1a3fa649c]
+                                                        1   ??? (libsqlite3.dylib + 531356) [0x1a3f86b9c]
+                                                          1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                            1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+                    1   ??? (PowerlogCore + 230384) [0x1a8d7c3f0]
+                      1   ??? (PowerlogLiteOperators + 814076) [0x1b6557bfc]
+                        1   ??? (libdispatch.dylib + 34732) [0x18075c7ac]
+                          1   ??? (libdispatch.dylib + 74244) [0x180766204]
+                            1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                              1   ??? (PowerlogLiteOperators + 4183864) [0x1b688e738]
+                                1   ??? (PowerlogLiteOperators + 534300) [0x1b651371c]
+                                  1   ??? (PowerlogLiteOperators + 834588) [0x1b655cc1c]
+                                    1   ??? (CoreServices + 418764) [0x180f093cc]
+                                      1   ??? (CoreServices + 360972) [0x180efb20c]
+                                        1   ??? (CoreServices + 220332) [0x180ed8cac]
+                                          1   ??? (CoreServices + 158416) [0x180ec9ad0]
+                                            1   ??? (CoreServices + 264680) [0x180ee39e8]
+                                              1   ??? (CoreServicesStore + 8444) [0x1a56300fc]
+                                                1   ??? (CoreServicesStore + 7420) [0x1a562fcfc]
+                                                  1   ??? (CoreServicesStore + 7076) [0x1a562fba4]
+                                                    1   ??? (CoreServices + 148516) [0x180ec7424]
+                                                      1   ??? (CoreServices + 105932) [0x180ebcdcc]
+                                                        1   ??? (CoreServices + 157896) [0x180ec98c8]
+                                                          1   ??? (PowerlogLiteOperators + 4193532) [0x1b6890cfc]
+                                                            1   ??? (PowerlogLiteOperators + 294936) [0x1b64d9018]
+                                                              1   ??? (PowerlogCore + 43304) [0x1a8d4e928]
+                                                                1   ??? (PowerlogCore + 151824) [0x1a8d69110]
+                                                                  1   ??? (PowerlogCore + 145512) [0x1a8d67868]
+                                                                    1   ??? (PowerlogCore + 229500) [0x1a8d7c07c]
+                                                                      1   ??? (PowerlogCore + 53012) [0x1a8d50f14]
+                                                                        1   ??? (PowerlogCore + 72732) [0x1a8d55c1c]
+                                                                          1   ??? (PowerlogCore + 148280) [0x1a8d68338]
+                                                                            1   ??? (PowerlogCore + 17704) [0x1a8d48528]
+                                                                              1   ??? (PowerlogCore + 71648) [0x1a8d557e0]
+                                                                                1   ??? (libdispatch.dylib + 72036) [0x180765964]
+                                                                                  1   ??? (libdispatch.dylib + 409748) [0x1807b8094]
+                                                                                    1   ??? (PowerlogCore + 119296) [0x1a8d61200]
+                                                                                      1   ??? (PowerlogCore + 13652) [0x1a8d47554]
+                                                                                        1   ??? (libsqlite3.dylib + 276728) [0x1a3f488f8]
+                                                                                          1   ??? (libsqlite3.dylib + 336500) [0x1a3f57274]
+                                                                                            1   ??? (libsqlite3.dylib + 148248) [0x1a3f29318]
+                                                                                              1   ??? (libsqlite3.dylib + 361764) [0x1a3f5d524]
+                                                                                                1   ??? (libsqlite3.dylib + 444100) [0x1a3f716c4]
+                                                                                                  1   ??? (libsqlite3.dylib + 772928) [0x1a3fc1b40]
+                                                                                                    1   ??? (libsqlite3.dylib + 446028) [0x1a3f71e4c]
+                                                                                                      1   ??? (libsystem_kernel.dylib + 9708) [0x1bb3a65ec]
+        1   ??? (libdispatch.dylib + 45556) [0x18075f1f4]
+          1   ??? (libdispatch.dylib + 42512) [0x18075e610]
+            1   ??? (libdispatch.dylib + 118564) [0x180770f24]
+              1   ??? (libdispatch.dylib + 42512) [0x18075e610]
+                1   ??? (libdispatch.dylib + 115524) [0x180770344]
+                  1   ??? (libdispatch.dylib + 409928) [0x1807b8148]
+                    1   ??? (libxpc.dylib + 58828) [0x1dbf2c5cc]
+                      1   ??? (libxpc.dylib + 57832) [0x1dbf2c1e8]
+                        1   ??? (aggregated + 22684) [0x104d6189c]
+                          1   ??? (aggregated + 26032) [0x104d625b0]
+                            1   ??? (aggregated + 21124) [0x104d61284]
+                              1   ??? (libsystem_c.dylib + 87236) [0x18b1d94c4]
+                                1   ??? (libsystem_c.dylib + 37584) [0x18b1cd2d0]
+                                  1   ??? (libsystem_c.dylib + 33828) [0x18b1cc424]
+                                    1   ??? (libsystem_kernel.dylib + 10520) [0x1bb3a6918]
+
+  Binary Images:
+           0x104d5c000 -                ???  aggregated              <741D926A-7DC4-37AE-AEA0-D90B23A17611>  /System/Library/PrivateFrameworks/AggregateDictionary.framework/Support/aggregated
+           0x180754000 -        0x1807d6fff  libdispatch.dylib       <34EF3925-0303-30BF-9946-AD99311620DD>  /usr/lib/system/libdispatch.dylib
+           0x180ea3000 -        0x18106efff  CoreServices            <DC4FF7A4-D990-33E6-A63D-34BD36F33D12>  /System/Library/Frameworks/CoreServices.framework/CoreServices
+           0x18b1c4000 -        0x18b23ffff  libsystem_c.dylib       <C7732520-95CE-3E08-9C21-E160419AAE95>  /usr/lib/system/libsystem_c.dylib
+           0x1a3f05000 -        0x1a4096fff  libsqlite3.dylib        <308C3AB5-238E-337F-9001-ADAE231D3DD3>  /usr/lib/libsqlite3.dylib
+           0x1a562e000 -        0x1a5665fff  CoreServicesStore       <75C6403D-EA9E-3490-9EE9-82A47329C666>  /System/Library/PrivateFrameworks/CoreServicesStore.framework/CoreServicesStore
+           0x1a8d44000 -        0x1a8e72fff  PowerlogCore            <122006CD-7DF7-3A0A-AE2A-DD991EC96312>  /System/Library/PrivateFrameworks/PowerlogCore.framework/PowerlogCore
+           0x1b6491000 -        0x1b69f0fff  PowerlogLiteOperators   <8628C53A-6A7D-3140-917C-17D0B75527E9>  /System/Library/PrivateFrameworks/PowerlogLiteOperators.framework/PowerlogLiteOperators
+           0x1bb3a4000 -        0x1bb3d7fff  libsystem_kernel.dylib  <51A45628-A8D3-36E6-8EF4-397E11B79637>  /usr/lib/system/libsystem_kernel.dylib
+           0x1dbeff000 -        0x1dbf0ffff  libsystem_pthread.dylib <9B3D0EE4-C9DA-33F6-B900-8413B0264128>  /usr/lib/system/libsystem_pthread.dylib
+           0x1dbf1e000 -        0x1dbf56fff  libxpc.dylib            <75ECF22D-0586-30B1-A77B-38F0E1CDDD2E>  /usr/lib/system/libxpc.dylib

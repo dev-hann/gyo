@@ -1,0 +1,30 @@
+name: {{PROJECT_NAME}}
+
+options:
+  bundleIdPrefix: {{PACKAGE_NAME}}
+  deploymentTarget:
+    iOS: "13.0"
+
+settings:
+  PRODUCT_NAME: {{PROJECT_NAME}}
+  SWIFT_VERSION: 5.0
+
+targets:
+  {{PROJECT_NAME}}:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    resources:
+      - path: Resources
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: {{PACKAGE_NAME}}
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+    dependencies:
+      - framework: UIKit.framework
+      - framework: WebKit.framework
+      - framework: Foundation.framework

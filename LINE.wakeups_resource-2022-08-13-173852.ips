@@ -1,0 +1,155 @@
+{"app_name":"LINE","timestamp":"2022-08-13 17:38:52.00 +0800","app_version":"12.12.0","slice_uuid":"3B5EC845-0F9A-3528-A38A-3557CD044146","adam_id":443904275,"build_version":"2022.720.2056","bundleID":"jp.naver.line","share_with_app_devs":0,"is_first_party":0,"bug_type":"142","os_version":"iPhone OS 15.6 (19G71)","incident_id":"9F0CE3C9-ADEF-426A-A35B-FF683F9E534F","name":"LINE"}
+Date/Time:        2022-08-13 17:34:27.648 +0800
+End time:         2022-08-13 17:38:49.545 +0800
+OS Version:       iPhone OS 15.6 (Build 19G71)
+Architecture:     arm64
+Report Version:   35.1
+Incident Identifier: 9F0CE3C9-ADEF-426A-A35B-FF683F9E534F
+
+Data Source:      Microstackshots
+Shared Cache:     A2519441-E410-3ECF-85CF-4CE585957591 slid base address 0x1819c4000, slide 0x19c4000
+
+Command:          LINE
+Path:             /private/var/containers/Bundle/Application/D835BD16-7246-4642-AF27-E9C0975C0A59/LINE.app/LINE
+Identifier:       jp.naver.line
+Version:          12.12.0 (2022.720.2056)
+Adam ID:          443904275
+Is First Party:   No
+Beta Identifier:  1BE17AB5-CAC1-497D-A7DC-42CAE0FE921D
+Architecture:     arm64
+PID:              15024
+
+Event:            wakeups
+Action taken:     none
+Wakeups:          45001 wakeups over the last 262 seconds (172 wakeups per second average), exceeding limit of 150 wakeups per second over 300 seconds
+Wakeups limit:    45000
+Limit duration:   300s
+Wakeups caused:   45001
+Wakeups duration: 262s
+Duration:         261.90s
+Duration Sampled: 31.13s
+Steps:            14
+
+Hardware model:   iPhone8,4
+Active cpus:      2
+HW page size:     16384
+VM page size:     16384
+
+Advisory levels:  Battery -> 2, User -> 3, ThermalPressure -> 0, Combined -> 2
+Free disk space:  101.22 GB/119.19 GB, low space threshold 150 MB
+
+Heaviest stack for the target process:
+  8  ??? (libsystem_pthread.dylib + 6472) [0x1dd1b4948]
+  8  ??? (libsystem_pthread.dylib + 13128) [0x1dd1b6348]
+  8  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 332548) [0x10dcd9304]
+  3  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 327856) [0x10dcd80b0]
+  3  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 329236) [0x10dcd8614]
+  3  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2394688) [0x10ded0a40]
+  2  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3126044) [0x10df8331c]
+  2  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2420084) [0x10ded6d74]
+  2  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2431832) [0x10ded9b58]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2490544) [0x10dee80b0]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2584912) [0x10deff150]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3596968) [0x10dff62a8]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3541032) [0x10dfe8828]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3544264) [0x10dfe94c8]
+  1  ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3534540) [0x10dfe6ecc]
+
+
+Powerstats for:   LINE [15024]
+UUID:             3B5EC845-0F9A-3528-A38A-3557CD044146
+Path:             /private/var/containers/Bundle/Application/D835BD16-7246-4642-AF27-E9C0975C0A59/LINE.app/LINE
+Identifier:       jp.naver.line
+Version:          12.12.0 (2022.720.2056)
+Adam ID:          443904275
+Is First Party:   No
+Beta Identifier:  1BE17AB5-CAC1-497D-A7DC-42CAE0FE921D
+Architecture:     arm64
+Footprint:        112.48 MB
+Start time:       2022-08-13 17:38:18.122 +0800
+End time:         2022-08-13 17:38:49.253 +0800
+Num samples:      14 (100%)
+Primary state:    7 samples Non-Frontmost App, Non-Suppressed, Kernel mode, Effective Thread QoS Default, Requested Thread QoS Default, Override Thread QoS Unspecified
+User Activity:    14 samples Idle, 0 samples Active
+Power Source:     14 samples on Battery, 0 samples on AC
+  8   ??? (libsystem_pthread.dylib + 6472) [0x1dd1b4948]
+    8   ??? (libsystem_pthread.dylib + 13128) [0x1dd1b6348]
+      8   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 332548) [0x10dcd9304]
+        3   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 327856) [0x10dcd80b0]
+          3   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 329236) [0x10dcd8614]
+            3   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2394688) [0x10ded0a40]
+              2   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3126044) [0x10df8331c]
+                2   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2420084) [0x10ded6d74]
+                  2   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2431832) [0x10ded9b58]
+                    1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2490544) [0x10dee80b0]
+                      1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2584912) [0x10deff150]
+                        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3596968) [0x10dff62a8]
+                          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3541032) [0x10dfe8828]
+                            1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3544264) [0x10dfe94c8]
+                              1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3534540) [0x10dfe6ecc]
+                                1   <User mode>
+                    1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 785876) [0x10dd47dd4]
+                      1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1046816) [0x10dd87920]
+                        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1823944) [0x10de454c8]
+                          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1872964) [0x10de51444]
+                            1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1889968) [0x10de556b0]
+                              1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 332784) [0x10dcd93f0]
+                                1   ??? (libsystem_kernel.dylib + 39040) [0x1bc665880]
+                                  1   ??? (libsystem_kernel.dylib + 2732) [0x1bc65caac]
+              1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2419620) [0x10ded6ba4]
+                1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2420084) [0x10ded6d74]
+                  1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2431832) [0x10ded9b58]
+                    1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2717480) [0x10df1f728]
+                      1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1924172) [0x10de5dc4c]
+                        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1922712) [0x10de5d698]
+                          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 1925176) [0x10de5e038]
+                            1   <User mode>
+        2   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 328480) [0x10dcd8320]
+          2   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 238020) [0x10dcc21c4]
+            2   ??? (libsystem_kernel.dylib + 5252) [0x1bc65d484]
+              1   <Effective Thread QoS Unspecified, Requested Thread QoS Unspecified>
+        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 327908) [0x10dcd80e4]
+          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 332784) [0x10dcd93f0]
+            1   ??? (libsystem_kernel.dylib + 39040) [0x1bc665880]
+              1   ??? (libsystem_kernel.dylib + 2732) [0x1bc65caac]
+        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 327604) [0x10dcd7fb4]
+          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 320400) [0x10dcd6390]
+            1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2996604) [0x10df6397c]
+              1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3001400) [0x10df64c38]
+                1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 3005184) [0x10df65b00]
+                  1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2420084) [0x10ded6d74]
+                    1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2431832) [0x10ded9b58]
+                      1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2682700) [0x10df16f4c]
+                        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2314404) [0x10debd0a4]
+                          1   <User mode, Effective Thread QoS Unspecified, Requested Thread QoS Unspecified>
+        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 327460) [0x10dcd7f24]
+          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 332784) [0x10dcd93f0]
+            1   ??? (libsystem_kernel.dylib + 39112) [0x1bc6658c8]
+              1   <User mode>
+  3   ??? (libsystem_pthread.dylib + 6460) [0x1dd1b493c]
+    3   ??? (libsystem_pthread.dylib + 7696) [0x1dd1b4e10]
+      3   ??? (libdispatch.dylib + 85704) [0x181a28ec8]
+        2   ??? (libdispatch.dylib + 45496) [0x181a1f1b8]
+          2   ??? (libobjc.A.dylib + 10068) [0x1995c5754]
+            2   <User mode>
+        1   ??? (libdispatch.dylib + 45556) [0x181a1f1f4]
+          1   ??? (libdispatch.dylib + 42812) [0x181a1e73c]
+            1   ??? (libdispatch.dylib + 409748) [0x181a78094]
+              1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2394688) [0x10ded0a40]
+                1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2305472) [0x10debadc0]
+                  1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2295232) [0x10deb85c0]
+                    1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2307992) [0x10debb798]
+                      1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 2340096) [0x10dec3500]
+                        1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 264484) [0x10dcc8924]
+                          1   ??? (<1A517B1B-3078-3CB8-ACF9-25BE0A039605> + 264124) [0x10dcc87bc]
+                            1   ??? (libdispatch.dylib + 137936) [0x181a35ad0]
+                              1   ??? (libsystem_kernel.dylib + 4404) [0x1bc65d134]
+  3   ??? (libsystem_pthread.dylib + 6452) [0x1dd1b4934]
+
+  Binary Images:
+           0x102df8000 -                ???  jp.naver.line 12.12.0 (2022.720.2056) <3B5EC845-0F9A-3528-A38A-3557CD044146>  /private/var/containers/Bundle/Application/D835BD16-7246-4642-AF27-E9C0975C0A59/LINE.app/LINE
+           0x10dc88000 -                ???  ???                                   <1A517B1B-3078-3CB8-ACF9-25BE0A039605>
+           0x181a14000 -        0x181a96fff  libdispatch.dylib                     <4FC02901-034E-35CF-8CF2-5B7F81D579E4>  /usr/lib/system/libdispatch.dylib
+           0x1995c3000 -        0x1995fafff  libobjc.A.dylib                       <F1AA3628-4DEA-3929-B55E-57832FB65CAB>  /usr/lib/libobjc.A.dylib
+           0x1bc65c000 -        0x1bc68ffff  libsystem_kernel.dylib                <7D639422-FEB9-35A9-AB63-A4BC6E8C7D13>  /usr/lib/system/libsystem_kernel.dylib
+           0x1dd1b3000 -        0x1dd1c3fff  libsystem_pthread.dylib               <363CC4A2-EE89-3116-B5E7-DF36982AAE18>  /usr/lib/system/libsystem_pthread.dylib
