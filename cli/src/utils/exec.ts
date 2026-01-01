@@ -14,8 +14,6 @@ export function executeCommand(
   options: SpawnOptions = {}
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
-    logger.debug(`Executing: ${command} ${args.join(' ')}`);
-    
     const proc = spawn(command, args, {
       ...options,
       shell: true

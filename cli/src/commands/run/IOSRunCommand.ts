@@ -98,12 +98,6 @@ export class IOSRunCommand extends AbstractRunCommand {
       fullBundleId = await this.findBundleIdFromSyslog(bundleId);
     }
 
-    if (fullBundleId !== bundleId) {
-      logger.info(`Found full bundle ID: ${fullBundleId}`);
-    } else {
-      logger.info(`Using bundle ID: ${bundleId}`);
-    }
-
     this.spinner.succeed('App installed on iOS device!');
 
     return fullBundleId;
@@ -121,6 +115,21 @@ export class IOSRunCommand extends AbstractRunCommand {
       let found = false;
       const safeBundleId = bundleId || '';
 
+      const cleanup = () => {
+        if (syslogCapture && !syslogCapture.killed) {
+          try {
+            syslogCapture.kill('SIGTERM');
+            setTimeout(() => {
+              if (syslogCapture && !syslogCapture.killed) {
+                syslogCapture.kill('SIGKILL');
+              }
+            }, 1000);
+          } catch (error) {
+            // Ignore cleanup errors
+          }
+        }
+      };
+
       syslogCapture.stdout?.on('data', (data: Buffer) => {
         const output = data.toString();
         const patterns = [
@@ -133,7 +142,7 @@ export class IOSRunCommand extends AbstractRunCommand {
           if (match && !found) {
             found = true;
             clearTimeout(timeout);
-            syslogCapture.kill();
+            cleanup();
             resolve(match[1]);
             return;
           }
@@ -142,7 +151,7 @@ export class IOSRunCommand extends AbstractRunCommand {
 
       timeout = setTimeout(() => {
         if (!found) {
-          syslogCapture.kill();
+          cleanup();
           resolve(safeBundleId);
         }
       }, 2000);
@@ -156,17 +165,17 @@ export class IOSRunCommand extends AbstractRunCommand {
     logger.info('📱 Please tap the app icon on your device to launch it.');
     logger.log('');
     logger.success(`App is connected to: ${serverUrl}`);
-    logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
   }
 
   private async monitorLogs(bundleId: string): Promise<void> {
     if (await this.checkCommandExists('idevicesyslog')) {
-      const syslog = spawn('idevicesyslog', ['-m', bundleId], {
-        stdio: ['ignore', 'pipe', 'pipe']
+      this.platformProcess = spawn('idevicesyslog', ['-m', bundleId], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: true
       });
 
-      syslog.stdout?.on('data', (data: Buffer) => {
+      this.platformProcess.stdout?.on('data', (data: Buffer) => {
         const lines = data.toString().split('\n');
         for (const line of lines) {
           if (line.trim()) {
@@ -175,7 +184,14 @@ export class IOSRunCommand extends AbstractRunCommand {
         }
       });
 
-      syslog.stderr?.on('data', (data: Buffer) => {
+      this.platformProcess.stderr?.on('data', (data: Buffer) => {
+        // Ignore stderr for syslog
+      });
+
+      this.platformProcess.on('exit', (code) => {
+        if (!this.isCleaningUp && code !== 0) {
+          logger.warn('Log monitoring stopped');
+        }
       });
     } else {
       logger.warn('idevicesyslog not found. Install libimobiledevice for log monitoring.');

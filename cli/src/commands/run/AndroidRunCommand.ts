@@ -155,7 +155,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
   private showSuccessMessage(serverUrl: string): void {
     logger.log('');
     logger.success(`App is connected to: ${serverUrl}`);
-    logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
   }
 
@@ -165,11 +164,11 @@ export class AndroidRunCommand extends AbstractRunCommand {
       logcatArgs.unshift('-s', selectedDevice);
     }
 
-    const logcat = spawn('adb', logcatArgs, {
+    this.platformProcess = spawn('adb', logcatArgs, {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    logcat.stdout?.on('data', (data: Buffer) => {
+    this.platformProcess.stdout?.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n');
       for (const line of lines) {
         if (line.trim() && line.includes('WebView-Console')) {
@@ -183,7 +182,14 @@ export class AndroidRunCommand extends AbstractRunCommand {
       }
     });
 
-    logcat.stderr?.on('data', (data: Buffer) => {
+    this.platformProcess.stderr?.on('data', (data: Buffer) => {
+      // Ignore stderr for logcat
+    });
+
+    this.platformProcess.on('exit', (code) => {
+      if (!this.isCleaningUp && code !== 0) {
+        logger.warn('Log monitoring stopped');
+      }
     });
 
     await new Promise(() => {});

@@ -8,7 +8,9 @@ import { saveConfig } from '../../utils/config';
 
 export abstract class AbstractRunCommand extends AbstractPlatformCommand {
   protected webServerProcess: ChildProcess | null = null;
+  protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = '';
+  protected isCleaningUp: boolean = false;
 
   constructor(platform: Platform, options: CommandOptions = {}) {
     super(platform, options);
@@ -102,13 +104,101 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
       cwd: webPath,
       stdio: 'pipe',
       shell: true,
-      detached: false
+      detached: true
     });
 
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for server to be ready by monitoring output
+    const serverUrl = await this.waitForServerReady(port);
+    return serverUrl;
+  }
 
-    const ip = await this.getLocalIP();
-    return `http://${ip}:${port}`;
+  /**
+   * Waits for the development server to be ready by monitoring its output.
+   * Supports multiple frameworks (Vite, Next.js, etc.)
+   */
+  protected async waitForServerReady(expectedPort: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Web server failed to start within 30 seconds'));
+      }, 30000);
+
+      let serverReady = false;
+
+      // Listen to stdout for server ready messages
+      this.webServerProcess?.stdout?.on('data', (data: Buffer) => {
+        const output = data.toString();
+
+        if (serverReady) return;
+
+        // Check for various framework ready messages and extract URL
+        let detectedUrl: string | null = null;
+
+        // Next.js patterns: "- Local:   http://localhost:3000" or "ready - started server on"
+        const nextLocalMatch = output.match(/(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i);
+        if (nextLocalMatch) {
+          detectedUrl = `http://localhost:${nextLocalMatch[1]}`;
+        }
+
+        // Vite patterns: "Local:   http://localhost:5173/"
+        const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
+        if (viteMatch) {
+          detectedUrl = viteMatch[1];
+        }
+
+        // Generic pattern: "http://localhost:PORT" or "http://0.0.0.0:PORT"
+        if (!detectedUrl) {
+          const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
+          if (genericMatch) {
+            detectedUrl = `http://localhost:${genericMatch[1]}`;
+          }
+        }
+
+        // If we found a URL, get the local IP and resolve
+        if (detectedUrl) {
+          serverReady = true;
+          clearTimeout(timeout);
+
+          // Extract port from detected URL
+          const urlObj = new URL(detectedUrl);
+          const port = parseInt(urlObj.port || '3000', 10);
+
+          // Get local IP for mobile devices
+          this.getLocalIP().then(ip => {
+            resolve(`http://${ip}:${port}`);
+          });
+        }
+      });
+
+      // Listen to stderr as well (some frameworks output to stderr)
+      this.webServerProcess?.stderr?.on('data', (data: Buffer) => {
+        const output = data.toString();
+
+        // Some frameworks might output ready message to stderr
+        if (!serverReady && output.match(/ready|listening|started/i)) {
+          // Fallback: use expected port
+          serverReady = true;
+          clearTimeout(timeout);
+          
+          this.getLocalIP().then(ip => {
+            resolve(`http://${ip}:${expectedPort}`);
+          });
+        }
+      });
+
+      // Handle process errors
+      this.webServerProcess?.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to start web server: ${error.message}`));
+      });
+
+      // Handle process exit
+      this.webServerProcess?.on('exit', (code) => {
+        if (!serverReady) {
+          clearTimeout(timeout);
+          reject(new Error(`Web server exited with code ${code}`));
+        }
+      });
+    });
   }
 
   protected async getLocalIP(): Promise<string> {
@@ -128,13 +218,116 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
   }
 
   protected setupSignalHandlers(): void {
-    process.on('SIGINT', () => {
-      logger.info('\nStopping web server...');
-      if (this.webServerProcess) {
-        this.webServerProcess.kill();
+    const cleanup = () => {
+      if (this.isCleaningUp) {
+        return;
       }
+      this.isCleaningUp = true;
+      
+      // Use synchronous cleanup for signal handlers
+      this.cleanupSync();
+      
       process.exit(0);
+    };
+
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+    process.on('exit', () => {
+      if (!this.isCleaningUp) {
+        this.cleanupSync();
+      }
     });
+  }
+
+  /**
+   * Async cleanup method for graceful shutdown
+   */
+  protected async cleanup(): Promise<void> {
+    const promises: Promise<void>[] = [];
+
+    // Kill web server process
+    if (this.webServerProcess && !this.webServerProcess.killed) {
+      promises.push(new Promise<void>((resolve) => {
+        this.webServerProcess!.once('exit', () => resolve());
+        this.webServerProcess!.kill('SIGTERM');
+        
+        // Force kill after 2 seconds
+        setTimeout(() => {
+          if (this.webServerProcess && !this.webServerProcess.killed) {
+            this.webServerProcess.kill('SIGKILL');
+          }
+          resolve();
+        }, 2000);
+      }));
+    }
+
+    // Kill platform-specific process
+    if (this.platformProcess && !this.platformProcess.killed) {
+      promises.push(new Promise<void>((resolve) => {
+        this.platformProcess!.once('exit', () => resolve());
+        this.platformProcess!.kill('SIGTERM');
+        
+        // Force kill after 2 seconds
+        setTimeout(() => {
+          if (this.platformProcess && !this.platformProcess.killed) {
+            this.platformProcess.kill('SIGKILL');
+          }
+          resolve();
+        }, 2000);
+      }));
+    }
+
+    // Wait for all processes to exit
+    await Promise.all(promises);
+  }
+
+  /**
+   * Synchronous cleanup for exit handler
+   */
+  protected cleanupSync(): void {
+    if (this.webServerProcess && !this.webServerProcess.killed) {
+      try {
+        // Kill process group for processes spawned with shell
+        const pid = this.webServerProcess.pid;
+        if (pid) {
+          try {
+            // Try to kill entire process group
+            process.kill(-pid, 'SIGTERM');
+          } catch (e) {
+            // If process group kill fails, kill just the process
+            this.webServerProcess.kill('SIGTERM');
+          }
+          
+          // Force kill after a short delay
+          setTimeout(() => {
+            try {
+              if (pid) {
+                process.kill(-pid, 'SIGKILL');
+              }
+            } catch (e) {
+              // Ignore
+            }
+          }, 100);
+        }
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
+
+    if (this.platformProcess && !this.platformProcess.killed) {
+      try {
+        const pid = this.platformProcess.pid;
+        if (pid) {
+          try {
+            process.kill(-pid, 'SIGTERM');
+          } catch (e) {
+            this.platformProcess.kill('SIGTERM');
+          }
+        }
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
   }
 
   protected async checkCommandExists(command: string): Promise<boolean> {
@@ -143,16 +336,14 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
 
   protected abstract runPlatform(serverUrl: string): Promise<void>;
 
-  protected handleError(error: unknown): void {
+  protected async handleError(error: unknown): Promise<void> {
     this.spinner.fail('Run failed');
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
     }
 
-    if (this.webServerProcess) {
-      this.webServerProcess.kill();
-    }
+    await this.cleanup();
 
     process.exit(1);
   }
