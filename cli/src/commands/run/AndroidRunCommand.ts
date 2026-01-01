@@ -31,60 +31,27 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
   private async updateServerUrl(androidPath: string, serverUrl: string): Promise<void> {
     this.spinner.text = `Updating server URL to ${serverUrl}...`;
-    const mainActivityPath = path.join(androidPath, 'app/src/main/java/com/example');
-
+    
+    // Update assets/gyo-config.json
+    const assetsPath = path.join(androidPath, 'app/src/main/assets');
+    const configPath = path.join(assetsPath, 'gyo-config.json');
+    
     const fs = require('fs-extra');
-    const findMainActivity = async (dir: string): Promise<string | null> => {
-      const files = await fs.readdir(dir);
-      for (const file of files) {
-        const filePath = path.join(dir, file);
-        const stat = await fs.stat(filePath);
-        if (stat.isDirectory()) {
-          const result = await findMainActivity(filePath);
-          if (result) return result;
-        } else if (file === 'MainActivity.kt') {
-          return filePath;
-        }
-      }
-      return null;
+    
+    // Ensure assets directory exists
+    await fs.ensureDir(assetsPath);
+    
+    // Create or update gyo-config.json
+    const config = {
+      serverUrl: serverUrl
     };
-
-    const mainActivityFile = await findMainActivity(mainActivityPath);
-    if (mainActivityFile) {
-      let content = await readFile(mainActivityFile);
-      content = content.replace(
-        /serverUrl = "http:\/\/[^"]+"/,
-        `serverUrl = "${serverUrl}"`
-      );
-      await writeFile(mainActivityFile, content);
-    }
+    
+    await fs.writeJson(configPath, config, { spaces: 2 });
   }
 
   private async getConnectedDevice(): Promise<string> {
-    this.spinner.text = 'Checking for connected devices...';
-    const devicesResult = await executeCommand('adb', ['devices'], { stdio: 'pipe' });
-
-    if (!devicesResult.success || !devicesResult.stdout.includes('device')) {
-      this.spinner.fail('No Android devices found');
-      logger.error('Connect a device or start an emulator');
-      process.exit(1);
-    }
-
-    let selectedDevice = this.options.device;
-    if (!selectedDevice) {
-      const deviceLines = devicesResult.stdout.split('\n').filter(line => line.includes('\tdevice'));
-      if (deviceLines.length > 0) {
-        selectedDevice = deviceLines[0].split('\t')[0];
-      }
-    }
-
-    if (!selectedDevice) {
-      this.spinner.fail('No Android devices found');
-      logger.error('Connect a device or start an emulator');
-      process.exit(1);
-    }
-
-    return selectedDevice;
+    // Device is already selected in run.ts
+    return this.options.device;
   }
 
   private async buildApp(androidPath: string): Promise<void> {
@@ -108,11 +75,12 @@ export class AndroidRunCommand extends AbstractRunCommand {
     this.spinner.text = 'Installing app on device...';
     const installResult = await executeCommand(gradlew, ['installDebug'], {
       cwd: androidPath,
-      stdio: 'inherit'
+      stdio: 'pipe'
     });
 
     if (!installResult.success) {
       this.spinner.fail('Failed to install app');
+      logger.error(installResult.stderr || installResult.stdout);
       process.exit(1);
     }
   }

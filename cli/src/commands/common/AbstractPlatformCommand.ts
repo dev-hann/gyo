@@ -1,25 +1,31 @@
-import ora from 'ora';
-import * as path from 'path';
-import { loadConfig, GyoConfig } from '../../utils/config';
-import { logger } from '../../utils/logger';
-import { pathExists } from '../../utils/fs';
+import ora from "ora";
+import * as path from "path";
+import { loadConfig, GyoConfig } from "../../utils/config";
+import { logger } from "../../utils/logger";
+import { pathExists } from "../../utils/fs";
 
-export type Platform = 'android' | 'ios';
+export type Platform = "android" | "ios";
 
-export interface CommandOptions {
-  profile?: string;
-  device?: string;
-  release?: boolean;
+export interface BaseCommandOptions {
+  profile: string;
 }
 
-export abstract class AbstractPlatformCommand {
+export interface BuildCommandOptions extends BaseCommandOptions {
+  release: boolean;
+}
+
+export interface RunCommandOptions extends BaseCommandOptions {
+  device: string;
+}
+
+export abstract class AbstractPlatformCommand<T extends BaseCommandOptions = BaseCommandOptions> {
   protected platform: Platform;
-  protected options: CommandOptions;
+  protected options: T;
   protected spinner: ora.Ora;
   protected config: GyoConfig | null;
   protected projectPath: string;
 
-  constructor(platform: Platform, options: CommandOptions = {}) {
+  constructor(platform: Platform, options: T) {
     this.platform = platform;
     this.options = options;
     this.spinner = ora();
@@ -42,7 +48,7 @@ export abstract class AbstractPlatformCommand {
     const validPlatforms = this.getValidPlatforms();
     if (!validPlatforms.includes(this.platform)) {
       this.spinner.fail(`Invalid platform: ${this.platform}`);
-      logger.error(`Valid platforms are: ${validPlatforms.join(', ')}`);
+      logger.error(`Valid platforms are: ${validPlatforms.join(", ")}`);
       process.exit(1);
     }
   }
@@ -53,7 +59,7 @@ export abstract class AbstractPlatformCommand {
     try {
       this.config = await loadConfig(this.projectPath);
     } catch (error) {
-      this.spinner.fail('Failed to load gyo.config.json');
+      this.spinner.fail("Failed to load gyo.config.json");
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
@@ -66,17 +72,23 @@ export abstract class AbstractPlatformCommand {
 
     const platformConfig = this.config.platforms[this.platform];
     if (platformConfig && platformConfig.enabled === false) {
-      this.spinner.fail(`Platform ${this.platform} is disabled in gyo.config.json`);
-      logger.warn(`Enable it by setting platforms.${this.platform}.enabled to true`);
+      this.spinner.fail(
+        `Platform ${this.platform} is disabled in gyo.config.json`,
+      );
+      logger.warn(
+        `Enable it by setting platforms.${this.platform}.enabled to true`,
+      );
       process.exit(1);
     }
   }
 
   protected async checkPlatformExists(platform: string): Promise<void> {
     const platformPath = path.join(this.projectPath, platform);
-    if (!await pathExists(platformPath)) {
+    if (!(await pathExists(platformPath))) {
       this.spinner.fail(`${platform}/ directory not found`);
-      logger.error(`Run 'gyo create' first to initialize the ${platform} platform`);
+      logger.error(
+        `Run 'gyo create' first to initialize the ${platform} platform`,
+      );
       process.exit(1);
     }
   }
@@ -84,7 +96,7 @@ export abstract class AbstractPlatformCommand {
   protected abstract run(): Promise<void>;
 
   protected handleError(error: unknown): void {
-    this.spinner.fail('Command failed');
+    this.spinner.fail("Command failed");
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);

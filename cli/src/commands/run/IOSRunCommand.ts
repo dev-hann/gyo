@@ -45,20 +45,55 @@ export class IOSRunCommand extends AbstractRunCommand {
       serverUrl: serverUrl
     };
 
-    await writeFile(configPath, JSON.stringify(config, null, 2));
+    const configJson = JSON.stringify(config, null, 2);
+    await writeFile(configPath, configJson);
+    
+    // Clean build cache to ensure new config is used
+    const buildPath = path.join(iosPath, '.build');
+    if (await pathExists(buildPath)) {
+      logger.verbose('Cleaning build cache...');
+      await fs.remove(buildPath);
+    }
+    
+    logger.verbose(`Wrote config to ${configPath}: ${configJson}`);
   }
 
   private async getBundleId(iosPath: string): Promise<string | null> {
     try {
       const xtoolYmlPath = path.join(iosPath, 'xtool.yml');
       if (!(await pathExists(xtoolYmlPath))) {
+        logger.error('xtool.yml not found in ios directory');
         return null;
       }
 
       const content = await readFile(xtoolYmlPath);
+      
+      // Check if bundleID is properly formatted (should be a scalar value, not a mapping)
+      if (content.includes('bundleID:') && content.match(/bundleID:\s*\n\s+/)) {
+        logger.error('Invalid xtool.yml: bundleID should be a string value, not a mapping');
+        logger.error('Expected format: bundleID: com.example.app');
+        logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
+        return null;
+      }
+      
       const match = content.match(/bundleID:\s*(.+)/);
-      return match ? match[1].trim() : null;
+      if (!match) {
+        logger.error('bundleID not found in xtool.yml');
+        logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
+        return null;
+      }
+      
+      const bundleId = match[1].trim();
+      if (bundleId.startsWith('{{') || bundleId.includes('{{')) {
+        logger.error(`bundleID contains template variable: ${bundleId}`);
+        logger.error('Template variables should have been replaced during project creation');
+        logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
+        return null;
+      }
+      
+      return bundleId;
     } catch (error) {
+      logger.error(`Failed to read xtool.yml: ${error}`);
       return null;
     }
   }
@@ -73,7 +108,21 @@ export class IOSRunCommand extends AbstractRunCommand {
 
     if (!buildResult.success) {
       this.spinner.fail('Build failed');
-      logger.error(buildResult.stderr || 'Unknown error');
+      const errorOutput = buildResult.stderr || buildResult.stdout || 'Unknown error';
+      
+      // Check for common YAML parsing errors
+      if (errorOutput.includes('typeMismatch') || errorOutput.includes('Expected to decode Scalar')) {
+        logger.error('YAML parsing error in xtool.yml or project.yml');
+        logger.error('Common issues:');
+        logger.error('  1. bundleID should be a simple string value, not a mapping');
+        logger.error('     ✓ Correct:   bundleID: com.example.app');
+        logger.error('     ✗ Wrong:     bundleID:');
+        logger.error('                    key: value');
+        logger.error('  2. Check for unintended indentation or special characters');
+        logger.error(`\nFull error:\n${errorOutput}`);
+      } else {
+        logger.error(errorOutput);
+      }
       process.exit(1);
     }
 

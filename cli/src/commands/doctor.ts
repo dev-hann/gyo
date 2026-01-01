@@ -37,9 +37,6 @@ async function runDoctor(): Promise<void> {
   results.push(await checkXtool());
   results.push(await checkLibimobiledevice());
 
-  logger.info("\nDesktop Development:");
-  results.push(await checkElectron());
-
   logger.info("\n" + "=".repeat(50));
   logger.info("Summary:\n");
 
@@ -274,11 +271,4 @@ async function checkLibimobiledevice(): Promise<CheckResult> {
   };
 }
 
-async function checkElectron(): Promise<CheckResult> {
-  return {
-    name: "Electron/Tauri",
-    passed: true,
-    message: "Will be installed per-project",
-    optional: true,
-  };
-}
+

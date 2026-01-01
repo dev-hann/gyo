@@ -70,7 +70,8 @@ async function createProject(projectName: string, options: { template: string })
     
     if (await pathExists(iosTemplatePath)) {
       await copyDir(iosTemplatePath, iosDestPath);
-      await replacePlaceholders(iosDestPath, projectName);
+      const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      await replacePlaceholdersIOS(iosDestPath, projectName, packageName);
     } else {
       logger.warn('iOS template not found, skipping...');
     }
@@ -198,6 +199,32 @@ async function replacePlaceholdersAndroid(dirPath: string, projectName: string, 
     const kotlinDir = path.join(dirPath, 'app/src/main/kotlin');
     if (await pathExists(kotlinDir)) {
       await fs.remove(kotlinDir);
+    }
+  }
+}
+
+async function replacePlaceholdersIOS(dirPath: string, projectName: string, packageName: string): Promise<void> {
+  const fs = require('fs-extra');
+  const files = await fs.readdir(dirPath);
+  
+  for (const file of files) {
+    const filePath = path.join(dirPath, file);
+    const stat = await fs.stat(filePath);
+    
+    if (stat.isDirectory()) {
+      await replacePlaceholdersIOS(filePath, projectName, packageName);
+    } else if (stat.isFile()) {
+      let content = await readFile(filePath);
+      const hasPlaceholder = content.includes('{{PROJECT_NAME}}') || 
+                            content.includes('{{PROJECT_NAME_LOWER}}') ||
+                            content.includes('{{PACKAGE_NAME}}');
+      
+      if (hasPlaceholder) {
+        content = content.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
+        content = content.replace(/\{\{PROJECT_NAME_LOWER\}\}/g, projectName.toLowerCase());
+        content = content.replace(/\{\{PACKAGE_NAME\}\}/g, packageName);
+        await writeFile(filePath, content);
+      }
     }
   }
 }

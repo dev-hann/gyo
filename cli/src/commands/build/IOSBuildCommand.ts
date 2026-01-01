@@ -10,15 +10,9 @@ export class IOSBuildCommand extends AbstractBuildCommand {
     await this.checkPlatformExists('ios');
     await this.checkXtoolAvailable();
 
-    const webviewUrl = this.getWebviewUrl();
-    const resourcesPath = path.join(iosPath, 'Sources/Resources');
-    const configPath = path.join(resourcesPath, 'gyo-config.json');
-    
-    this.spinner.text = `Configuring webview URL: ${webviewUrl}`;
-    const fs = require('fs-extra');
-    await fs.ensureDir(resourcesPath);
-    const configContent = JSON.stringify({ serverUrl: webviewUrl }, null, 2);
-    await require('../../utils/fs').writeFile(configPath, configContent);
+    const serverUrl = this.getServerUrl();
+    const configPath = path.join(iosPath, 'Sources/Resources/gyo-config.json');
+    await this.writeConfigFile(configPath, serverUrl);
 
     await this.checkDeviceConnected();
     await this.buildApp(iosPath);
@@ -33,8 +27,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
   }
 
   private async checkDeviceConnected(): Promise<void> {
-    const release = this.options.release || false;
-    const configuration = release ? 'Release' : 'Debug';
+    const configuration = this.options.release ? 'Release' : 'Debug';
     this.spinner.text = `Building iOS (${configuration})... Note: 'gyo build ios' will also install to connected device`;
 
     if (!(await checkCommandExists('idevice_id'))) {
@@ -54,13 +47,29 @@ export class IOSBuildCommand extends AbstractBuildCommand {
   private async buildApp(iosPath: string): Promise<void> {
     const result = await executeCommand('xtool', ['dev'], {
       cwd: iosPath,
-      stdio: 'inherit'
+      stdio: 'pipe'
     });
 
     if (result.success) {
       this.spinner.succeed('iOS build complete!');
+      logger.verbose(result.stdout);
     } else {
       this.spinner.fail('iOS build failed');
+      const errorOutput = result.stderr || result.stdout || 'Unknown error';
+      
+      // Check for common YAML parsing errors
+      if (errorOutput.includes('typeMismatch') || errorOutput.includes('Expected to decode Scalar')) {
+        logger.error('YAML parsing error in xtool.yml or project.yml');
+        logger.error('Common issues:');
+        logger.error('  1. bundleID should be a simple string value, not a mapping');
+        logger.error('     ✓ Correct:   bundleID: com.example.app');
+        logger.error('     ✗ Wrong:     bundleID:');
+        logger.error('                    key: value');
+        logger.error('  2. Check for unintended indentation or special characters');
+        logger.error(`\nFull error:\n${errorOutput}`);
+      } else {
+        logger.error(errorOutput);
+      }
       process.exit(1);
     }
   }

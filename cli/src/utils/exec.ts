@@ -26,7 +26,8 @@ export function executeCommand(
       proc.stdout.on('data', (data) => {
         const output = data.toString();
         stdout += output;
-        if (options.stdio !== 'inherit') {
+        // Only output if verbose mode or stdio is 'inherit'
+        if (options.stdio === 'inherit' || logger.isVerbose()) {
           process.stdout.write(output);
         }
       });
@@ -36,7 +37,8 @@ export function executeCommand(
       proc.stderr.on('data', (data) => {
         const output = data.toString();
         stderr += output;
-        if (options.stdio !== 'inherit') {
+        // Only output if verbose mode or stdio is 'inherit'
+        if (options.stdio === 'inherit' || logger.isVerbose()) {
           process.stderr.write(output);
         }
       });

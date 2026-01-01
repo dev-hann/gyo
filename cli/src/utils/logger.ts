@@ -1,6 +1,14 @@
 import chalk from 'chalk';
 
+let verboseMode = false;
+
 export const logger = {
+  setVerbose: (verbose: boolean) => {
+    verboseMode = verbose;
+  },
+  
+  isVerbose: () => verboseMode,
+  
   info: (message: string) => {
     console.log(chalk.blue('ℹ'), message);
   },
@@ -20,6 +28,12 @@ export const logger = {
   debug: (message: string) => {
     if (process.env.DEBUG) {
       console.log(chalk.gray('🐛'), message);
+    }
+  },
+  
+  verbose: (message: string) => {
+    if (verboseMode) {
+      console.log(chalk.gray(message));
     }
   },
   

@@ -1,18 +1,18 @@
 import * as path from 'path';
 import { ChildProcess, spawn } from 'child_process';
-import { AbstractPlatformCommand, Platform, CommandOptions } from '../common/AbstractPlatformCommand';
+import { AbstractPlatformCommand, Platform, RunCommandOptions } from '../common/AbstractPlatformCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, checkCommandExists } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
-import { saveConfig } from '../../utils/config';
+import { saveConfig, shouldStartLocalServer } from '../../utils/config';
 
-export abstract class AbstractRunCommand extends AbstractPlatformCommand {
+export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
   protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = '';
   protected isCleaningUp: boolean = false;
 
-  constructor(platform: Platform, options: CommandOptions = {}) {
+  constructor(platform: Platform, options: RunCommandOptions) {
     super(platform, options);
   }
 
@@ -21,21 +21,34 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
   }
 
   protected async run(): Promise<void> {
-    const profile = this.options.profile || 'development';
-    
-    // Extract port from profile URL
-    const port = this.getPortFromProfile(profile);
-    
-    this.spinner.text = 'Starting web development server...';
-    const libPath = path.join(this.projectPath, 'lib');
-    this.serverUrl = await this.startWebServer(libPath, port);
-    
-    // Auto-update development profile with actual server URL
-    if (profile === 'development') {
-      await this.updateDevelopmentProfile(this.serverUrl);
+    if (!this.config) {
+      throw new Error('Config not loaded');
     }
     
-    this.spinner.succeed(`Web server running at ${this.serverUrl} (profile: ${profile})`);
+    // Check if we should start local server based on profile config
+    const startLocalServer = shouldStartLocalServer(this.config, this.options.profile);
+    
+    if (startLocalServer) {
+      // Start local development server
+      const port = this.getPortFromProfile(this.options.profile);
+      
+      this.spinner.text = 'Starting local web server...';
+      const libPath = path.join(this.projectPath, 'lib');
+      this.serverUrl = await this.startWebServer(libPath, port);
+      
+      // Auto-update profile with actual server URL
+      await this.updateProfileUrl(this.options.profile, this.serverUrl);
+      
+      this.spinner.succeed(`Local server running at ${this.serverUrl} (profile: ${this.options.profile})`);
+    } else {
+      // Use URL from config (external server)
+      if (!this.config.profiles?.[this.options.profile]) {
+        throw new Error(`Profile '${this.options.profile}' not found in gyo.config.json`);
+      }
+      
+      this.serverUrl = this.config.profiles[this.options.profile].serverUrl;
+      this.spinner.succeed(`Using ${this.options.profile} profile: ${this.serverUrl}`);
+    }
 
     this.setupSignalHandlers();
 
@@ -51,7 +64,7 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
       return 3000; // Default port
     }
 
-    const url = this.config.profiles[profile].webviewUrl;
+    const url = this.config.profiles[profile].serverUrl;
     try {
       const urlObj = new URL(url);
       const port = urlObj.port;
@@ -63,9 +76,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
   }
 
   /**
-   * Updates the development profile with the actual server URL.
+   * Updates the profile with the actual server URL.
    */
-  protected async updateDevelopmentProfile(serverUrl: string): Promise<void> {
+  protected async updateProfileUrl(profile: string, serverUrl: string): Promise<void> {
     if (!this.config) {
       return;
     }
@@ -75,11 +88,11 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
       this.config.profiles = {};
     }
 
-    // Ensure development profile exists
-    if (!this.config.profiles.development) {
-      this.config.profiles.development = { webviewUrl: serverUrl };
+    // Ensure profile exists
+    if (!this.config.profiles[profile]) {
+      this.config.profiles[profile] = { serverUrl: serverUrl };
     } else {
-      this.config.profiles.development.webviewUrl = serverUrl;
+      this.config.profiles[profile].serverUrl = serverUrl;
     }
 
     // Save updated config

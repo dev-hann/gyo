@@ -8,10 +8,11 @@
     "gyo": "dist/index.js"
   },
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "tsc && tsc --watch",
     "build": "tsc",
     "start": "node dist/index.js",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "postbuild": "echo '✓ CLI built successfully. Run: npm link (if not linked yet)'"
   },
   "keywords": [
     "gyo",

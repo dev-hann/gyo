@@ -109,12 +109,18 @@ class MainActivity : AppCompatActivity() {
         try {
             val json = assets.open("gyo-config.json").bufferedReader().use { it.readText() }
             val jsonObject = JSONObject(json)
-            val webviewUrl = jsonObject.optString("webviewUrl", "http://10.0.2.2:3000")
-            return GyoConfig(serverUrl = webviewUrl)
+            val serverUrl = jsonObject.optString("serverUrl", "")
+            
+            if (serverUrl.isEmpty()) {
+                Log.e("MainActivity", "serverUrl is empty in gyo-config.json")
+                throw IllegalStateException("serverUrl is empty in gyo-config.json")
+            }
+            
+            Log.i("MainActivity", "Loaded config - serverUrl: $serverUrl")
+            return GyoConfig(serverUrl = serverUrl)
         } catch (e: Exception) {
-            Log.w("MainActivity", "Failed to load gyo-config.json from assets, using defaults: ${e.message}")
-            // Fallback to default for development
-            return GyoConfig(serverUrl = "http://10.0.2.2:3000")
+            Log.e("MainActivity", "Failed to load gyo-config.json from assets: ${e.message}")
+            throw IllegalStateException("gyo-config.json must be present with valid serverUrl. Did you run 'gyo build' or 'gyo run'?", e)
         }
     }
 

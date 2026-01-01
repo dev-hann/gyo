@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { Platform } from './common/AbstractPlatformCommand';
+import { Platform, RunCommandOptions } from './common/AbstractPlatformCommand';
 import { AndroidRunCommand } from './run/AndroidRunCommand';
 import { IOSRunCommand } from './run/IOSRunCommand';
 import { getAllDevices, Device } from '../utils/devices';
@@ -13,12 +13,16 @@ export function registerRunCommand(program: Command): void {
     .description('Run the application on a connected device')
     .option('-d, --device <device>', 'Specific device ID to run on')
     .option('-p, --profile <profile>', 'Build profile to use (development, production, etc.)', 'development')
-    .action(async (options: { device?: string; profile?: string }) => {
-      await runOnDevice(options);
+    .option('-v, --verbose', 'Show detailed logs')
+    .action(async (rawOptions: { device?: string; profile: string; verbose?: boolean }) => {
+      if (rawOptions.verbose) {
+        logger.setVerbose(true);
+      }
+      await runOnDevice(rawOptions);
     });
 }
 
-async function runOnDevice(options: { device?: string; profile?: string }): Promise<void> {
+async function runOnDevice(rawOptions: { device?: string; profile: string; verbose?: boolean }): Promise<void> {
   const spinner = ora('Detecting devices...').start();
 
   try {
@@ -39,10 +43,10 @@ async function runOnDevice(options: { device?: string; profile?: string }): Prom
     let selectedDevice: Device;
 
     // If device ID is specified, find it
-    if (options.device) {
-      const device = devices.find(d => d.id === options.device);
+    if (rawOptions.device) {
+      const device = devices.find(d => d.id === rawOptions.device);
       if (!device) {
-        spinner.fail(`Device '${options.device}' not found`);
+        spinner.fail(`Device '${rawOptions.device}' not found`);
         logger.error('Available devices:');
         devices.forEach(d => logger.info(`  - ${d.platform}: ${d.name} (${d.id})`));
         process.exit(1);
@@ -91,7 +95,11 @@ async function runOnDevice(options: { device?: string; profile?: string }): Prom
 
     // Determine platform and create appropriate command
     const platform: Platform = selectedDevice.platform;
-    options.device = selectedDevice.id;
+    
+    const options: RunCommandOptions = {
+      profile: rawOptions.profile,
+      device: selectedDevice.id
+    };
 
     let command;
     switch (platform) {

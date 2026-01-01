@@ -1,5 +1,32 @@
 # Gyo CLI
 
+## 개발 환경 설정
+
+### 초기 설정
+```bash
+cd cli
+npm install
+npm run build
+npm link  # gyo 명령어를 전역으로 사용 가능하게 함
+```
+
+### 개발 모드 (자동 빌드)
+CLI 코드를 수정하면 자동으로 빌드되어 바로 사용할 수 있습니다:
+
+```bash
+# 터미널 1: watch 모드 실행 (코드 수정 시 자동 빌드)
+npm run dev
+
+# 터미널 2: gyo 명령어 테스트
+cd /path/to/test-project
+gyo run
+```
+
+### 수동 빌드
+```bash
+npm run build
+```
+
 ## 기능
 
 이 폴더에는 `gyo` 프로젝트의 생성, 빌드, 실행 등 전체적인 라이프사이클을 관리하는 Command Line Interface (CLI) 도구가 포함되어 있습니다. TypeScript로 작성되었으며, 사용자가 `gyo` 명령어를 통해 프로젝트와 상호작용할 수 있는 인터페이스를 제공합니다.

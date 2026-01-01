@@ -1,12 +1,12 @@
 import * as path from 'path';
-import { AbstractPlatformCommand, Platform, CommandOptions } from '../common/AbstractPlatformCommand';
+import { AbstractPlatformCommand, Platform, BuildCommandOptions } from '../common/AbstractPlatformCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists, writeFile } from '../../utils/fs';
 import { getProfileUrl } from '../../utils/config';
 
-export abstract class AbstractBuildCommand extends AbstractPlatformCommand {
-  constructor(platform: Platform, options: CommandOptions = {}) {
+export abstract class AbstractBuildCommand extends AbstractPlatformCommand<BuildCommandOptions> {
+  constructor(platform: Platform, options: BuildCommandOptions) {
     super(platform, options);
   }
 
@@ -22,8 +22,7 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand {
    * Builds lib assets first, then runs platform-specific logic.
    */
   protected async run(): Promise<void> {
-    const profile = this.options.profile || 'development';
-    logger.info(`Building with profile: ${profile}`);
+    logger.info(`Building with profile: ${this.options.profile}`);
 
     // Build lib assets
     await this.buildLibAssets();
@@ -45,29 +44,29 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand {
 
       if (!libBuildResult.success) {
         this.spinner.fail('Lib build failed');
-        logger.error(libBuildResult.stderr);
+        logger.error(libBuildResult.stderr || libBuildResult.stdout);
         process.exit(1);
       }
 
       this.spinner.succeed('Lib assets built successfully');
+      logger.verbose(libBuildResult.stdout);
     } else {
       logger.warn('Lib directory not found, skipping lib build');
     }
   }
 
-  protected getWebviewUrl(): string {
+  protected getServerUrl(): string {
     if (!this.config) {
       throw new Error('Configuration not loaded');
     }
-    const profile = this.options.profile || 'development';
-    return getProfileUrl(this.config, profile);
+    return getProfileUrl(this.config, this.options.profile);
   }
 
-  protected async writeConfigFile(configPath: string, webviewUrl: string): Promise<void> {
-    this.spinner.text = `Configuring webview URL: ${webviewUrl}`;
+  protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
+    this.spinner.text = `Configuring server URL: ${serverUrl}`;
     const fs = require('fs-extra');
     await fs.ensureDir(path.dirname(configPath));
-    await writeFile(configPath, JSON.stringify({ webviewUrl }, null, 2));
+    await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
   }
 
   protected abstract buildPlatform(): Promise<void>;

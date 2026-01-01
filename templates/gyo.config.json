@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "profiles": {
     "development": {
-      "webviewUrl": "http://localhost:3000"
+      "serverUrl": "http://localhost:3000",
+      "isLocal": true
     },
     "production": {
-      "webviewUrl": "https://your-production-url.com"
+      "serverUrl": "https://your-production-url.com",
+      "isLocal": false
     }
   },
   "platforms": {

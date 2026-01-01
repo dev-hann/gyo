@@ -3,7 +3,8 @@ import { readJson, writeJson, pathExists } from './fs';
 import { logger } from './logger';
 
 export interface ProfileConfig {
-  webviewUrl: string;
+  serverUrl: string;
+  isLocal?: boolean; // Whether to start a local server for this profile (defaults to true for development, false otherwise)
 }
 
 export interface GyoConfig {
@@ -35,10 +36,12 @@ export const DEFAULT_CONFIG: GyoConfig = {
   version: '1.0.0',
   profiles: {
     development: {
-      webviewUrl: 'http://localhost:3000'
+      serverUrl: 'http://localhost:3000',
+      isLocal: true
     },
     production: {
-      webviewUrl: 'https://your-production-url.com'
+      serverUrl: 'https://your-production-url.com',
+      isLocal: false
     }
   },
   platforms: {
@@ -100,14 +103,41 @@ export function validateConfig(config: GyoConfig): boolean {
 
 export function getProfileUrl(config: GyoConfig, profile: string = 'development'): string {
   if (config.profiles && config.profiles[profile]) {
-    return config.profiles[profile].webviewUrl;
+    const serverUrl = config.profiles[profile].serverUrl;
+    if (!serverUrl || serverUrl.trim() === '') {
+      logger.error(`Profile '${profile}' has empty serverUrl in gyo.config.json`);
+      throw new Error(`Profile '${profile}' serverUrl cannot be empty`);
+    }
+    return serverUrl;
   }
   
   if (config.serverUrl) {
     logger.warn('Using legacy serverUrl. Consider migrating to profiles in gyo.config.json');
+    if (!config.serverUrl || config.serverUrl.trim() === '') {
+      logger.error('serverUrl is empty in gyo.config.json');
+      throw new Error('serverUrl cannot be empty');
+    }
     return config.serverUrl;
   }
   
   logger.error(`Profile '${profile}' not found in gyo.config.json`);
   throw new Error(`Profile '${profile}' not found`);
+}
+
+export function shouldStartLocalServer(config: GyoConfig, profile: string = 'development'): boolean {
+  if (config.profiles && config.profiles[profile]) {
+    const profileConfig = config.profiles[profile];
+    // isLocal defaults to true for 'development' profile, false for others
+    if (profileConfig.isLocal !== undefined) {
+      return profileConfig.isLocal;
+    }
+    return profile === 'development';
+  }
+  
+  // Legacy serverUrl doesn't support local server
+  if (config.serverUrl) {
+    return false;
+  }
+  
+  return false;
 }

@@ -13,10 +13,13 @@ func loadGyoConfig() -> GyoConfig {
         if let url = bundle.url(forResource: "gyo-config", withExtension: "json"),
            let data = try? Data(contentsOf: url),
            let config = try? JSONDecoder().decode(GyoConfig.self, from: data) {
+            if config.serverUrl.isEmpty {
+                fatalError("serverUrl is empty in gyo-config.json")
+            }
             return config
         }
     }
     
-    // Fallback - this should not happen in normal usage
-    return GyoConfig(serverUrl: "about:blank")
+    // If we can't find the config file, throw a fatal error
+    fatalError("gyo-config.json not found. Did you run 'gyo build' or 'gyo run'?")
 }
