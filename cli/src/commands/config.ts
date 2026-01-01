@@ -46,7 +46,6 @@ async function setConfig(key: string, value: string): Promise<void> {
     process.exit(1);
   }
   
-  // Parse the key path (e.g., "platforms.android.enabled")
   const keys = key.split('.');
   let current: any = config;
   
@@ -60,7 +59,6 @@ async function setConfig(key: string, value: string): Promise<void> {
   
   const lastKey = keys[keys.length - 1];
   
-  // Parse value
   let parsedValue: any = value;
   if (value === 'true') parsedValue = true;
   else if (value === 'false') parsedValue = false;

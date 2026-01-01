@@ -1,7 +1,14 @@
 {
   "name": "{{PROJECT_NAME}}",
   "version": "1.0.0",
-  "serverUrl": "http://localhost:3000",
+  "profiles": {
+    "development": {
+      "webviewUrl": "http://localhost:3000"
+    },
+    "production": {
+      "webviewUrl": "https://your-production-url.com"
+    }
+  },
   "platforms": {
     "android": {
       "enabled": true,
@@ -10,18 +17,11 @@
     "ios": {
       "enabled": true,
       "bundleId": "com.example.{{PROJECT_NAME_LOWER}}"
-    },
-    "desktop": {
-      "enabled": false
     }
   },
   "webview": {
     "allowFileAccess": false,
     "allowUniversalAccessFromFileURLs": false,
     "userAgent": "gyo-webview/1.0"
-  },
-  "devServer": {
-    "port": 3000,
-    "host": "localhost"
   }
 }

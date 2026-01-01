@@ -2,10 +2,17 @@ import * as path from 'path';
 import { readJson, writeJson, pathExists } from './fs';
 import { logger } from './logger';
 
+export interface ProfileConfig {
+  webviewUrl: string;
+}
+
 export interface GyoConfig {
   name: string;
   version: string;
-  serverUrl: string;
+  serverUrl?: string; // Legacy - deprecated, use profiles instead
+  profiles?: {
+    [key: string]: ProfileConfig;
+  };
   platforms: {
     android?: {
       enabled: boolean;
@@ -15,25 +22,25 @@ export interface GyoConfig {
       enabled: boolean;
       bundleId?: string;
     };
-    desktop?: {
-      enabled: boolean;
-    };
   };
   webview?: {
     allowFileAccess?: boolean;
     allowUniversalAccessFromFileURLs?: boolean;
     userAgent?: string;
   };
-  devServer?: {
-    port?: number;
-    host?: string;
-  };
 }
 
 export const DEFAULT_CONFIG: GyoConfig = {
   name: 'gyo-app',
   version: '1.0.0',
-  serverUrl: 'http://localhost:3000',
+  profiles: {
+    development: {
+      webviewUrl: 'http://localhost:3000'
+    },
+    production: {
+      webviewUrl: 'https://your-production-url.com'
+    }
+  },
   platforms: {
     android: {
       enabled: true,
@@ -42,18 +49,11 @@ export const DEFAULT_CONFIG: GyoConfig = {
     ios: {
       enabled: true,
       bundleId: 'com.example.gyoapp'
-    },
-    desktop: {
-      enabled: false
     }
   },
   webview: {
     allowFileAccess: false,
     allowUniversalAccessFromFileURLs: false
-  },
-  devServer: {
-    port: 3000,
-    host: 'localhost'
   }
 };
 
@@ -80,8 +80,13 @@ export async function saveConfig(config: GyoConfig, projectPath: string = proces
 }
 
 export function validateConfig(config: GyoConfig): boolean {
-  if (!config.name || !config.version || !config.serverUrl) {
-    logger.error('Config must have name, version, and serverUrl');
+  if (!config.name || !config.version) {
+    logger.error('Config must have name and version');
+    return false;
+  }
+  
+  if (!config.profiles && !config.serverUrl) {
+    logger.error('Config must have either profiles or serverUrl (legacy)');
     return false;
   }
   
@@ -91,4 +96,18 @@ export function validateConfig(config: GyoConfig): boolean {
   }
   
   return true;
+}
+
+export function getProfileUrl(config: GyoConfig, profile: string = 'development'): string {
+  if (config.profiles && config.profiles[profile]) {
+    return config.profiles[profile].webviewUrl;
+  }
+  
+  if (config.serverUrl) {
+    logger.warn('Using legacy serverUrl. Consider migrating to profiles in gyo.config.json');
+    return config.serverUrl;
+  }
+  
+  logger.error(`Profile '${profile}' not found in gyo.config.json`);
+  throw new Error(`Profile '${profile}' not found`);
 }

@@ -105,11 +105,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadGyoConfig(): GyoConfig {
-        // In production, this should load from assets or remote config
-        // For now, return defaults
-        return GyoConfig(
-            serverUrl = "http://10.0.2.2:3000" // Android emulator localhost
-        )
+        // Try to load from assets/gyo-config.json
+        try {
+            val json = assets.open("gyo-config.json").bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(json)
+            val webviewUrl = jsonObject.optString("webviewUrl", "http://10.0.2.2:3000")
+            return GyoConfig(serverUrl = webviewUrl)
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Failed to load gyo-config.json from assets, using defaults: ${e.message}")
+            // Fallback to default for development
+            return GyoConfig(serverUrl = "http://10.0.2.2:3000")
+        }
     }
 
     override fun onBackPressed() {
