@@ -75,9 +75,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
       const deviceLines = devicesResult.stdout.split('\n').filter(line => line.includes('\tdevice'));
       if (deviceLines.length > 0) {
         selectedDevice = deviceLines[0].split('\t')[0];
-        if (deviceLines.length > 1) {
-          logger.info(`Multiple devices found. Using: ${selectedDevice}`);
-        }
       }
     }
 
@@ -155,6 +152,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
   private showSuccessMessage(serverUrl: string): void {
     logger.log('');
     logger.success(`App is connected to: ${serverUrl}`);
+    logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
   }
 

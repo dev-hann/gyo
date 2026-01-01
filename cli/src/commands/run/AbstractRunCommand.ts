@@ -89,7 +89,7 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand {
   protected async startWebServer(webPath: string, port: number): Promise<string> {
     const nodeModulesPath = path.join(webPath, 'node_modules');
     if (!(await pathExists(nodeModulesPath))) {
-      logger.info('Installing web dependencies...');
+      this.spinner.text = 'Installing web dependencies...';
       const installResult = await executeCommand('npm', ['install'], {
         cwd: webPath,
         stdio: 'inherit'
