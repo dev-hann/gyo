@@ -73,7 +73,6 @@ async function cleanAndroid(spinner: ora.Ora): Promise<void> {
     logger.success('Android build cleaned');
   }
   
-  // Also remove build directories
   const buildPath = path.join(androidPath, 'app/build');
   if (await pathExists(buildPath)) {
     await removeDir(buildPath);
@@ -90,14 +89,12 @@ async function cleanIOS(spinner: ora.Ora): Promise<void> {
   
   spinner.text = 'Cleaning iOS build...';
   
-  // Clean derived data
   const buildPath = path.join(iosPath, 'build');
   if (await pathExists(buildPath)) {
     await removeDir(buildPath);
     logger.success('iOS build cleaned');
   }
   
-  // Clean pods if exists
   const podsPath = path.join(iosPath, 'Pods');
   if (await pathExists(podsPath)) {
     await removeDir(podsPath);
@@ -115,13 +112,11 @@ async function cleanLib(spinner: ora.Ora): Promise<void> {
   
   spinner.text = 'Cleaning lib build...';
   
-  // Remove dist directory
   const distPath = path.join(libPath, 'dist');
   if (await pathExists(distPath)) {
     await removeDir(distPath);
   }
   
-  // Remove node_modules
   const nodeModulesPath = path.join(libPath, 'node_modules');
   if (await pathExists(nodeModulesPath)) {
     await removeDir(nodeModulesPath);

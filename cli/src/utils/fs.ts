@@ -34,8 +34,6 @@ export async function removeDir(dirPath: string): Promise<void> {
 }
 
 export function getTemplatesPath(): string {
-  // In development, templates are in the project root
-  // In production, they should be bundled with the CLI
   const devPath = path.join(__dirname, '../../../templates');
   const prodPath = path.join(__dirname, '../../templates');
   

@@ -186,7 +186,6 @@ async function replacePlaceholdersAndroid(dirPath: string, projectName: string, 
     }
   }
   
-  // Move MainActivity.kt to correct package directory
   const mainActivitySrc = path.join(dirPath, 'app/src/main/kotlin/MainActivity.kt');
   if (await pathExists(mainActivitySrc)) {
     const packagePath = packageName.replace(/\./g, '/');
@@ -196,7 +195,6 @@ async function replacePlaceholdersAndroid(dirPath: string, projectName: string, 
     const mainActivityDest = path.join(kotlinDestDir, 'MainActivity.kt');
     await fs.move(mainActivitySrc, mainActivityDest, { overwrite: true });
     
-    // Remove empty kotlin directory
     const kotlinDir = path.join(dirPath, 'app/src/main/kotlin');
     if (await pathExists(kotlinDir)) {
       await fs.remove(kotlinDir);
