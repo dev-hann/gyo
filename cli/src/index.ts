@@ -7,6 +7,7 @@ import { registerRunCommand } from './commands/run';
 import { registerCleanCommand } from './commands/clean';
 import { registerConfigCommand } from './commands/config';
 import { registerDoctorCommand } from './commands/doctor';
+import { registerDevicesCommand } from './commands/devices';
 
 const program = new Command();
 
@@ -21,6 +22,7 @@ registerRunCommand(program);
 registerCleanCommand(program);
 registerConfigCommand(program);
 registerDoctorCommand(program);
+registerDevicesCommand(program);
 
 program.parse(process.argv);
 
