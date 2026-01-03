@@ -5,6 +5,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     
     private var webView: WKWebView!
     private var serverUrl: String
+    private var bridgeInterface: IOSBridgeInterface!
     
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         // Load config before calling super.init
@@ -21,25 +22,30 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         setupWebView()
+        
+        // Initialize bridge interface after webview is setup
+        bridgeInterface = IOSBridgeInterface(webView: webView)
+        
+        // Initialize BridgeRegistry
+        Task { @MainActor in
+            BridgeRegistry.shared.initialize()
+            BridgeRegistry.shared.register("gyo-console", handler: ConsoleBridgeHandler())
+        }
+        
+        // Example: Register custom bridge (developers can add their own)
+        // BridgeRegistry.shared.register("my-custom-bridge", handler: MyCustomBridgeHandler())
+        
         loadApp()
     }
     
     private func setupWebView() {
         let contentController = WKUserContentController()
-        contentController.add(self, name: "GyoIOS")
+        contentController.add(self, name: "gyoBridge")
         
         let config = WKWebViewConfiguration()
         config.userContentController = contentController
-        
-        // JavaScript is enabled by default in iOS 14+
-        if #available(iOS 14.0, *) {
-            let preferences = WKWebpagePreferences()
-            preferences.allowsContentJavaScript = true
-            config.defaultWebpagePreferences = preferences
-        } else {
-            config.preferences.javaScriptEnabled = true
-        }
         
         webView = WKWebView(frame: view.bounds, configuration: config)
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -59,22 +65,13 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         (function() {
             window.gyo = {
                 platform: 'ios',
-                callNative: function(method, params) {
-                    return new Promise(function(resolve, reject) {
-                        try {
-                            window.webkit.messageHandlers.GyoIOS.postMessage({
-                                method: method,
-                                params: params || {},
-                                callbackId: Date.now()
-                            });
-                            resolve({ success: true, message: 'iOS call initiated' });
-                        } catch (e) {
-                            reject(e);
+                
+                __bridge: {
+                    postMessage: function(message) {
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.gyoBridge) {
+                            window.webkit.messageHandlers.gyoBridge.postMessage(message);
                         }
-                    });
-                },
-                onMessage: function(callback) {
-                    window.gyoMessageCallback = callback;
+                    }
                 }
             };
             console.log('gyo runtime initialized on iOS');
@@ -87,22 +84,8 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     // MARK: - WKScriptMessageHandler
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "GyoIOS",
-              let body = message.body as? [String: Any],
-              let method = body["method"] as? String else {
-            return
-        }
-        
-        let params = body["params"] as? [String: Any] ?? [:]
-        handleNativeCall(method: method, params: params)
-    }
-    
-    private func handleNativeCall(method: String, params: [String: Any]) {
-        switch method {
-        case "test":
-            print("Native test called from web with params: \\(params)")
-        default:
-            print("Unknown method: \\(method)")
+        if message.name == "gyoBridge" {
+            bridgeInterface.handleMessage(message.body)
         }
     }
     

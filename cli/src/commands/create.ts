@@ -187,15 +187,17 @@ async function replacePlaceholdersAndroid(dirPath: string, projectName: string, 
     }
   }
   
-  const mainActivitySrc = path.join(dirPath, 'app/src/main/kotlin/MainActivity.kt');
-  if (await pathExists(mainActivitySrc)) {
+  // Move kotlin source files from template placeholder directory to actual package directory
+  const kotlinTemplateDir = path.join(dirPath, 'app/src/main/kotlin/{{PACKAGE_NAME}}');
+  if (await pathExists(kotlinTemplateDir)) {
     const packagePath = packageName.replace(/\./g, '/');
     const kotlinDestDir = path.join(dirPath, `app/src/main/java/${packagePath}`);
     await ensureDir(kotlinDestDir);
     
-    const mainActivityDest = path.join(kotlinDestDir, 'MainActivity.kt');
-    await fs.move(mainActivitySrc, mainActivityDest, { overwrite: true });
+    // Move all files from template directory to destination
+    await fs.copy(kotlinTemplateDir, kotlinDestDir, { overwrite: true });
     
+    // Remove the template kotlin directory
     const kotlinDir = path.join(dirPath, 'app/src/main/kotlin');
     if (await pathExists(kotlinDir)) {
       await fs.remove(kotlinDir);
