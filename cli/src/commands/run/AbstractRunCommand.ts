@@ -1,16 +1,20 @@
-import * as path from 'path';
-import os from 'os';
-import { ChildProcess, spawn } from 'child_process';
-import { AbstractPlatformCommand, Platform, RunCommandOptions } from '../common/AbstractPlatformCommand.ts';
-import { logger } from '../../utils/logger.ts';
-import { executeCommand, checkCommandExists } from '../../utils/exec.ts';
-import { pathExists } from '../../utils/fs.ts';
-import { saveConfig, shouldStartLocalServer } from '../../utils/config.ts';
+import * as path from "path";
+import os from "os";
+import { ChildProcess, spawn } from "child_process";
+import {
+  AbstractPlatformCommand,
+  Platform,
+  RunCommandOptions,
+} from "../common/AbstractPlatformCommand.js";
+import { logger } from "../../utils/logger.js";
+import { executeCommand, checkCommandExists } from "../../utils/exec.js";
+import { pathExists } from "../../utils/fs.js";
+import { saveConfig, shouldStartLocalServer } from "../../utils/config.js";
 
 export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
   protected platformProcess: ChildProcess | null = null;
-  protected serverUrl: string = '';
+  protected serverUrl: string = "";
   protected isCleaningUp: boolean = false;
 
   constructor(platform: Platform, options: RunCommandOptions) {
@@ -18,37 +22,46 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   }
 
   protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
+    return ["android", "ios"];
   }
 
   protected async run(): Promise<void> {
     if (!this.config) {
-      throw new Error('Config not loaded');
+      throw new Error("Config not loaded");
     }
-    
+
     // Check if we should start local server based on profile config
-    const startLocalServer = shouldStartLocalServer(this.config, this.options.profile);
-    
+    const startLocalServer = shouldStartLocalServer(
+      this.config,
+      this.options.profile
+    );
+
     if (startLocalServer) {
       // Start local development server
       const port = this.getPortFromProfile(this.options.profile);
-      
-      this.spinner.text = 'Starting local web server...';
-      const libPath = path.join(this.projectPath, 'lib');
+
+      this.spinner.text = "Starting local web server...";
+      const libPath = path.join(this.projectPath, "lib");
       this.serverUrl = await this.startWebServer(libPath, port);
-      
+
       // Auto-update profile with actual server URL
       await this.updateProfileUrl(this.options.profile, this.serverUrl);
-      
-      this.spinner.succeed(`Local server running at ${this.serverUrl} (profile: ${this.options.profile})`);
+
+      this.spinner.succeed(
+        `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
+      );
     } else {
       // Use URL from config (external server)
       if (!this.config.profiles?.[this.options.profile]) {
-        throw new Error(`Profile '${this.options.profile}' not found in gyo.config.json`);
+        throw new Error(
+          `Profile '${this.options.profile}' not found in gyo.config.json`
+        );
       }
-      
+
       this.serverUrl = this.config.profiles[this.options.profile].serverUrl;
-      this.spinner.succeed(`Using ${this.options.profile} profile: ${this.serverUrl}`);
+      this.spinner.succeed(
+        `Using ${this.options.profile} profile: ${this.serverUrl}`
+      );
     }
 
     this.setupSignalHandlers();
@@ -71,7 +84,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       const port = urlObj.port;
       return port ? parseInt(port, 10) : 3000;
     } catch (error) {
-      logger.warn(`Failed to parse URL from profile '${profile}', using default port 3000`);
+      logger.warn(
+        `Failed to parse URL from profile '${profile}', using default port 3000`
+      );
       return 3000;
     }
   }
@@ -79,7 +94,10 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   /**
    * Updates the profile with the actual server URL.
    */
-  protected async updateProfileUrl(profile: string, serverUrl: string): Promise<void> {
+  protected async updateProfileUrl(
+    profile: string,
+    serverUrl: string
+  ): Promise<void> {
     if (!this.config) {
       return;
     }
@@ -100,25 +118,28 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     await saveConfig(this.config, this.projectPath);
   }
 
-  protected async startWebServer(webPath: string, port: number): Promise<string> {
-    const nodeModulesPath = path.join(webPath, 'node_modules');
+  protected async startWebServer(
+    webPath: string,
+    port: number
+  ): Promise<string> {
+    const nodeModulesPath = path.join(webPath, "node_modules");
     if (!(await pathExists(nodeModulesPath))) {
-      this.spinner.text = 'Installing web dependencies...';
-      const installResult = await executeCommand('npm', ['install'], {
+      this.spinner.text = "Installing web dependencies...";
+      const installResult = await executeCommand("npm", ["install"], {
         cwd: webPath,
-        stdio: 'inherit'
+        stdio: "inherit",
       });
 
       if (!installResult.success) {
-        throw new Error('Failed to install web dependencies');
+        throw new Error("Failed to install web dependencies");
       }
     }
 
-    this.webServerProcess = spawn('npm', ['run', 'dev'], {
+    this.webServerProcess = spawn("npm", ["run", "dev"], {
       cwd: webPath,
-      stdio: 'pipe',
+      stdio: "pipe",
       shell: true,
-      detached: true
+      detached: true,
     });
 
     // Wait for server to be ready by monitoring output
@@ -133,13 +154,13 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   protected async waitForServerReady(expectedPort: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('Web server failed to start within 30 seconds'));
+        reject(new Error("Web server failed to start within 30 seconds"));
       }, 30000);
 
       let serverReady = false;
 
       // Listen to stdout for server ready messages
-      this.webServerProcess?.stdout?.on('data', (data: Buffer) => {
+      this.webServerProcess?.stdout?.on("data", (data: Buffer) => {
         const output = data.toString();
 
         if (serverReady) return;
@@ -148,7 +169,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         let detectedUrl: string | null = null;
 
         // Next.js patterns: "- Local:   http://localhost:3000" or "ready - started server on"
-        const nextLocalMatch = output.match(/(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i);
+        const nextLocalMatch = output.match(
+          /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
+        );
         if (nextLocalMatch) {
           detectedUrl = `http://localhost:${nextLocalMatch[1]}`;
         }
@@ -161,7 +184,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
         // Generic pattern: "http://localhost:PORT" or "http://0.0.0.0:PORT"
         if (!detectedUrl) {
-          const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
+          const genericMatch = output.match(
+            /https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i
+          );
           if (genericMatch) {
             detectedUrl = `http://localhost:${genericMatch[1]}`;
           }
@@ -174,17 +199,17 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
           // Extract port from detected URL
           const urlObj = new URL(detectedUrl);
-          const port = parseInt(urlObj.port || '3000', 10);
+          const port = parseInt(urlObj.port || "3000", 10);
 
           // Get local IP for mobile devices
-          this.getLocalIP().then(ip => {
+          this.getLocalIP().then((ip) => {
             resolve(`http://${ip}:${port}`);
           });
         }
       });
 
       // Listen to stderr as well (some frameworks output to stderr)
-      this.webServerProcess?.stderr?.on('data', (data: Buffer) => {
+      this.webServerProcess?.stderr?.on("data", (data: Buffer) => {
         const output = data.toString();
 
         // Some frameworks might output ready message to stderr
@@ -192,21 +217,21 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
           // Fallback: use expected port
           serverReady = true;
           clearTimeout(timeout);
-          
-          this.getLocalIP().then(ip => {
+
+          this.getLocalIP().then((ip) => {
             resolve(`http://${ip}:${expectedPort}`);
           });
         }
       });
 
       // Handle process errors
-      this.webServerProcess?.on('error', (error) => {
+      this.webServerProcess?.on("error", (error) => {
         clearTimeout(timeout);
         reject(new Error(`Failed to start web server: ${error.message}`));
       });
 
       // Handle process exit
-      this.webServerProcess?.on('exit', (code) => {
+      this.webServerProcess?.on("exit", (code) => {
         if (!serverReady) {
           clearTimeout(timeout);
           reject(new Error(`Web server exited with code ${code}`));
@@ -221,13 +246,13 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       const iface = interfaces[name];
       if (iface) {
         for (const alias of iface) {
-          if (alias.family === 'IPv4' && !alias.internal) {
+          if (alias.family === "IPv4" && !alias.internal) {
             return alias.address;
           }
         }
       }
     }
-    return 'localhost';
+    return "localhost";
   }
 
   protected setupSignalHandlers(): void {
@@ -236,16 +261,16 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         return;
       }
       this.isCleaningUp = true;
-      
+
       // Use synchronous cleanup for signal handlers
       this.cleanupSync();
-      
+
       process.exit(0);
     };
 
-    process.on('SIGINT', cleanup);
-    process.on('SIGTERM', cleanup);
-    process.on('exit', () => {
+    process.on("SIGINT", cleanup);
+    process.on("SIGTERM", cleanup);
+    process.on("exit", () => {
       if (!this.isCleaningUp) {
         this.cleanupSync();
       }
@@ -260,34 +285,38 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
     // Kill web server process
     if (this.webServerProcess && !this.webServerProcess.killed) {
-      promises.push(new Promise<void>((resolve) => {
-        this.webServerProcess!.once('exit', () => resolve());
-        this.webServerProcess!.kill('SIGTERM');
-        
-        // Force kill after 2 seconds
-        setTimeout(() => {
-          if (this.webServerProcess && !this.webServerProcess.killed) {
-            this.webServerProcess.kill('SIGKILL');
-          }
-          resolve();
-        }, 2000);
-      }));
+      promises.push(
+        new Promise<void>((resolve) => {
+          this.webServerProcess!.once("exit", () => resolve());
+          this.webServerProcess!.kill("SIGTERM");
+
+          // Force kill after 2 seconds
+          setTimeout(() => {
+            if (this.webServerProcess && !this.webServerProcess.killed) {
+              this.webServerProcess.kill("SIGKILL");
+            }
+            resolve();
+          }, 2000);
+        })
+      );
     }
 
     // Kill platform-specific process
     if (this.platformProcess && !this.platformProcess.killed) {
-      promises.push(new Promise<void>((resolve) => {
-        this.platformProcess!.once('exit', () => resolve());
-        this.platformProcess!.kill('SIGTERM');
-        
-        // Force kill after 2 seconds
-        setTimeout(() => {
-          if (this.platformProcess && !this.platformProcess.killed) {
-            this.platformProcess.kill('SIGKILL');
-          }
-          resolve();
-        }, 2000);
-      }));
+      promises.push(
+        new Promise<void>((resolve) => {
+          this.platformProcess!.once("exit", () => resolve());
+          this.platformProcess!.kill("SIGTERM");
+
+          // Force kill after 2 seconds
+          setTimeout(() => {
+            if (this.platformProcess && !this.platformProcess.killed) {
+              this.platformProcess.kill("SIGKILL");
+            }
+            resolve();
+          }, 2000);
+        })
+      );
     }
 
     // Wait for all processes to exit
@@ -305,17 +334,17 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         if (pid) {
           try {
             // Try to kill entire process group
-            process.kill(-pid, 'SIGTERM');
+            process.kill(-pid, "SIGTERM");
           } catch (e) {
             // If process group kill fails, kill just the process
-            this.webServerProcess.kill('SIGTERM');
+            this.webServerProcess.kill("SIGTERM");
           }
-          
+
           // Force kill after a short delay
           setTimeout(() => {
             try {
               if (pid) {
-                process.kill(-pid, 'SIGKILL');
+                process.kill(-pid, "SIGKILL");
               }
             } catch (e) {
               // Ignore
@@ -332,9 +361,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         const pid = this.platformProcess.pid;
         if (pid) {
           try {
-            process.kill(-pid, 'SIGTERM');
+            process.kill(-pid, "SIGTERM");
           } catch (e) {
-            this.platformProcess.kill('SIGTERM');
+            this.platformProcess.kill("SIGTERM");
           }
         }
       } catch (error) {
@@ -350,7 +379,7 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   protected abstract runPlatform(serverUrl: string): Promise<void>;
 
   protected async handleError(error: unknown): Promise<void> {
-    this.spinner.fail('Run failed');
+    this.spinner.fail("Run failed");
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);

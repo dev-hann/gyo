@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { logger } from "../utils/logger.ts";
-import { checkCommandExists, executeCommand } from "../utils/exec.ts";
+import { logger } from "../utils/logger.js";
+import { checkCommandExists, executeCommand } from "../utils/exec.js";
 
 export function registerDoctorCommand(program: Command): void {
   program
@@ -270,5 +270,3 @@ async function checkLibimobiledevice(): Promise<CheckResult> {
     optional: true,
   };
 }
-
-

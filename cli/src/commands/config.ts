@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { logger } from '../utils/logger.ts';
-import { loadConfig, saveConfig, GyoConfig } from '../utils/config.ts';
+import { logger } from '../utils/logger.js';
+import { loadConfig, saveConfig, GyoConfig } from '../utils/config.js';
 
 export function registerConfigCommand(program: Command): void {
   const config = program

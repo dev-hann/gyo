@@ -1,111 +1,149 @@
-import { Command } from 'commander';
-import * as path from 'path';
-import ora from 'ora';
-import fs from 'fs-extra';
-import { logger } from '../utils/logger.ts';
-import { ensureDir, copyDir, pathExists, writeFile, readFile } from '../utils/fs.ts';
-import { getTemplatesPath } from '../utils/fs.ts';
+import { Command } from "commander";
+import * as path from "path";
+import ora from "ora";
+import fs from "fs-extra";
+import { logger } from "../utils/logger.js";
+import {
+  ensureDir,
+  copyDir,
+  pathExists,
+  writeFile,
+  readFile,
+} from "../utils/fs.js";
+import { getTemplatesPath } from "../utils/fs.js";
 
 export function registerCreateCommand(program: Command): void {
   program
-    .command('create <project-name>')
-    .description('Create a new gyo project')
-    .option('-t, --template <template>', 'Project template (default: react)', 'react')
+    .command("create <project-name>")
+    .description("Create a new gyo project")
+    .option(
+      "-t, --template <template>",
+      "Project template (default: react)",
+      "react"
+    )
     .action(async (projectName: string, options: { template: string }) => {
       await createProject(projectName, options);
     });
 }
 
-async function createProject(projectName: string, options: { template: string }): Promise<void> {
-  const spinner = ora('Creating gyo project...').start();
-  
+async function createProject(
+  projectName: string,
+  options: { template: string }
+): Promise<void> {
+  const spinner = ora("Creating gyo project...").start();
+
   try {
-    if (!projectName || projectName.trim() === '') {
-      spinner.fail('Project name cannot be empty');
+    if (!projectName || projectName.trim() === "") {
+      spinner.fail("Project name cannot be empty");
       process.exit(1);
     }
-    
+
     const projectPath = path.join(process.cwd(), projectName);
     if (await pathExists(projectPath)) {
       spinner.fail(`Directory "${projectName}" already exists`);
       process.exit(1);
     }
-    
-    spinner.text = 'Creating project directory...';
+
+    spinner.text = "Creating project directory...";
     await ensureDir(projectPath);
-    
+
     const templatesPath = getTemplatesPath();
-    
-    spinner.text = 'Copying lib template...';
-    const libTemplatePath = path.join(templatesPath, 'lib');
-    const libDestPath = path.join(projectPath, 'lib');
-    
+
+    spinner.text = "Copying lib template...";
+    const libTemplatePath = path.join(templatesPath, "lib");
+    const libDestPath = path.join(projectPath, "lib");
+
     if (await pathExists(libTemplatePath)) {
       await copyDir(libTemplatePath, libDestPath);
       await replacePlaceholders(libDestPath, projectName);
     } else {
-      logger.warn('Lib template not found, creating minimal structure...');
+      logger.warn("Lib template not found, creating minimal structure...");
       await ensureDir(libDestPath);
     }
-    
-    spinner.text = 'Copying Android template...';
-    const androidTemplatePath = path.join(templatesPath, 'android');
-    const androidDestPath = path.join(projectPath, 'android');
-    
+
+    spinner.text = "Copying Android template...";
+    const androidTemplatePath = path.join(templatesPath, "android");
+    const androidDestPath = path.join(projectPath, "android");
+
     if (await pathExists(androidTemplatePath)) {
       await copyDir(androidTemplatePath, androidDestPath);
-      
-      const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-      await replacePlaceholdersAndroid(androidDestPath, projectName, packageName);
-      
-      const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Android/Sdk`;
+
+      const packageName = `com.example.${projectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")}`;
+      await replacePlaceholdersAndroid(
+        androidDestPath,
+        projectName,
+        packageName
+      );
+
+      const androidHome =
+        process.env.ANDROID_HOME ||
+        process.env.ANDROID_SDK_ROOT ||
+        `${process.env.HOME}/Android/Sdk`;
       const localPropertiesContent = `sdk.dir=${androidHome}\n`;
-      await writeFile(path.join(androidDestPath, 'local.properties'), localPropertiesContent);
+      await writeFile(
+        path.join(androidDestPath, "local.properties"),
+        localPropertiesContent
+      );
     } else {
-      logger.warn('Android template not found, skipping...');
+      logger.warn("Android template not found, skipping...");
     }
-    
-    spinner.text = 'Copying iOS template...';
-    const iosTemplatePath = path.join(templatesPath, 'ios');
-    const iosDestPath = path.join(projectPath, 'ios');
-    
+
+    spinner.text = "Copying iOS template...";
+    const iosTemplatePath = path.join(templatesPath, "ios");
+    const iosDestPath = path.join(projectPath, "ios");
+
     if (await pathExists(iosTemplatePath)) {
       await copyDir(iosTemplatePath, iosDestPath);
-      const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+      const packageName = `com.example.${projectName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")}`;
       await replacePlaceholdersIOS(iosDestPath, projectName, packageName);
     } else {
-      logger.warn('iOS template not found, skipping...');
+      logger.warn("iOS template not found, skipping...");
     }
-    
-    spinner.text = 'Creating configuration...';
-    const configTemplatePath = path.join(templatesPath, 'gyo.config.json');
-    const configDestPath = path.join(projectPath, 'gyo.config.json');
-    const packageName = `com.example.${projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-    
+
+    spinner.text = "Creating configuration...";
+    const configTemplatePath = path.join(templatesPath, "gyo.config.json");
+    const configDestPath = path.join(projectPath, "gyo.config.json");
+    const packageName = `com.example.${projectName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")}`;
+
     if (await pathExists(configTemplatePath)) {
       let configContent = await readFile(configTemplatePath);
-      configContent = configContent.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
-      configContent = configContent.replace(/\{\{PROJECT_NAME_LOWER\}\}/g, projectName.toLowerCase());
-      configContent = configContent.replace(/\{\{PACKAGE_NAME\}\}/g, packageName);
+      configContent = configContent.replace(
+        /\{\{PROJECT_NAME\}\}/g,
+        projectName
+      );
+      configContent = configContent.replace(
+        /\{\{PROJECT_NAME_LOWER\}\}/g,
+        projectName.toLowerCase()
+      );
+      configContent = configContent.replace(
+        /\{\{PACKAGE_NAME\}\}/g,
+        packageName
+      );
       await writeFile(configDestPath, configContent);
     } else {
       const defaultConfig = {
         name: projectName,
-        version: '1.0.0',
-        serverUrl: 'http://localhost:3000',
+        version: "1.0.0",
+        serverUrl: "http://localhost:3000",
         platforms: {
           android: { enabled: true, packageName },
           ios: { enabled: true, bundleId: packageName },
-          desktop: { enabled: false }
-        }
+          desktop: { enabled: false },
+        },
       };
       await writeFile(configDestPath, JSON.stringify(defaultConfig, null, 2));
     }
-    
-    spinner.text = 'Creating project files...';
+
+    spinner.text = "Creating project files...";
     const readmeContent = generateReadme(projectName);
-    await writeFile(path.join(projectPath, 'README.md'), readmeContent);
-    
+    await writeFile(path.join(projectPath, "README.md"), readmeContent);
+
     const gitignoreContent = `node_modules/
 dist/
 build/
@@ -124,17 +162,16 @@ ios/build/
 ios/Pods/
 ios/*.xcworkspace
 `;
-    await writeFile(path.join(projectPath, '.gitignore'), gitignoreContent);
-    
+    await writeFile(path.join(projectPath, ".gitignore"), gitignoreContent);
+
     spinner.succeed(`Project "${projectName}" created successfully!`);
-    
-    logger.log('');
-    logger.success('Next steps:');
+
+    logger.log("");
+    logger.success("Next steps:");
     logger.info(`  cd ${projectName}`);
-    logger.info('  cd lib && npm install');
-    logger.info('  gyo run android');
-    logger.log('');
-    
+    logger.info("  cd lib && npm install");
+    logger.info("  gyo run android");
+    logger.log("");
   } catch (error) {
     spinner.fail(`Failed to create project: ${error}`);
     logger.error(error instanceof Error ? error.message : String(error));
@@ -142,86 +179,117 @@ ios/*.xcworkspace
   }
 }
 
-async function replacePlaceholders(dirPath: string, projectName: string): Promise<void> {
+async function replacePlaceholders(
+  dirPath: string,
+  projectName: string
+): Promise<void> {
   const files = await fs.readdir(dirPath);
-  
+
   for (const file of files) {
     const filePath = path.join(dirPath, file);
     const stat = await fs.stat(filePath);
-    
+
     if (stat.isDirectory()) {
       await replacePlaceholders(filePath, projectName);
     } else if (stat.isFile()) {
       let content = await readFile(filePath);
-      if (content.includes('{{PROJECT_NAME}}') || content.includes('{{PROJECT_NAME_LOWER}}')) {
+      if (
+        content.includes("{{PROJECT_NAME}}") ||
+        content.includes("{{PROJECT_NAME_LOWER}}")
+      ) {
         content = content.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
-        content = content.replace(/\{\{PROJECT_NAME_LOWER\}\}/g, projectName.toLowerCase());
+        content = content.replace(
+          /\{\{PROJECT_NAME_LOWER\}\}/g,
+          projectName.toLowerCase()
+        );
         await writeFile(filePath, content);
       }
     }
   }
 }
 
-async function replacePlaceholdersAndroid(dirPath: string, projectName: string, packageName: string): Promise<void> {
+async function replacePlaceholdersAndroid(
+  dirPath: string,
+  projectName: string,
+  packageName: string
+): Promise<void> {
   const files = await fs.readdir(dirPath);
-  
+
   for (const file of files) {
     const filePath = path.join(dirPath, file);
     const stat = await fs.stat(filePath);
-    
+
     if (stat.isDirectory()) {
       await replacePlaceholdersAndroid(filePath, projectName, packageName);
     } else if (stat.isFile()) {
       let content = await readFile(filePath);
-      const hasPlaceholder = content.includes('{{PROJECT_NAME}}') || 
-                            content.includes('{{PROJECT_NAME_LOWER}}') ||
-                            content.includes('{{PACKAGE_NAME}}');
-      
+      const hasPlaceholder =
+        content.includes("{{PROJECT_NAME}}") ||
+        content.includes("{{PROJECT_NAME_LOWER}}") ||
+        content.includes("{{PACKAGE_NAME}}");
+
       if (hasPlaceholder) {
         content = content.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
-        content = content.replace(/\{\{PROJECT_NAME_LOWER\}\}/g, projectName.toLowerCase());
+        content = content.replace(
+          /\{\{PROJECT_NAME_LOWER\}\}/g,
+          projectName.toLowerCase()
+        );
         content = content.replace(/\{\{PACKAGE_NAME\}\}/g, packageName);
         await writeFile(filePath, content);
       }
     }
   }
-  
+
   // Move kotlin source files from template placeholder directory to actual package directory
-  const kotlinTemplateDir = path.join(dirPath, 'app/src/main/kotlin/{{PACKAGE_NAME}}');
+  const kotlinTemplateDir = path.join(
+    dirPath,
+    "app/src/main/kotlin/{{PACKAGE_NAME}}"
+  );
   if (await pathExists(kotlinTemplateDir)) {
-    const packagePath = packageName.replace(/\./g, '/');
-    const kotlinDestDir = path.join(dirPath, `app/src/main/java/${packagePath}`);
+    const packagePath = packageName.replace(/\./g, "/");
+    const kotlinDestDir = path.join(
+      dirPath,
+      `app/src/main/java/${packagePath}`
+    );
     await ensureDir(kotlinDestDir);
-    
+
     // Move all files from template directory to destination
     await fs.copy(kotlinTemplateDir, kotlinDestDir, { overwrite: true });
-    
+
     // Remove the template kotlin directory
-    const kotlinDir = path.join(dirPath, 'app/src/main/kotlin');
+    const kotlinDir = path.join(dirPath, "app/src/main/kotlin");
     if (await pathExists(kotlinDir)) {
       await fs.remove(kotlinDir);
     }
   }
 }
 
-async function replacePlaceholdersIOS(dirPath: string, projectName: string, packageName: string): Promise<void> {
+async function replacePlaceholdersIOS(
+  dirPath: string,
+  projectName: string,
+  packageName: string
+): Promise<void> {
   const files = await fs.readdir(dirPath);
-  
+
   for (const file of files) {
     const filePath = path.join(dirPath, file);
     const stat = await fs.stat(filePath);
-    
+
     if (stat.isDirectory()) {
       await replacePlaceholdersIOS(filePath, projectName, packageName);
     } else if (stat.isFile()) {
       let content = await readFile(filePath);
-      const hasPlaceholder = content.includes('{{PROJECT_NAME}}') || 
-                            content.includes('{{PROJECT_NAME_LOWER}}') ||
-                            content.includes('{{PACKAGE_NAME}}');
-      
+      const hasPlaceholder =
+        content.includes("{{PROJECT_NAME}}") ||
+        content.includes("{{PROJECT_NAME_LOWER}}") ||
+        content.includes("{{PACKAGE_NAME}}");
+
       if (hasPlaceholder) {
         content = content.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
-        content = content.replace(/\{\{PROJECT_NAME_LOWER\}\}/g, projectName.toLowerCase());
+        content = content.replace(
+          /\{\{PROJECT_NAME_LOWER\}\}/g,
+          projectName.toLowerCase()
+        );
         content = content.replace(/\{\{PACKAGE_NAME\}\}/g, packageName);
         await writeFile(filePath, content);
       }

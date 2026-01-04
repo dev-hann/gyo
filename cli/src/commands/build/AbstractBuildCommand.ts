@@ -1,10 +1,14 @@
-import * as path from 'path';
-import fs from 'fs-extra';
-import { AbstractPlatformCommand, Platform, BuildCommandOptions } from '../common/AbstractPlatformCommand.ts';
-import { logger } from '../../utils/logger.ts';
-import { executeCommand } from '../../utils/exec.ts';
-import { pathExists, writeFile } from '../../utils/fs.ts';
-import { getProfileUrl } from '../../utils/config.ts';
+import * as path from "path";
+import fs from "fs-extra";
+import {
+  AbstractPlatformCommand,
+  Platform,
+  BuildCommandOptions,
+} from "../common/AbstractPlatformCommand.js";
+import { logger } from "../../utils/logger.js";
+import { executeCommand } from "../../utils/exec.js";
+import { pathExists, writeFile } from "../../utils/fs.js";
+import { getProfileUrl } from "../../utils/config.js";
 
 export abstract class AbstractBuildCommand extends AbstractPlatformCommand<BuildCommandOptions> {
   constructor(platform: Platform, options: BuildCommandOptions) {
@@ -15,7 +19,7 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
    * Build commands support android and ios platforms.
    */
   protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
+    return ["android", "ios"];
   }
 
   /**
@@ -34,36 +38,39 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
   }
 
   protected async buildLibAssets(): Promise<void> {
-    this.spinner.text = 'Building lib assets...';
-    const libPath = path.join(this.projectPath, 'lib');
+    this.spinner.text = "Building lib assets...";
+    const libPath = path.join(this.projectPath, "lib");
 
     if (await pathExists(libPath)) {
-      const libBuildResult = await executeCommand('npm', ['run', 'build'], {
+      const libBuildResult = await executeCommand("npm", ["run", "build"], {
         cwd: libPath,
-        stdio: 'pipe'
+        stdio: "pipe",
       });
 
       if (!libBuildResult.success) {
-        this.spinner.fail('Lib build failed');
+        this.spinner.fail("Lib build failed");
         logger.error(libBuildResult.stderr || libBuildResult.stdout);
         process.exit(1);
       }
 
-      this.spinner.succeed('Lib assets built successfully');
+      this.spinner.succeed("Lib assets built successfully");
       logger.verbose(libBuildResult.stdout);
     } else {
-      logger.warn('Lib directory not found, skipping lib build');
+      logger.warn("Lib directory not found, skipping lib build");
     }
   }
 
   protected getServerUrl(): string {
     if (!this.config) {
-      throw new Error('Configuration not loaded');
+      throw new Error("Configuration not loaded");
     }
     return getProfileUrl(this.config, this.options.profile);
   }
 
-  protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
+  protected async writeConfigFile(
+    configPath: string,
+    serverUrl: string
+  ): Promise<void> {
     this.spinner.text = `Configuring server URL: ${serverUrl}`;
     await fs.ensureDir(path.dirname(configPath));
     await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));

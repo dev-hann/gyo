@@ -1,5 +1,5 @@
-import { executeCommand, checkCommandExists } from './exec.ts';
-import { logger } from './logger.ts';
+import { executeCommand, checkCommandExists } from './exec.js';
+import { logger } from './logger.js';
 
 export interface Device {
   platform: 'android' | 'ios';

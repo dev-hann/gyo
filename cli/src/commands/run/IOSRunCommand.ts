@@ -1,10 +1,10 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import fs from 'fs-extra';
-import { AbstractRunCommand } from './AbstractRunCommand.ts';
-import { logger } from '../../utils/logger.ts';
-import { executeCommand } from '../../utils/exec.ts';
-import { pathExists, readFile, writeFile } from '../../utils/fs.ts';
+import { AbstractRunCommand } from './AbstractRunCommand.js';
+import { logger } from '../../utils/logger.js';
+import { executeCommand } from '../../utils/exec.js';
+import { pathExists, readFile, writeFile } from '../../utils/fs.js';
 
 export class IOSRunCommand extends AbstractRunCommand {
   protected async runPlatform(serverUrl: string): Promise<void> {

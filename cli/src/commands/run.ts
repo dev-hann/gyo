@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { Platform, RunCommandOptions } from './common/AbstractPlatformCommand.ts';
-import { AndroidRunCommand } from './run/AndroidRunCommand.ts';
-import { IOSRunCommand } from './run/IOSRunCommand.ts';
-import { getAllDevices, Device } from '../utils/devices.ts';
-import { logger } from '../utils/logger.ts';
+import { Platform, RunCommandOptions } from './common/AbstractPlatformCommand.js';
+import { AndroidRunCommand } from './run/AndroidRunCommand.js';
+import { IOSRunCommand } from './run/IOSRunCommand.js';
+import { getAllDevices, Device } from '../utils/devices.js';
+import { logger } from '../utils/logger.js';
 
 export function registerRunCommand(program: Command): void {
   program

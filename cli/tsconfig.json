@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
     "target": "es2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "rewriteRelativeImportExtensions": true,
+    "module": "NodeNext",
+    "moduleResolution": "nodeNext",
     "rootDir": "./src",
     "outDir": "./dist",
     "esModuleInterop": true,

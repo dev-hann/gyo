@@ -1,8 +1,8 @@
 import ora from "ora";
 import * as path from "path";
-import { loadConfig, GyoConfig } from "../../utils/config.ts";
-import { logger } from "../../utils/logger.ts";
-import { pathExists } from "../../utils/fs.ts";
+import { loadConfig, GyoConfig } from "../../utils/config.js";
+import { logger } from "../../utils/logger.js";
+import { pathExists } from "../../utils/fs.js";
 
 export type Platform = "android" | "ios";
 
@@ -18,7 +18,9 @@ export interface RunCommandOptions extends BaseCommandOptions {
   device: string;
 }
 
-export abstract class AbstractPlatformCommand<T extends BaseCommandOptions = BaseCommandOptions> {
+export abstract class AbstractPlatformCommand<
+  T extends BaseCommandOptions = BaseCommandOptions
+> {
   protected platform: Platform;
   protected options: T;
   protected spinner: ora.Ora;
@@ -73,10 +75,10 @@ export abstract class AbstractPlatformCommand<T extends BaseCommandOptions = Bas
     const platformConfig = this.config.platforms[this.platform];
     if (platformConfig && platformConfig.enabled === false) {
       this.spinner.fail(
-        `Platform ${this.platform} is disabled in gyo.config.json`,
+        `Platform ${this.platform} is disabled in gyo.config.json`
       );
       logger.warn(
-        `Enable it by setting platforms.${this.platform}.enabled to true`,
+        `Enable it by setting platforms.${this.platform}.enabled to true`
       );
       process.exit(1);
     }
@@ -87,7 +89,7 @@ export abstract class AbstractPlatformCommand<T extends BaseCommandOptions = Bas
     if (!(await pathExists(platformPath))) {
       this.spinner.fail(`${platform}/ directory not found`);
       logger.error(
-        `Run 'gyo create' first to initialize the ${platform} platform`,
+        `Run 'gyo create' first to initialize the ${platform} platform`
       );
       process.exit(1);
     }

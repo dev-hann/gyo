@@ -1,7 +1,7 @@
 import * as path from 'path';
-import { AbstractBuildCommand } from './AbstractBuildCommand.ts';
-import { logger } from '../../utils/logger.ts';
-import { executeCommand } from '../../utils/exec.ts';
+import { AbstractBuildCommand } from './AbstractBuildCommand.js';
+import { logger } from '../../utils/logger.js';
+import { executeCommand } from '../../utils/exec.js';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   protected async buildPlatform(): Promise<void> {
