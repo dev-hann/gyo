@@ -1,9 +1,10 @@
 import * as path from 'path';
-import { AbstractPlatformCommand, Platform, BuildCommandOptions } from '../common/AbstractPlatformCommand';
-import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
-import { pathExists, writeFile } from '../../utils/fs';
-import { getProfileUrl } from '../../utils/config';
+import fs from 'fs-extra';
+import { AbstractPlatformCommand, Platform, BuildCommandOptions } from '../common/AbstractPlatformCommand.ts';
+import { logger } from '../../utils/logger.ts';
+import { executeCommand } from '../../utils/exec.ts';
+import { pathExists, writeFile } from '../../utils/fs.ts';
+import { getProfileUrl } from '../../utils/config.ts';
 
 export abstract class AbstractBuildCommand extends AbstractPlatformCommand<BuildCommandOptions> {
   constructor(platform: Platform, options: BuildCommandOptions) {
@@ -64,7 +65,6 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
 
   protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
     this.spinner.text = `Configuring server URL: ${serverUrl}`;
-    const fs = require('fs-extra');
     await fs.ensureDir(path.dirname(configPath));
     await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
   }

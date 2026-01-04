@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { logger } from "../utils/logger";
-import { checkCommandExists, executeCommand } from "../utils/exec";
+import { logger } from "../utils/logger.ts";
+import { checkCommandExists, executeCommand } from "../utils/exec.ts";
 
 export function registerDoctorCommand(program: Command): void {
   program

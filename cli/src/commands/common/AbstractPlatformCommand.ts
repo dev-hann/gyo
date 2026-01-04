@@ -1,8 +1,8 @@
 import ora from "ora";
 import * as path from "path";
-import { loadConfig, GyoConfig } from "../../utils/config";
-import { logger } from "../../utils/logger";
-import { pathExists } from "../../utils/fs";
+import { loadConfig, GyoConfig } from "../../utils/config.ts";
+import { logger } from "../../utils/logger.ts";
+import { pathExists } from "../../utils/fs.ts";
 
 export type Platform = "android" | "ios";
 

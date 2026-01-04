@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { Platform, BuildCommandOptions } from './common/AbstractPlatformCommand';
-import { AndroidBuildCommand } from './build/AndroidBuildCommand';
-import { IOSBuildCommand } from './build/IOSBuildCommand';
-import { logger } from '../utils/logger';
+import { Platform, BuildCommandOptions } from './common/AbstractPlatformCommand.ts';
+import { AndroidBuildCommand } from './build/AndroidBuildCommand.ts';
+import { IOSBuildCommand } from './build/IOSBuildCommand.ts';
+import { logger } from '../utils/logger.ts';
 
 export function registerBuildCommand(program: Command): void {
   program

@@ -1,9 +1,10 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import ora from 'ora';
-import { logger } from '../utils/logger';
-import { ensureDir, copyDir, pathExists, writeFile, readFile } from '../utils/fs';
-import { getTemplatesPath } from '../utils/fs';
+import fs from 'fs-extra';
+import { logger } from '../utils/logger.ts';
+import { ensureDir, copyDir, pathExists, writeFile, readFile } from '../utils/fs.ts';
+import { getTemplatesPath } from '../utils/fs.ts';
 
 export function registerCreateCommand(program: Command): void {
   program
@@ -142,7 +143,6 @@ ios/*.xcworkspace
 }
 
 async function replacePlaceholders(dirPath: string, projectName: string): Promise<void> {
-  const fs = require('fs-extra');
   const files = await fs.readdir(dirPath);
   
   for (const file of files) {
@@ -163,7 +163,6 @@ async function replacePlaceholders(dirPath: string, projectName: string): Promis
 }
 
 async function replacePlaceholdersAndroid(dirPath: string, projectName: string, packageName: string): Promise<void> {
-  const fs = require('fs-extra');
   const files = await fs.readdir(dirPath);
   
   for (const file of files) {
@@ -206,7 +205,6 @@ async function replacePlaceholdersAndroid(dirPath: string, projectName: string, 
 }
 
 async function replacePlaceholdersIOS(dirPath: string, projectName: string, packageName: string): Promise<void> {
-  const fs = require('fs-extra');
   const files = await fs.readdir(dirPath);
   
   for (const file of files) {

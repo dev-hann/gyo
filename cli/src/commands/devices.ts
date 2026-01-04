@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import ora from 'ora';
-import { logger } from '../utils/logger';
-import { getAllDevices, Device } from '../utils/devices';
+import { logger } from '../utils/logger.ts';
+import { getAllDevices, Device } from '../utils/devices.ts';
 
 export function registerDevicesCommand(program: Command): void {
   program

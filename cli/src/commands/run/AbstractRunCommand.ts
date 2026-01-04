@@ -1,10 +1,11 @@
 import * as path from 'path';
+import os from 'os';
 import { ChildProcess, spawn } from 'child_process';
-import { AbstractPlatformCommand, Platform, RunCommandOptions } from '../common/AbstractPlatformCommand';
-import { logger } from '../../utils/logger';
-import { executeCommand, checkCommandExists } from '../../utils/exec';
-import { pathExists } from '../../utils/fs';
-import { saveConfig, shouldStartLocalServer } from '../../utils/config';
+import { AbstractPlatformCommand, Platform, RunCommandOptions } from '../common/AbstractPlatformCommand.ts';
+import { logger } from '../../utils/logger.ts';
+import { executeCommand, checkCommandExists } from '../../utils/exec.ts';
+import { pathExists } from '../../utils/fs.ts';
+import { saveConfig, shouldStartLocalServer } from '../../utils/config.ts';
 
 export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
@@ -215,7 +216,6 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   }
 
   protected async getLocalIP(): Promise<string> {
-    const os = require('os');
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
       const iface = interfaces[name];

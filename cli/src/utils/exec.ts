@@ -1,5 +1,5 @@
 import { spawn, SpawnOptions } from 'child_process';
-import { logger } from './logger';
+import { logger } from './logger.ts';
 
 export interface ExecResult {
   success: boolean;

@@ -1,9 +1,10 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { AbstractRunCommand } from './AbstractRunCommand';
-import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
-import { pathExists, readFile, writeFile } from '../../utils/fs';
+import fs from 'fs-extra';
+import { AbstractRunCommand } from './AbstractRunCommand.ts';
+import { logger } from '../../utils/logger.ts';
+import { executeCommand } from '../../utils/exec.ts';
+import { pathExists, readFile, writeFile } from '../../utils/fs.ts';
 
 export class IOSRunCommand extends AbstractRunCommand {
   protected async runPlatform(serverUrl: string): Promise<void> {
@@ -38,7 +39,6 @@ export class IOSRunCommand extends AbstractRunCommand {
     const resourcesPath = path.join(iosPath, 'Sources/Resources');
     const configPath = path.join(resourcesPath, 'gyo-config.json');
 
-    const fs = require('fs-extra');
     await fs.ensureDir(resourcesPath);
 
     const config = {

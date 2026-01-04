@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import ora from 'ora';
-import { logger } from '../utils/logger';
-import { executeCommand } from '../utils/exec';
-import { pathExists, removeDir } from '../utils/fs';
+import { logger } from '../utils/logger.ts';
+import { executeCommand } from '../utils/exec.ts';
+import { pathExists, removeDir } from '../utils/fs.ts';
 
 export function registerCleanCommand(program: Command): void {
   program

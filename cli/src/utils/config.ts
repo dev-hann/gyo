@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { readJson, writeJson, pathExists } from './fs';
-import { logger } from './logger';
+import { readJson, writeJson, pathExists } from './fs.ts';
+import { logger } from './logger.ts';
 
 export interface ProfileConfig {
   serverUrl: string;

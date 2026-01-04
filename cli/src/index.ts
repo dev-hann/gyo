@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { registerCreateCommand } from './commands/create';
-import { registerBuildCommand } from './commands/build';
-import { registerRunCommand } from './commands/run';
-import { registerCleanCommand } from './commands/clean';
-import { registerConfigCommand } from './commands/config';
-import { registerDoctorCommand } from './commands/doctor';
-import { registerDevicesCommand } from './commands/devices';
+import { registerCreateCommand } from './commands/create.ts';
+import { registerBuildCommand } from './commands/build.ts';
+import { registerRunCommand } from './commands/run.ts';
+import { registerCleanCommand } from './commands/clean.ts';
+import { registerConfigCommand } from './commands/config.ts';
+import { registerDoctorCommand } from './commands/doctor.ts';
+import { registerDevicesCommand } from './commands/devices.ts';
 
 const program = new Command();
 

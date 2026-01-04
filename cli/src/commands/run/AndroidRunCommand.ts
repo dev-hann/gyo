@@ -1,9 +1,10 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
-import { AbstractRunCommand } from './AbstractRunCommand';
-import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
-import { pathExists, readFile, writeFile } from '../../utils/fs';
+import fs from 'fs-extra';
+import { AbstractRunCommand } from './AbstractRunCommand.ts';
+import { logger } from '../../utils/logger.ts';
+import { executeCommand } from '../../utils/exec.ts';
+import { pathExists, readFile, writeFile } from '../../utils/fs.ts';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   protected async runPlatform(serverUrl: string): Promise<void> {
@@ -35,9 +36,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     // Update assets/gyo-config.json
     const assetsPath = path.join(androidPath, 'app/src/main/assets');
     const configPath = path.join(assetsPath, 'gyo-config.json');
-    
-    const fs = require('fs-extra');
-    
+
     // Ensure assets directory exists
     await fs.ensureDir(assetsPath);
     
@@ -92,7 +91,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
         return null;
       }
 
-      const content = await require('fs-extra').readFile(buildGradlePath, 'utf-8');
+      const content = await fs.readFile(buildGradlePath, 'utf-8');
       const match = content.match(/applicationId\s+"([^"]+)"/);
       return match ? match[1] : null;
     } catch (error) {

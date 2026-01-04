@@ -2,6 +2,7 @@
   "name": "gyo-cli",
   "version": "0.1.0",
   "description": "CLI tool for the gyo framework",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
