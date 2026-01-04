@@ -1,19 +1,157 @@
-# Gyo 프로젝트 템플릿
+# Gyo Project Templates
 
-## 기능
+This directory contains templates for creating new Gyo projects with `gyo create` command.
 
-이 폴더에는 `gyo create` 명령어로 새로운 프로젝트를 생성할 때 사용되는 기본 템플릿들이 들어있습니다. 각 템플릿은 특정 플랫폼 또는 라이브러리에 대한 초기 설정과 기본 구조를 제공하여 사용자가 빠르게 개발을 시작할 수 있도록 돕습니다.
+## Template Structure
 
-### 템플릿 구성
+```
+templates/
+├── android/        # Android native project
+├── ios/            # iOS native project
+├── lib/            # Web application (React)
+└── gyo.config.json # Gyo configuration
+```
 
-- **`android/`**: Android 네이티브 앱을 위한 템플릿입니다. 기본적인 `build.gradle` 설정, `MainActivity.kt` 및 웹뷰 설정이 포함되어 있습니다.
-- **`ios/`**: iOS 네이티브 앱을 위한 템플릿입니다. `XcodeGen`을 사용한 프로젝트 구조(`project.yml`), `AppDelegate.swift`, `ViewController.swift` 등이 포함되어 있습니다.
-- **`lib/`**: 플랫폼 간에 공유되는 웹 애플리케이션의 템플릿입니다. `React`, `Vite`, `TypeScript` 기반으로 구성되어 있으며, 실제 앱의 UI와 비즈니스 로직 대부분이 이곳에 작성됩니다.
+## Using Gyo Plugins
 
-## 앞으로 추가할 기능 (Todo List)
+All templates now use Gyo Plugins as dependencies instead of including bridge code directly.
 
-- [ ] **템플릿 버전 관리:** 각 플랫폼(Android/iOS)의 최신 OS 버전에 맞춰 템플릿 업데이트 및 유지보수
-- [ ] **다양한 상태 관리 라이브러리 템플릿 추가:** `Redux Toolkit`, `Zustand`, `Recoil` 등 다양한 상태 관리 라이브러리가 사전 설정된 `lib` 템플릿 옵션 제공
-- [ ] **Custom Template 기능:** 사용자가 자신만의 템플릿을 만들어 `gyo create --template <path>` 형태로 사용할 수 있는 기능 추가
-- [ ] **데스크톱 플랫폼 템플릿 추가:** `Electron`이나 `Tauri`를 활용한 데스크톱(Windows, macOS, Linux)용 템플릿 추가 검토
-- [ ] **템플릿 최적화:** 불필요한 파일을 제거하고 초기 빌드 속도를 개선하기 위한 템플릿 경량화 작업
+### Web (React)
+
+**package.json**
+```json
+{
+  "dependencies": {
+    "gyo-plugins": "^0.1.0"
+  }
+}
+```
+
+**Usage Example**
+```typescript
+import { Bridge } from 'gyo-plugins';
+
+// Create a custom bridge
+const myBridge = new Bridge('myCustomBridge');
+
+// Call native methods
+const result = await myBridge.invoke('getData', { id: 123 });
+
+// Listen to native events
+const unsubscribe = myBridge.listen((event) => {
+  console.log('Event from native:', event);
+});
+```
+
+### Android (Kotlin)
+
+**settings.gradle**
+```gradle
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+```
+
+**app/build.gradle**
+```gradle
+dependencies {
+    implementation 'gyo.plugins:android:0.1.0'
+}
+```
+
+**Usage Example**
+```kotlin
+import gyo.plugins.bridge.AndroidBridgeInterface
+import gyo.plugins.bridge.BridgeRegistry
+import gyo.plugins.bridge.BridgeHandler
+
+// Setup in MainActivity
+val bridgeInterface = AndroidBridgeInterface(webView)
+webView.addJavascriptInterface(bridgeInterface, "androidBridge")
+
+// Register custom bridge
+class MyCustomBridgeHandler : BridgeHandler {
+    override fun handle(method: String, data: JSONObject): Any? {
+        return when (method) {
+            "getData" -> {
+                val id = data.optInt("id")
+                // Return data
+                mapOf("success" to true, "data" to "...")
+            }
+            else -> throw IllegalArgumentException("Unknown method: $method")
+        }
+    }
+}
+
+BridgeRegistry.register("myCustomBridge", MyCustomBridgeHandler())
+```
+
+### iOS (Swift)
+
+**Package.swift**
+```swift
+dependencies: [
+    .package(url: "https://github.com/gyo-ai/gyo-plugins-ios.git", from: "0.1.0")
+]
+```
+
+**Usage Example**
+```swift
+import GyoBridge
+
+// Setup in WebViewController
+let bridgeInterface = IOSBridgeInterface(webView: webView)
+webView.configuration.userContentController.add(bridgeInterface, name: "gyoBridge")
+
+// Register custom bridge
+final class MyCustomBridgeHandler: BridgeHandler {
+    func handle(method: String, data: [String: Any]) throws -> Any? {
+        switch method {
+        case "getData":
+            let id = data["id"] as? Int ?? 0
+            // Return data
+            return ["success": true, "data": "..."]
+        default:
+            throw BridgeError.unknownMethod(method)
+        }
+    }
+}
+
+await BridgeRegistry.shared.register("myCustomBridge", handler: MyCustomBridgeHandler())
+```
+
+## Migration from Old Templates
+
+If you have an existing project with embedded bridge code:
+
+### Android
+1. Remove `app/src/main/kotlin/<package>/gyo/` directory
+2. Update imports: `import <package>.gyo.*` → `import gyo.plugins.bridge.*`
+3. Add JitPack repository to `settings.gradle`
+4. Add `implementation 'gyo.plugins:android:0.1.0'` to `app/build.gradle`
+5. Remove ConsoleBridgeHandler registration
+
+### iOS
+1. Remove bridge Swift files (BridgeHandler.swift, BridgeRegistry.swift, etc.)
+2. Add `import GyoBridge` to files using bridge
+3. Update Package.swift to include gyo-plugins-ios dependency
+4. Remove ConsoleBridgeHandler registration
+
+### Web
+1. Update `gyo-plugins` version to `^0.1.0` in package.json
+2. Remove any references to `initConsoleBridge` (deprecated)
+
+## Documentation
+
+- [Gyo Plugins Documentation](../plugins/README.md)
+- [Web Bridge API](../plugins/lib/README.md)
+- [Android Bridge API](../plugins/android/README.md)
+- [iOS Bridge API](../plugins/ios/README.md)
+
+## Future Enhancements
+
+- [ ] Template version management for latest OS versions
+- [ ] Multiple state management library templates (Redux Toolkit, Zustand, Recoil)
+- [ ] Custom template support (`gyo create --template <path>`)
+- [ ] Desktop platform templates (Electron, Tauri)
+- [ ] Template optimization and build speed improvements

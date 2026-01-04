@@ -1,0 +1,27 @@
+{
+  "name": "gyo-plugins",
+  "version": "0.1.0",
+  "description": "Gyo library including bridge for web and native communication",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "cd bridge && npm run build",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "gyo",
+    "bridge",
+    "webview",
+    "android",
+    "ios",
+    "native"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "bridge/dist"
+  ]
+}

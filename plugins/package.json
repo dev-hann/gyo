@@ -1,0 +1,18 @@
+{
+  "name": "gyo-plugins",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [
+    "gyo"
+  ],
+  "license": "ISC",
+  "author": "dev-hann",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

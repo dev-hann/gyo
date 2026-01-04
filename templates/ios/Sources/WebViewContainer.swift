@@ -1,5 +1,6 @@
 import UIKit
 import WebKit
+import GyoBridge
 
 class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     
@@ -30,12 +31,11 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         
         // Initialize BridgeRegistry
         Task { @MainActor in
-            BridgeRegistry.shared.initialize()
-            BridgeRegistry.shared.register("gyo-console", handler: ConsoleBridgeHandler())
+            await BridgeRegistry.shared.initialize()
+            
+            // Example: Register custom bridge (developers can add their own)
+            // await BridgeRegistry.shared.register("my-custom-bridge", handler: MyCustomBridgeHandler())
         }
-        
-        // Example: Register custom bridge (developers can add their own)
-        // BridgeRegistry.shared.register("my-custom-bridge", handler: MyCustomBridgeHandler())
         
         loadApp()
     }

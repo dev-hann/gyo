@@ -1,5 +1,5 @@
 {
-  "name": "{{PROJECT_NAME_LOWER}}-lib",
+  "name": "{{PROJECT_NAME_LOWER}}",
   "version": "1.0.0",
   "description": "React application for {{PROJECT_NAME}}",
   "main": "index.html",
@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "gyo-plugins": "^1.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

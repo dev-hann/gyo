@@ -9,9 +9,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
-import {{PACKAGE_NAME}}.gyo.AndroidBridgeInterface
-import {{PACKAGE_NAME}}.gyo.BridgeRegistry
-import {{PACKAGE_NAME}}.gyo.ConsoleBridgeHandler
+import gyo.plugins.bridge.AndroidBridgeInterface
+import gyo.plugins.bridge.BridgeRegistry
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -46,11 +45,8 @@ class MainActivity : AppCompatActivity() {
             WebView.setWebContentsDebuggingEnabled(true)
         }
         
-        // Initialize BridgeRegistry with default handlers
+        // Initialize BridgeRegistry
         BridgeRegistry.initialize()
-        
-        // Register built-in console bridge
-        BridgeRegistry.register("gyo-console", ConsoleBridgeHandler())
         
         // Add JavaScript interface for bridge system
         val bridgeInterface = AndroidBridgeInterface(webView)
