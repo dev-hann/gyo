@@ -14,13 +14,13 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/gyo-ai/gyo-plugins-ios.git", from: "0.1.0")
+        .package(url: "https://github.com/dev-hann/gyo.git", from: "0.1.0")
     ],
     targets: [
         .target(
             name: "{{PROJECT_NAME}}",
             dependencies: [
-                .product(name: "GyoBridge", package: "gyo-plugins-ios")
+                .product(name: "GyoBridge", package: "gyo")
             ],
             path: "Sources",
             resources: [
