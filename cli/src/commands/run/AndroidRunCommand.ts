@@ -4,7 +4,8 @@ import fs from "fs-extra";
 import { AbstractRunCommand } from "./AbstractRunCommand.js";
 import { logger } from "../../utils/logger.js";
 import { executeCommand } from "../../utils/exec.js";
-import { pathExists, readFile, writeFile } from "../../utils/fs.js";
+import { pathExists } from "../../utils/fs.js";
+import { CommandNotFoundError, BuildFailedError } from "../../utils/errors.js";
 
 export class AndroidRunCommand extends AbstractRunCommand {
   protected async runPlatform(serverUrl: string): Promise<void> {
@@ -26,7 +27,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     if (!(await this.checkCommandExists("adb"))) {
       this.spinner.fail("adb not found");
       logger.error("Please install Android SDK and add adb to your PATH");
-      process.exit(1);
+      throw new CommandNotFoundError("adb");
     }
   }
 
@@ -52,7 +53,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async getConnectedDevice(): Promise<string> {
-    // Device is already selected in run.ts
     return this.options.device;
   }
 
@@ -67,7 +67,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
     if (!buildResult.success) {
       this.spinner.fail("Build failed");
-      process.exit(1);
+      throw new BuildFailedError("Android build failed");
     }
   }
 
@@ -83,7 +83,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     if (!installResult.success) {
       this.spinner.fail("Failed to install app");
       logger.error(installResult.stderr || installResult.stdout);
-      process.exit(1);
+      throw new BuildFailedError("Failed to install app");
     }
   }
 
@@ -132,17 +132,10 @@ export class AndroidRunCommand extends AbstractRunCommand {
     }
   }
 
-  private showSuccessMessage(serverUrl: string): void {
-    logger.log("");
-    logger.success(`App is connected to: ${serverUrl}`);
-    logger.info("Monitoring console logs (Press Ctrl+C to stop)...");
-    logger.log("");
-  }
-
-  private async monitorLogs(selectedDevice: string): Promise<void> {
+  protected async monitorLogs(identifier: string): Promise<void> {
     const logcatArgs = ["logcat", "-v", "brief", "-s", "WebView-Console:*"];
-    if (selectedDevice) {
-      logcatArgs.unshift("-s", selectedDevice);
+    if (identifier) {
+      logcatArgs.unshift("-s", identifier);
     }
 
     this.platformProcess = spawn("adb", logcatArgs, {
@@ -166,15 +159,38 @@ export class AndroidRunCommand extends AbstractRunCommand {
     });
 
     this.platformProcess.stderr?.on("data", (data: Buffer) => {
-      // Ignore stderr for logcat
     });
 
-    this.platformProcess.on("exit", (code) => {
+    this.platformProcess.on("error", (error) => {
+      if (!this.isCleaningUp) {
+        logger.error(`Log monitoring error: ${error.message}`);
+      }
+    });
+
+    this.platformProcess.on("exit", (code, signal) => {
       if (!this.isCleaningUp && code !== 0) {
         logger.warn("Log monitoring stopped");
       }
     });
 
-    await new Promise(() => {});
+    return new Promise<void>((resolve, reject) => {
+      if (!this.platformProcess) {
+        resolve();
+        return;
+      }
+
+      this.platformProcess.on("exit", () => {
+        if (!this.isCleaningUp) {
+          logger.warn("Log monitoring stopped");
+        }
+        resolve();
+      });
+
+      this.platformProcess.on("error", (error) => {
+        if (!this.isCleaningUp) {
+          reject(error);
+        }
+      });
+    });
   }
 }

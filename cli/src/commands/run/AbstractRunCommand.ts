@@ -10,6 +10,13 @@ import { logger } from "../../utils/logger.js";
 import { executeCommand, checkCommandExists } from "../../utils/exec.js";
 import { pathExists } from "../../utils/fs.js";
 import { saveConfig, shouldStartLocalServer } from "../../utils/config.js";
+import { ServerStartError, GyoError } from "../../utils/errors.js";
+
+const DEFAULT_PORT = 3000;
+const WEB_SERVER_TIMEOUT_MS = 30000;
+const PROCESS_KILL_TIMEOUT_MS = 2000;
+const LOCALHOST = "localhost";
+const LOCAL_IPV4 = "0.0.0.0";
 
 export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
@@ -25,10 +32,25 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     return ["android", "ios"];
   }
 
+  protected cleanupPlatformOnly(): void {
+    if (this.platformProcess && !this.platformProcess.killed) {
+      try {
+        const pid = this.platformProcess.pid;
+        if (pid) {
+          this.platformProcess.kill("SIGTERM");
+        }
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
+  }
+
   protected async run(): Promise<void> {
     if (!this.config) {
       throw new Error("Config not loaded");
     }
+
+    this.setupSignalHandlers();
 
     // Check if we should start local server based on profile config
     const startLocalServer = shouldStartLocalServer(
@@ -37,19 +59,27 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     );
 
     if (startLocalServer) {
-      // Start local development server
-      const port = this.getPortFromProfile(this.options.profile);
+      try {
+        // Start local development server
+        const port = this.getPortFromProfile(this.options.profile);
 
-      this.spinner.text = "Starting local web server...";
-      const libPath = path.join(this.projectPath, "lib");
-      this.serverUrl = await this.startWebServer(libPath, port);
+        this.spinner.text = "Starting local web server...";
+        const libPath = path.join(this.projectPath, "lib");
 
-      // Auto-update profile with actual server URL
-      await this.updateProfileUrl(this.options.profile, this.serverUrl);
+        this.serverUrl = await this.startWebServer(libPath, port);
 
-      this.spinner.succeed(
-        `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
-      );
+        // Auto-update profile with actual server URL
+        await this.updateProfileUrl(this.options.profile, this.serverUrl);
+
+        this.spinner.succeed(
+          `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
+        );
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        this.spinner.fail(`Failed to start web server: ${errorMsg}`);
+        await this.cleanup();
+        throw error;
+      }
     } else {
       // Use URL from config (external server)
       if (!this.config.profiles?.[this.options.profile]) {
@@ -64,30 +94,50 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       );
     }
 
-    this.setupSignalHandlers();
-
     this.spinner.start(`Running ${this.platform} app...`);
-    await this.runPlatform(this.serverUrl);
+
+    try {
+      await this.runPlatform(this.serverUrl);
+    } finally {
+      this.cleanupPlatformOnly();
+    }
   }
 
   /**
    * Extracts port number from profile URL.
    */
+  /**
+   * Gets the start command to run for the local development server.
+   * The command is executed directly as configured by the developer.
+   * @throws Error if the command is empty or not configured
+   */
+  protected getStartCommand(): string {
+    const command = this.config?.script?.start;
+
+    if (!command || command.trim() === "") {
+      throw new Error(
+        "Start command is not configured. Please set 'script.start' in gyo.config.json (e.g., 'npm run dev' for Vite/Next.js)"
+      );
+    }
+
+    return command.trim();
+  }
+
   protected getPortFromProfile(profile: string): number {
     if (!this.config?.profiles?.[profile]) {
-      return 3000; // Default port
+      return DEFAULT_PORT;
     }
 
     const url = this.config.profiles[profile].serverUrl;
     try {
       const urlObj = new URL(url);
       const port = urlObj.port;
-      return port ? parseInt(port, 10) : 3000;
+      return port ? parseInt(port, 10) : DEFAULT_PORT;
     } catch (error) {
       logger.warn(
-        `Failed to parse URL from profile '${profile}', using default port 3000`
+        `Failed to parse URL from profile '${profile}', using default port ${DEFAULT_PORT}`
       );
-      return 3000;
+      return DEFAULT_PORT;
     }
   }
 
@@ -131,18 +181,28 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       });
 
       if (!installResult.success) {
-        throw new Error("Failed to install web dependencies");
+        throw new ServerStartError("Failed to install web dependencies");
       }
     }
 
-    this.webServerProcess = spawn("npm", ["run", "dev"], {
+    const lockFile = path.join(webPath, ".next/dev/lock");
+    if (await pathExists(lockFile)) {
+      try {
+        const fs = await import("fs-extra");
+        await fs.remove(lockFile);
+      } catch (error) {
+        logger.warn(`Could not remove lock file: ${error}`);
+      }
+    }
+
+    const startCommand = this.getStartCommand();
+    this.webServerProcess = spawn(startCommand, [], {
       cwd: webPath,
       stdio: "pipe",
       shell: true,
       detached: true,
     });
 
-    // Wait for server to be ready by monitoring output
     const serverUrl = await this.waitForServerReady(port);
     return serverUrl;
   }
@@ -154,67 +214,56 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   protected async waitForServerReady(expectedPort: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Web server failed to start within 30 seconds"));
-      }, 30000);
+        reject(new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`));
+      }, WEB_SERVER_TIMEOUT_MS);
 
       let serverReady = false;
 
-      // Listen to stdout for server ready messages
       this.webServerProcess?.stdout?.on("data", (data: Buffer) => {
         const output = data.toString();
 
         if (serverReady) return;
 
-        // Check for various framework ready messages and extract URL
         let detectedUrl: string | null = null;
 
-        // Next.js patterns: "- Local:   http://localhost:3000" or "ready - started server on"
         const nextLocalMatch = output.match(
           /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
         );
         if (nextLocalMatch) {
-          detectedUrl = `http://localhost:${nextLocalMatch[1]}`;
+          detectedUrl = `http://${LOCALHOST}:${nextLocalMatch[1]}`;
         }
 
-        // Vite patterns: "Local:   http://localhost:5173/"
         const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
         if (viteMatch) {
           detectedUrl = viteMatch[1];
         }
 
-        // Generic pattern: "http://localhost:PORT" or "http://0.0.0.0:PORT"
         if (!detectedUrl) {
           const genericMatch = output.match(
             /https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i
           );
           if (genericMatch) {
-            detectedUrl = `http://localhost:${genericMatch[1]}`;
+            detectedUrl = `http://${LOCALHOST}:${genericMatch[1]}`;
           }
         }
 
-        // If we found a URL, get the local IP and resolve
         if (detectedUrl) {
           serverReady = true;
           clearTimeout(timeout);
 
-          // Extract port from detected URL
           const urlObj = new URL(detectedUrl);
-          const port = parseInt(urlObj.port || "3000", 10);
+          const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
 
-          // Get local IP for mobile devices
           this.getLocalIP().then((ip) => {
             resolve(`http://${ip}:${port}`);
           });
         }
       });
 
-      // Listen to stderr as well (some frameworks output to stderr)
       this.webServerProcess?.stderr?.on("data", (data: Buffer) => {
         const output = data.toString();
 
-        // Some frameworks might output ready message to stderr
         if (!serverReady && output.match(/ready|listening|started/i)) {
-          // Fallback: use expected port
           serverReady = true;
           clearTimeout(timeout);
 
@@ -224,17 +273,19 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         }
       });
 
-      // Handle process errors
       this.webServerProcess?.on("error", (error) => {
         clearTimeout(timeout);
         reject(new Error(`Failed to start web server: ${error.message}`));
       });
 
-      // Handle process exit
-      this.webServerProcess?.on("exit", (code) => {
+      this.webServerProcess?.on("exit", (code, signal) => {
         if (!serverReady) {
           clearTimeout(timeout);
           reject(new Error(`Web server exited with code ${code}`));
+        } else if (code !== 0 && !this.isCleaningUp) {
+          logger.error(`\n⚠️  Web server unexpectedly stopped with code ${code}`);
+          logger.error("Check if another development server is running or if there are any errors above.");
+          logger.info("The app will continue running but may not be able to connect to the server.");
         }
       });
     });
@@ -252,29 +303,25 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         }
       }
     }
-    return "localhost";
+    return LOCALHOST;
   }
 
   protected setupSignalHandlers(): void {
-    const cleanup = () => {
+    const interruptCleanup = () => {
       if (this.isCleaningUp) {
         return;
       }
       this.isCleaningUp = true;
 
-      // Use synchronous cleanup for signal handlers
+      // Full cleanup (web server + platform)
       this.cleanupSync();
 
       process.exit(0);
     };
 
-    process.on("SIGINT", cleanup);
-    process.on("SIGTERM", cleanup);
-    process.on("exit", () => {
-      if (!this.isCleaningUp) {
-        this.cleanupSync();
-      }
-    });
+    // Only handle user interruption signals
+    process.on("SIGINT", interruptCleanup);
+    process.on("SIGTERM", interruptCleanup);
   }
 
   /**
@@ -283,87 +330,83 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   protected async cleanup(): Promise<void> {
     const promises: Promise<void>[] = [];
 
-    // Kill web server process
     if (this.webServerProcess && !this.webServerProcess.killed) {
       promises.push(
         new Promise<void>((resolve) => {
           this.webServerProcess!.once("exit", () => resolve());
           this.webServerProcess!.kill("SIGTERM");
 
-          // Force kill after 2 seconds
           setTimeout(() => {
             if (this.webServerProcess && !this.webServerProcess.killed) {
               this.webServerProcess.kill("SIGKILL");
             }
             resolve();
-          }, 2000);
+          }, PROCESS_KILL_TIMEOUT_MS);
         })
       );
     }
 
-    // Kill platform-specific process
     if (this.platformProcess && !this.platformProcess.killed) {
       promises.push(
         new Promise<void>((resolve) => {
           this.platformProcess!.once("exit", () => resolve());
           this.platformProcess!.kill("SIGTERM");
 
-          // Force kill after 2 seconds
           setTimeout(() => {
             if (this.platformProcess && !this.platformProcess.killed) {
               this.platformProcess.kill("SIGKILL");
             }
             resolve();
-          }, 2000);
+          }, PROCESS_KILL_TIMEOUT_MS);
         })
       );
     }
 
-    // Wait for all processes to exit
     await Promise.all(promises);
   }
 
   /**
    * Synchronous cleanup for exit handler
+   * Uses SIGKILL directly for immediate termination
    */
   protected cleanupSync(): void {
+    // Cleanup web server process
     if (this.webServerProcess && !this.webServerProcess.killed) {
       try {
-        // Kill process group for processes spawned with shell
         const pid = this.webServerProcess.pid;
         if (pid) {
           try {
-            // Try to kill entire process group
-            process.kill(-pid, "SIGTERM");
+            // Kill entire process group with SIGKILL for immediate termination
+            process.kill(-pid, "SIGKILL");
           } catch (e) {
             // If process group kill fails, kill just the process
-            this.webServerProcess.kill("SIGTERM");
-          }
-
-          // Force kill after a short delay
-          setTimeout(() => {
             try {
-              if (pid) {
-                process.kill(-pid, "SIGKILL");
-              }
-            } catch (e) {
+              this.webServerProcess.kill("SIGKILL");
+            } catch (innerError) {
               // Ignore
             }
-          }, 100);
+          }
         }
       } catch (error) {
         // Ignore errors during cleanup
       }
     }
 
+    // Cleanup platform process
     if (this.platformProcess && !this.platformProcess.killed) {
       try {
         const pid = this.platformProcess.pid;
         if (pid) {
           try {
-            process.kill(-pid, "SIGTERM");
+            // Kill entire process group with SIGKILL for immediate termination
+            process.kill(-pid, "SIGKILL");
           } catch (e) {
-            this.platformProcess.kill("SIGTERM");
+            // If process group kill fails, kill just the process
+            try {
+              this.platformProcess.kill("SIGKILL");
+            } catch (innerError) {
+              // Ignore
+            }
           }
         }
       } catch (error) {
@@ -378,6 +421,47 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
   protected abstract runPlatform(serverUrl: string): Promise<void>;
 
+  protected showSuccessMessage(serverUrl: string): void {
+    logger.log("");
+    logger.success(`App is connected to: ${serverUrl}`);
+    logger.info("Monitoring console logs (Press Ctrl+C to stop)...");
+    logger.log("");
+  }
+
+  protected async monitorLogs(identifier: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      if (!this.platformProcess) {
+        resolve();
+        return;
+      }
+
+      this.platformProcess.stdout?.on("data", (data: Buffer) => {
+        const lines = data.toString().split("\n");
+        for (const line of lines) {
+          if (line.trim()) {
+            console.log(`📱 ${line.trim()}`);
+          }
+        }
+      });
+
+      this.platformProcess.stderr?.on("data", (data: Buffer) => {
+      });
+
+      this.platformProcess.on("exit", (code) => {
+        if (!this.isCleaningUp && code !== 0) {
+          logger.warn("Log monitoring stopped");
+        }
+        resolve();
+      });
+
+      this.platformProcess.on("error", (error) => {
+        if (!this.isCleaningUp) {
+          reject(error);
+        }
+      });
+    });
+  }
+
   protected async handleError(error: unknown): Promise<void> {
     this.spinner.fail("Run failed");
     logger.error(error instanceof Error ? error.message : String(error));
@@ -387,6 +471,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
     await this.cleanup();
 
-    process.exit(1);
+    if (error instanceof GyoError) {
+      throw error;
+    }
+    throw new GyoError(error instanceof Error ? error.message : String(error));
   }
 }

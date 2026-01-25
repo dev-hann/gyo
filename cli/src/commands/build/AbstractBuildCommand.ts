@@ -9,6 +9,7 @@ import { logger } from "../../utils/logger.js";
 import { executeCommand } from "../../utils/exec.js";
 import { pathExists, writeFile } from "../../utils/fs.js";
 import { getProfileUrl } from "../../utils/config.js";
+import { autoSyncPlugins } from "../../utils/plugin-sync.js";
 
 export abstract class AbstractBuildCommand extends AbstractPlatformCommand<BuildCommandOptions> {
   constructor(platform: Platform, options: BuildCommandOptions) {
@@ -28,6 +29,9 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
    */
   protected async run(): Promise<void> {
     logger.info(`Building with profile: ${this.options.profile}`);
+
+    // Auto-sync plugins if needed
+    await autoSyncPlugins(this.projectPath);
 
     // Build lib assets
     await this.buildLibAssets();

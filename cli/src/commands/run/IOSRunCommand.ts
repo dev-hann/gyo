@@ -4,7 +4,8 @@ import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand.js';
 import { logger } from '../../utils/logger.js';
 import { executeCommand } from '../../utils/exec.js';
-import { pathExists, readFile, writeFile } from '../../utils/fs.js';
+import { pathExists, readFile } from '../../utils/fs.js';
+import { CommandNotFoundError, BuildFailedError } from '../../utils/errors.js';
 
 export class IOSRunCommand extends AbstractRunCommand {
   protected async runPlatform(serverUrl: string): Promise<void> {
@@ -14,23 +15,18 @@ export class IOSRunCommand extends AbstractRunCommand {
     await this.checkXtoolAvailable();
     await this.updateServerUrl(iosPath, serverUrl);
 
-    let bundleId = await this.getBundleId(iosPath);
-    if (!bundleId) {
-      this.spinner.fail('Could not read bundle ID from xtool.yml');
-      process.exit(1);
-    }
-
-    bundleId = await this.buildAndInstallApp(iosPath, bundleId);
+    const bundleId = await this.getBundleId(iosPath);
+    const finalBundleId = await this.buildAndInstallApp(iosPath, bundleId);
 
     this.showSuccessMessage(serverUrl);
-    await this.monitorLogs(bundleId);
+    await this.monitorLogs(finalBundleId);
   }
 
   private async checkXtoolAvailable(): Promise<void> {
     if (!(await this.checkCommandExists('xtool'))) {
       this.spinner.fail('xtool not found');
       logger.error('Install xtool: https://xtool.sh');
-      process.exit(1);
+      throw new CommandNotFoundError('xtool');
     }
   }
 
@@ -46,7 +42,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     };
 
     const configJson = JSON.stringify(config, null, 2);
-    await writeFile(configPath, configJson);
+    await fs.writeFile(configPath, configJson);
     
     // Clean build cache to ensure new config is used
     const buildPath = path.join(iosPath, '.build');
@@ -58,29 +54,28 @@ export class IOSRunCommand extends AbstractRunCommand {
     logger.verbose(`Wrote config to ${configPath}: ${configJson}`);
   }
 
-  private async getBundleId(iosPath: string): Promise<string | null> {
+  private async getBundleId(iosPath: string): Promise<string> {
     try {
       const xtoolYmlPath = path.join(iosPath, 'xtool.yml');
       if (!(await pathExists(xtoolYmlPath))) {
         logger.error('xtool.yml not found in ios directory');
-        return null;
+        throw new BuildFailedError('xtool.yml not found in ios directory');
       }
 
       const content = await readFile(xtoolYmlPath);
       
-      // Check if bundleID is properly formatted (should be a scalar value, not a mapping)
       if (content.includes('bundleID:') && content.match(/bundleID:\s*\n\s+/)) {
         logger.error('Invalid xtool.yml: bundleID should be a string value, not a mapping');
         logger.error('Expected format: bundleID: com.example.app');
         logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
-        return null;
+        throw new BuildFailedError('Invalid xtool.yml: bundleID should be a string value');
       }
       
       const match = content.match(/bundleID:\s*(.+)/);
       if (!match) {
         logger.error('bundleID not found in xtool.yml');
         logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
-        return null;
+        throw new BuildFailedError('bundleID not found in xtool.yml');
       }
       
       const bundleId = match[1].trim();
@@ -88,13 +83,16 @@ export class IOSRunCommand extends AbstractRunCommand {
         logger.error(`bundleID contains template variable: ${bundleId}`);
         logger.error('Template variables should have been replaced during project creation');
         logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
-        return null;
+        throw new BuildFailedError('bundleID contains template variable');
       }
       
       return bundleId;
     } catch (error) {
+      if (error instanceof BuildFailedError) {
+        throw error;
+      }
       logger.error(`Failed to read xtool.yml: ${error}`);
-      return null;
+      throw new BuildFailedError(`Failed to read xtool.yml: ${error}`);
     }
   }
 
@@ -110,7 +108,6 @@ export class IOSRunCommand extends AbstractRunCommand {
       this.spinner.fail('Build failed');
       const errorOutput = buildResult.stderr || buildResult.stdout || 'Unknown error';
       
-      // Check for common YAML parsing errors
       if (errorOutput.includes('typeMismatch') || errorOutput.includes('Expected to decode Scalar')) {
         logger.error('YAML parsing error in xtool.yml or project.yml');
         logger.error('Common issues:');
@@ -123,7 +120,7 @@ export class IOSRunCommand extends AbstractRunCommand {
       } else {
         logger.error(errorOutput);
       }
-      process.exit(1);
+      throw new BuildFailedError('iOS build failed');
     }
 
     this.spinner.text = 'Finding installed app...';
@@ -213,7 +210,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     return foundBundleId;
   }
 
-  private showSuccessMessage(serverUrl: string): void {
+  protected showSuccessMessage(serverUrl: string): void {
     logger.log('');
     logger.info('📱 Please tap the app icon on your device to launch it.');
     logger.log('');
@@ -222,35 +219,44 @@ export class IOSRunCommand extends AbstractRunCommand {
     logger.log('');
   }
 
-  private async monitorLogs(bundleId: string): Promise<void> {
-    if (await this.checkCommandExists('idevicesyslog')) {
-      this.platformProcess = spawn('idevicesyslog', ['-m', bundleId], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: true
-      });
+  protected async monitorLogs(identifier: string): Promise<void> {
+    const commandExists = await this.checkCommandExists('idevicesyslog');
 
-      this.platformProcess.stdout?.on('data', (data: Buffer) => {
-        const lines = data.toString().split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            console.log(`📱 ${line.trim()}`);
+    return new Promise<void>((resolve, reject) => {
+      if (commandExists) {
+        this.platformProcess = spawn('idevicesyslog', ['-m', identifier], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          detached: true
+        });
+
+        this.platformProcess.stdout?.on('data', (data: Buffer) => {
+          const lines = data.toString().split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              console.log(`📱 ${line.trim()}`);
+            }
           }
-        }
-      });
+        });
 
-      this.platformProcess.stderr?.on('data', (data: Buffer) => {
-        // Ignore stderr for syslog
-      });
+        this.platformProcess.stderr?.on('data', (data: Buffer) => {
+        });
 
-      this.platformProcess.on('exit', (code) => {
-        if (!this.isCleaningUp && code !== 0) {
-          logger.warn('Log monitoring stopped');
-        }
-      });
-    } else {
-      logger.warn('idevicesyslog not found. Install libimobiledevice for log monitoring.');
-    }
+        this.platformProcess.on('exit', (code) => {
+          if (!this.isCleaningUp && code !== 0) {
+            logger.warn('Log monitoring stopped');
+          }
+          resolve();
+        });
 
-    await new Promise(() => {});
+        this.platformProcess.on('error', (error) => {
+          if (!this.isCleaningUp) {
+            reject(error);
+          }
+        });
+      } else {
+        logger.warn('idevicesyslog not found. Install libimobiledevice for log monitoring.');
+        resolve();
+      }
+    });
   }
 }

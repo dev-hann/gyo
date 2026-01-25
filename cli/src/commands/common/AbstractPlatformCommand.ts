@@ -3,6 +3,7 @@ import * as path from "path";
 import { loadConfig, GyoConfig } from "../../utils/config.js";
 import { logger } from "../../utils/logger.js";
 import { pathExists } from "../../utils/fs.js";
+import { ConfigNotFoundError, PlatformNotFoundError, PlatformDisabledError, GyoError } from "../../utils/errors.js";
 
 export type Platform = "android" | "ios";
 
@@ -51,7 +52,7 @@ export abstract class AbstractPlatformCommand<
     if (!validPlatforms.includes(this.platform)) {
       this.spinner.fail(`Invalid platform: ${this.platform}`);
       logger.error(`Valid platforms are: ${validPlatforms.join(", ")}`);
-      process.exit(1);
+      throw new PlatformNotFoundError(this.platform);
     }
   }
 
@@ -63,7 +64,7 @@ export abstract class AbstractPlatformCommand<
     } catch (error) {
       this.spinner.fail("Failed to load gyo.config.json");
       logger.error(error instanceof Error ? error.message : String(error));
-      process.exit(1);
+      throw new ConfigNotFoundError();
     }
   }
 
@@ -80,7 +81,7 @@ export abstract class AbstractPlatformCommand<
       logger.warn(
         `Enable it by setting platforms.${this.platform}.enabled to true`
       );
-      process.exit(1);
+      throw new PlatformDisabledError(this.platform);
     }
   }
 
@@ -91,7 +92,7 @@ export abstract class AbstractPlatformCommand<
       logger.error(
         `Run 'gyo create' first to initialize the ${platform} platform`
       );
-      process.exit(1);
+      throw new PlatformNotFoundError(platform);
     }
   }
 
@@ -103,6 +104,9 @@ export abstract class AbstractPlatformCommand<
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
     }
-    process.exit(1);
+    if (error instanceof GyoError) {
+      throw error;
+    }
+    throw new GyoError(error instanceof Error ? error.message : String(error));
   }
 }
