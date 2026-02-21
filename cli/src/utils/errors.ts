@@ -46,3 +46,41 @@ export class ServerStartError extends GyoError {
     super(message);
   }
 }
+
+export class PluginError extends GyoError {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export class ProjectValidationError extends GyoError {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export class NpmInstallError extends GyoError {
+  constructor(packageName: string, reason?: string) {
+    super(reason 
+      ? `Failed to install ${packageName}: ${reason}`
+      : `Failed to install ${packageName}`);
+  }
+}
+
+export class DirectoryExistsError extends GyoError {
+  constructor(directory: string) {
+    super(`Directory "${directory}" already exists`);
+  }
+}
+
+export class InvalidPlatformError extends GyoError {
+  constructor(platform: string, validPlatforms: string[]) {
+    super(`Invalid platform: ${platform}. Valid platforms are: ${validPlatforms.join(', ')}`);
+  }
+}
+
+export class TemplateNotFoundError extends GyoError {
+  constructor(template: string) {
+    super(`Template "${template}" not found`);
+  }
+}

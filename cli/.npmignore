@@ -1,0 +1,12 @@
+src/
+node_modules/
+tests/
+**/*.d.ts.map
+**/*.js.map
+**/.tsbuildinfo
+*.log
+.DS_Store
+package-lock.json
+tsconfig.json
+watch.sh
+.gitignore

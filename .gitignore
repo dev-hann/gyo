@@ -7,3 +7,15 @@
 # Dependencies
 /cli/node_modules
 /cli/dist
+/node_modules
+/package-lock.json
+
+# Build caches
+.build/
+**/.build/
+
+# Plugin system
+.gyo/cache/
+
+# Archives
+*.tgz

@@ -16,7 +16,7 @@ let package = Package(
     targets: [
         .target(
             name: "GyoBridge",
-            path: "plugins/ios/Sources/GyoBridge"
+            path: "plugins/bridge/ios/Sources/GyoBridge"
         )
     ]
 )

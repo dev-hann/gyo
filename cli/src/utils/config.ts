@@ -4,7 +4,6 @@ import { logger } from "./logger.js";
 
 export interface ProfileConfig {
   serverUrl: string;
-  isLocal?: boolean; // Whether to start a local server for this profile (defaults to true for development, false otherwise)
 }
 
 export interface GyoConfig {
@@ -29,6 +28,9 @@ export interface GyoConfig {
     allowUniversalAccessFromFileURLs?: boolean;
     userAgent?: string;
   };
+  script?: {
+    start?: string; // Command to run for local development server (e.g., "npm run dev")
+  };
 }
 
 export const DEFAULT_CONFIG: GyoConfig = {
@@ -37,11 +39,9 @@ export const DEFAULT_CONFIG: GyoConfig = {
   profiles: {
     development: {
       serverUrl: "http://localhost:3000",
-      isLocal: true,
     },
     production: {
       serverUrl: "https://your-production-url.com",
-      isLocal: false,
     },
   },
   platforms: {
@@ -58,6 +58,9 @@ export const DEFAULT_CONFIG: GyoConfig = {
     allowFileAccess: false,
     allowUniversalAccessFromFileURLs: false,
   },
+  script: {
+    start: "",
+  },
 };
 
 export async function loadConfig(
@@ -66,7 +69,7 @@ export async function loadConfig(
   const configPath = path.join(projectPath, "gyo.config.json");
 
   if (!(await pathExists(configPath))) {
-    logger.error("gyo.config.json not found in the current directory");
+    logger.error(`gyo.config.json not found in: ${projectPath}`);
     return null;
   }
 
@@ -140,19 +143,5 @@ export function shouldStartLocalServer(
   config: GyoConfig,
   profile: string = "development"
 ): boolean {
-  if (config.profiles && config.profiles[profile]) {
-    const profileConfig = config.profiles[profile];
-    // isLocal defaults to true for 'development' profile, false for others
-    if (profileConfig.isLocal !== undefined) {
-      return profileConfig.isLocal;
-    }
-    return profile === "development";
-  }
-
-  // Legacy serverUrl doesn't support local server
-  if (config.serverUrl) {
-    return false;
-  }
-
-  return false;
+  return profile === "development";
 }

@@ -4,6 +4,10 @@ import ora from "ora";
 import { logger } from "../utils/logger.js";
 import { executeCommand } from "../utils/exec.js";
 import { pathExists, removeDir } from "../utils/fs.js";
+import { getGradlew } from "../utils/command-utils.js";
+import { GyoError, InvalidPlatformError } from "../utils/errors.js";
+
+const VALID_PLATFORMS = ["android", "ios", "lib", "all"];
 
 export function registerCleanCommand(program: Command): void {
   program
@@ -18,35 +22,39 @@ async function cleanPlatform(platform: string): Promise<void> {
   const spinner = ora("Cleaning build artifacts...").start();
 
   try {
-    const validPlatforms = ["android", "ios", "lib", "all"];
-    if (!validPlatforms.includes(platform)) {
+    if (!VALID_PLATFORMS.includes(platform)) {
       spinner.fail(`Invalid platform: ${platform}`);
-      logger.error(`Valid platforms are: ${validPlatforms.join(", ")}`);
-      process.exit(1);
+      throw new InvalidPlatformError(platform, VALID_PLATFORMS.slice(0, -1));
     }
 
-    const platforms =
-      platform === "all" ? ["android", "ios", "lib"] : [platform];
+    const platforms = platform === "all" ? ["android", "ios", "lib"] : [platform];
 
-    for (const p of platforms) {
-      switch (p) {
-        case "android":
-          await cleanAndroid(spinner);
-          break;
-        case "ios":
-          await cleanIOS(spinner);
-          break;
-        case "lib":
-          await cleanLib(spinner);
-          break;
-      }
-    }
+    await Promise.all(
+      platforms.map(p => cleanSinglePlatform(spinner, p))
+    );
 
     spinner.succeed("Clean complete!");
   } catch (error) {
-    spinner.fail(`Clean failed: ${error}`);
-    logger.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    if (error instanceof GyoError) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    spinner.fail(`Clean failed: ${message}`);
+    throw new GyoError(message);
+  }
+}
+
+async function cleanSinglePlatform(spinner: ora.Ora, platform: string): Promise<void> {
+  switch (platform) {
+    case "android":
+      await cleanAndroid(spinner);
+      break;
+    case "ios":
+      await cleanIOS(spinner);
+      break;
+    case "lib":
+      await cleanLib(spinner);
+      break;
   }
 }
 
@@ -60,7 +68,7 @@ async function cleanAndroid(spinner: ora.Ora): Promise<void> {
 
   spinner.text = "Cleaning Android build...";
 
-  const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
+  const gradlew = getGradlew();
   const cleanResult = await executeCommand(gradlew, ["clean"], {
     cwd: androidPath,
     stdio: "pipe",
@@ -89,17 +97,19 @@ async function cleanIOS(spinner: ora.Ora): Promise<void> {
 
   spinner.text = "Cleaning iOS build...";
 
+  const cleanupTasks: Promise<void>[] = [];
+
   const buildPath = path.join(iosPath, "build");
   if (await pathExists(buildPath)) {
-    await removeDir(buildPath);
-    logger.success("iOS build cleaned");
+    cleanupTasks.push(removeDir(buildPath).then(() => logger.success("iOS build cleaned")));
   }
 
   const podsPath = path.join(iosPath, "Pods");
   if (await pathExists(podsPath)) {
-    await removeDir(podsPath);
-    logger.success("iOS Pods cleaned");
+    cleanupTasks.push(removeDir(podsPath).then(() => logger.success("iOS Pods cleaned")));
   }
+
+  await Promise.all(cleanupTasks);
 }
 
 async function cleanLib(spinner: ora.Ora): Promise<void> {
@@ -112,15 +122,18 @@ async function cleanLib(spinner: ora.Ora): Promise<void> {
 
   spinner.text = "Cleaning lib build...";
 
+  const cleanupTasks: Promise<void>[] = [];
+
   const distPath = path.join(libPath, "dist");
   if (await pathExists(distPath)) {
-    await removeDir(distPath);
+    cleanupTasks.push(removeDir(distPath));
   }
 
   const nodeModulesPath = path.join(libPath, "node_modules");
   if (await pathExists(nodeModulesPath)) {
-    await removeDir(nodeModulesPath);
+    cleanupTasks.push(removeDir(nodeModulesPath));
   }
 
+  await Promise.all(cleanupTasks);
   logger.success("Lib build cleaned");
 }

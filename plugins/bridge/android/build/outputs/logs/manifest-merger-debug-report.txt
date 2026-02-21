@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml:2:13-83
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml:2:13-83
+	package
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml
+	xmlns:android
+		ADDED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml:2:23-81
+uses-sdk
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml reason: use-sdk injection requested
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml
+	android:targetSdkVersion
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml
+	android:minSdkVersion
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/bridge/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest17235449996524298170.xml

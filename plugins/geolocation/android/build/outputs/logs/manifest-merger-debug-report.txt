@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml:2:13-83
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml:2:13-83
+	package
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml
+	xmlns:android
+		ADDED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml:2:23-81
+uses-sdk
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml reason: use-sdk injection requested
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml
+INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml
+	android:targetSdkVersion
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml
+	android:minSdkVersion
+		INJECTED from /home/hann/Documents/b/lib/node_modules/@gyo-framework/geolocation/android/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest14691673654041005466.xml

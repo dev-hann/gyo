@@ -1,8 +1,0 @@
-jdk:
-  - openjdk17
-
-before_install:
-  - cd plugins/android
-
-install:
-  - ./gradlew clean build publishToMavenLocal

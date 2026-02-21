@@ -1,0 +1,32 @@
+{
+  "name": "@gyo-framework/geolocation",
+  "version": "0.1.0",
+  "description": "Geolocation plugin for Gyo framework - GPS location tracking",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": [
+    "gyo",
+    "geolocation",
+    "gps",
+    "location",
+    "mobile"
+  ],
+  "author": "Gyo Framework",
+  "license": "MIT",
+  "peerDependencies": {
+    "gyo-bridge": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "gyo-bridge": "file:../bridge/package",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  }
+}

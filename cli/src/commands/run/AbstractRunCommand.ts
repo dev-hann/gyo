@@ -1,6 +1,7 @@
 import * as path from "path";
 import os from "os";
 import { ChildProcess, spawn } from "child_process";
+import chokidar from "chokidar";
 import {
   AbstractPlatformCommand,
   Platform,
@@ -11,6 +12,7 @@ import { executeCommand, checkCommandExists } from "../../utils/exec.js";
 import { pathExists } from "../../utils/fs.js";
 import { saveConfig, shouldStartLocalServer } from "../../utils/config.js";
 import { ServerStartError, GyoError } from "../../utils/errors.js";
+import { HotReloadServer } from "../../utils/hot-reload-server.js";
 
 const DEFAULT_PORT = 3000;
 const WEB_SERVER_TIMEOUT_MS = 30000;
@@ -23,6 +25,8 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = "";
   protected isCleaningUp: boolean = false;
+  protected hotReloadServer: HotReloadServer | null = null;
+  protected fileWatcher: chokidar.FSWatcher | null = null;
 
   constructor(platform: Platform, options: RunCommandOptions) {
     super(platform, options);
@@ -74,6 +78,9 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
         this.spinner.succeed(
           `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
         );
+
+        // Start Hot Reload server
+        this.startHotReload();
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
         this.spinner.fail(`Failed to start web server: ${errorMsg}`);
@@ -327,8 +334,62 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   /**
    * Async cleanup method for graceful shutdown
    */
+  /**
+   * Start Hot Reload server and file watcher
+   */
+  protected startHotReload(): void {
+    try {
+      // Start WebSocket server
+      this.hotReloadServer = new HotReloadServer(3001);
+      this.hotReloadServer.start();
+
+      // Start file watcher
+      const watchPath = path.join(this.projectPath, "lib", "src");
+      
+      this.fileWatcher = chokidar.watch(watchPath, {
+        ignored: /(^|[\/\\])\../, // Ignore dotfiles
+        persistent: true,
+        ignoreInitial: true,
+      });
+
+      this.fileWatcher.on("change", (filePath) => {
+        logger.verbose(`File changed: ${filePath}`);
+        this.hotReloadServer?.notifyReload();
+      });
+
+      this.fileWatcher.on("add", (filePath) => {
+        logger.verbose(`File added: ${filePath}`);
+        this.hotReloadServer?.notifyReload();
+      });
+
+      this.fileWatcher.on("unlink", (filePath) => {
+        logger.verbose(`File removed: ${filePath}`);
+        this.hotReloadServer?.notifyReload();
+      });
+
+      logger.verbose(`Hot Reload: Watching ${watchPath}`);
+      logger.info("🔥 Hot Reload enabled - changes will auto-refresh the app");
+    } catch (error) {
+      logger.warn(`Failed to start Hot Reload: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Async cleanup method for graceful shutdown
+   */
   protected async cleanup(): Promise<void> {
     const promises: Promise<void>[] = [];
+
+    // Cleanup Hot Reload
+    if (this.fileWatcher) {
+      await this.fileWatcher.close();
+      this.fileWatcher = null;
+    }
+
+    if (this.hotReloadServer) {
+      this.hotReloadServer.stop();
+      this.hotReloadServer = null;
+    }
 
     if (this.webServerProcess && !this.webServerProcess.killed) {
       promises.push(
@@ -370,6 +431,25 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
    * Uses SIGKILL directly for immediate termination
    */
   protected cleanupSync(): void {
+    // Cleanup Hot Reload (synchronous)
+    if (this.fileWatcher) {
+      try {
+        this.fileWatcher.close();
+        this.fileWatcher = null;
+      } catch (error) {
+        // Ignore
+      }
+    }
+
+    if (this.hotReloadServer) {
+      try {
+        this.hotReloadServer.stop();
+        this.hotReloadServer = null;
+      } catch (error) {
+        // Ignore
+      }
+    }
+
     // Cleanup web server process
     if (this.webServerProcess && !this.webServerProcess.killed) {
       try {

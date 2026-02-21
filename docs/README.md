@@ -1,16 +1,54 @@
-# Gyo 문서
+# Gyo Framework
 
-## 기능
+React + Vite 기반 크로스플랫폼 모바일 프레임워크. Capacitor/Cordova와 유사.
 
-이 폴더는 `gyo` 프로젝트의 모든 공식 문서를 관리하는 곳입니다. 사용자를 위한 가이드, 개발자를 위한 API 레퍼런스, 기여 방법 등 프로젝트와 관련된 상세한 정보를 제공하는 것을 목표로 합니다.
+## 프로젝트 구조
 
-현재는 비어있지만, 앞으로 체계적인 문서들을 추가해 나갈 예정입니다.
+```
+gyo/
+├── cli/                    # CLI 도구 (gyo create, gyo run 등)
+├── plugins/                # 네이티브 플러그인
+│   ├── bridge/             # @gyo-framework/bridge - 웹-네이티브 통신 코어
+│   ├── camera/             # @gyo-framework/camera - 카메라/갤러리
+│   │   └── examples/       # 플러그인 예제
+│   └── geolocation/        # @gyo-framework/geolocation - GPS 위치
+│       └── examples/       # 플러그인 예제
+└── docs/                   # 문서
+```
 
-## 앞으로 추가할 기능 (Todo List)
+## 패키지 네이밍
 
-- [ ] **시작하기 (Getting Started):** `gyo` 설치부터 프로젝트 생성 및 실행까지의 과정을 상세히 안내하는 튜토리얼 작성
-- [ ] **핵심 개념 (Core Concepts):** `gyo`의 아키텍처, 웹과 네이티브 간의 통신 방식 등 내부 동작 원리에 대한 설명 추가
-- [ ] **CLI 명령어 레퍼런스:** 각 CLI 명령어의 모든 옵션과 사용 예제를 포함한 상세 레퍼런스 페이지 작성
-- [ ] **API 가이드:** `runtime`을 통해 네이티브 기능을 사용하는 방법에 대한 API 가이드 및 예제 코드 추가
-- [ ] **배포 가이드:** Google Play Store 및 Apple App Store에 앱을 배포하는 방법에 대한 단계별 가이드 작성
-- [ ] **기여 가이드 (Contribution Guide):** 프로젝트에 기여하고 싶은 개발자를 위한 코드 스타일, 브랜치 전략, PR 작성법 등 안내
+- 공식: `@gyo-framework/*` (npm 배포)
+- 커뮤니티: `@gyo-community/*`
+
+## 문서
+
+| 문서 | 용도 |
+|------|------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | 시스템 아키텍처 |
+| [PLUGINS.md](./PLUGINS.md) | 플러그인 API 스펙 |
+| [CREATING_PLUGINS.md](./CREATING_PLUGINS.md) | 플러그인 개발 가이드 |
+| [HOT_RELOAD.md](./HOT_RELOAD.md) | 핫 리로드 시스템 |
+
+## CLI 명령
+
+```bash
+gyo create <name>          # 프로젝트 생성
+gyo run <android|ios>      # 개발 서버 + 앱 실행
+gyo build <platform>       # 프로덕션 빌드
+gyo install                # npm install + 플러그인 설정
+```
+
+## 플러그인 사용
+
+```json
+{
+  "dependencies": {
+    "@gyo-framework/camera": "^0.1.0"
+  }
+}
+```
+
+```bash
+gyo install
+```

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { logger } from "../utils/logger.js";
 import { checkCommandExists, executeCommand } from "../utils/exec.js";
+import { GyoError } from "../utils/errors.js";
 
 export function registerDoctorCommand(program: Command): void {
   program
@@ -19,24 +20,35 @@ interface CheckResult {
 }
 
 async function runDoctor(): Promise<void> {
-  logger.info("Running gyo environment checks...\n");
+  try {
+    logger.info("Running gyo environment checks...\n");
 
-  const results: CheckResult[] = [];
+    const results: CheckResult[] = [];
 
-  results.push(await checkNodeJS());
-  results.push(await checkNPM());
-  results.push(await checkGit());
+    results.push(await checkNodeJS());
+    results.push(await checkNPM());
+    results.push(await checkGit());
 
-  logger.info("\nAndroid Development:");
-  results.push(await checkAndroidSDK());
-  results.push(await checkADB());
-  results.push(await checkGradle());
+    logger.info("\nAndroid Development:");
+    results.push(await checkAndroidSDK());
+    results.push(await checkADB());
+    results.push(await checkGradle());
 
-  logger.info("\niOS Development:");
-  results.push(await checkSwift());
-  results.push(await checkXtool());
-  results.push(await checkLibimobiledevice());
+    logger.info("\niOS Development:");
+    results.push(await checkSwift());
+    results.push(await checkXtool());
+    results.push(await checkLibimobiledevice());
 
+    displaySummary(results);
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Doctor check failed: ${message}`);
+    throw new GyoError(message);
+  }
+}
+
+function displaySummary(results: CheckResult[]): void {
   logger.info("\n" + "=".repeat(50));
   logger.info("Summary:\n");
 
@@ -71,6 +83,21 @@ async function runDoctor(): Promise<void> {
   }
 }
 
+async function checkCommandVersion(
+  command: string,
+  args: string[],
+  versionParser: (stdout: string) => string
+): Promise<CheckResult> {
+  const exists = await checkCommandExists(command);
+  if (!exists) {
+    return { name: command, passed: false, message: "Not installed" };
+  }
+
+  const result = await executeCommand(command, args, { stdio: "pipe" });
+  const version = versionParser(result.stdout);
+  return { name: command, passed: true, message: version };
+}
+
 async function checkNodeJS(): Promise<CheckResult> {
   const exists = await checkCommandExists("node");
   if (!exists) {
@@ -85,37 +112,19 @@ async function checkNodeJS(): Promise<CheckResult> {
   const version = result.stdout.trim();
   const majorVersion = parseInt(version.replace("v", "").split(".")[0]);
 
-  if (majorVersion >= 18) {
-    return {
-      name: "Node.js",
-      passed: true,
-      message: `${version} installed`,
-    };
-  } else {
-    return {
-      name: "Node.js",
-      passed: false,
-      message: `${version} installed (requires v18 or higher)`,
-    };
-  }
+  return {
+    name: "Node.js",
+    passed: majorVersion >= 18,
+    message: majorVersion >= 18 
+      ? `${version} installed` 
+      : `${version} installed (requires v18 or higher)`,
+  };
 }
 
 async function checkNPM(): Promise<CheckResult> {
-  const exists = await checkCommandExists("npm");
-  if (!exists) {
-    return {
-      name: "npm",
-      passed: false,
-      message: "Not installed",
-    };
-  }
-
-  const result = await executeCommand("npm", ["--version"], { stdio: "pipe" });
-  return {
-    name: "npm",
-    passed: true,
-    message: `v${result.stdout.trim()} installed`,
-  };
+  return checkCommandVersion("npm", ["--version"], (stdout) => 
+    `v${stdout.trim()} installed`
+  );
 }
 
 async function checkGit(): Promise<CheckResult> {
@@ -141,39 +150,20 @@ async function checkGit(): Promise<CheckResult> {
 async function checkAndroidSDK(): Promise<CheckResult> {
   const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
 
-  if (!androidHome) {
-    return {
-      name: "Android SDK",
-      passed: false,
-      message: "ANDROID_HOME not set",
-      optional: true,
-    };
-  }
-
   return {
     name: "Android SDK",
-    passed: true,
-    message: `Found at ${androidHome}`,
+    passed: !!androidHome,
+    message: androidHome ? `Found at ${androidHome}` : "ANDROID_HOME not set",
     optional: true,
   };
 }
 
 async function checkADB(): Promise<CheckResult> {
   const exists = await checkCommandExists("adb");
-  if (!exists) {
-    return {
-      name: "ADB",
-      passed: false,
-      message: "Not found in PATH",
-      optional: true,
-    };
-  }
-
-  const result = await executeCommand("adb", ["--version"], { stdio: "pipe" });
   return {
     name: "ADB",
-    passed: true,
-    message: "Installed",
+    passed: exists,
+    message: exists ? "Installed" : "Not found in PATH",
     optional: true,
   };
 }
@@ -199,9 +189,7 @@ async function checkSwift(): Promise<CheckResult> {
     };
   }
 
-  const result = await executeCommand("swift", ["--version"], {
-    stdio: "pipe",
-  });
+  const result = await executeCommand("swift", ["--version"], { stdio: "pipe" });
   const versionMatch = result.stdout.match(/Swift version ([\d.]+)/);
   const version = versionMatch ? versionMatch[1] : "Installed";
 
@@ -219,20 +207,16 @@ async function checkXtool(): Promise<CheckResult> {
     return {
       name: "xtool",
       passed: false,
-      message:
-        "Not installed. Visit https://xtool.sh for cross-platform iOS builds",
+      message: "Not installed. Visit https://xtool.sh for cross-platform iOS builds",
       optional: true,
     };
   }
 
-  const result = await executeCommand("xtool", ["--version"], {
-    stdio: "pipe",
-  });
-  const version = result.stdout.trim();
+  const result = await executeCommand("xtool", ["--version"], { stdio: "pipe" });
   return {
     name: "xtool",
     passed: true,
-    message: version || "Installed",
+    message: result.stdout.trim() || "Installed",
     optional: true,
   };
 }
@@ -243,25 +227,13 @@ async function checkLibimobiledevice(): Promise<CheckResult> {
     return {
       name: "libimobiledevice",
       passed: false,
-      message:
-        "Not installed. Required for iOS device communication (idevicesyslog, etc.)",
+      message: "Not installed. Required for iOS device communication",
       optional: true,
     };
   }
 
-  const tools = [
-    "idevice_id",
-    "ideviceinfo",
-    "idevicesyslog",
-    "ideviceimagemounter",
-  ];
-  const installedTools = [];
-
-  for (const tool of tools) {
-    if (await checkCommandExists(tool)) {
-      installedTools.push(tool);
-    }
-  }
+  const tools = ["idevice_id", "ideviceinfo", "idevicesyslog", "ideviceimagemounter"];
+  const installedTools = tools.filter(async (tool) => await checkCommandExists(tool));
 
   return {
     name: "libimobiledevice",

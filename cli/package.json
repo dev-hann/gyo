@@ -1,29 +1,52 @@
 {
-  "name": "gyo-cli",
+  "name": "@gyo-framework/cli",
   "version": "0.1.0",
-  "description": "CLI tool for the gyo framework",
+  "description": "CLI tool for Gyo framework - Build cross-platform apps with web technologies",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "gyo": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsc && tsc --watch",
     "build": "tsc",
     "start": "node dist/index.js",
     "watch": "tsc --watch",
-    "postbuild": "echo '✓ CLI built successfully. Run: npm link (if not linked yet)'"
+    "prepublishOnly": "npm run build",
+    "postbuild": "chmod +x dist/index.js && echo '✓ CLI built successfully. Run: npm link (if not linked yet)'"
   },
   "keywords": [
     "gyo",
     "webview",
     "cross-platform",
     "mobile",
-    "desktop"
+    "desktop",
+    "cli",
+    "framework"
   ],
-  "author": "",
+  "author": "Gyo Framework",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gyo-framework/gyo.git",
+    "directory": "cli"
+  },
+  "bugs": {
+    "url": "https://github.com/gyo-framework/gyo/issues"
+  },
+  "homepage": "https://github.com/gyo-framework/gyo#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.10.0",
@@ -31,11 +54,16 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@types/chokidar": "^2.1.7",
     "@types/inquirer": "^9.0.9",
+    "@types/ws": "^8.18.1",
     "chalk": "^4.1.2",
+    "chokidar": "^3.6.0",
     "commander": "^12.0.0",
     "fs-extra": "^11.2.0",
     "inquirer": "^13.1.0",
-    "ora": "^5.4.1"
+    "open": "^9.1.0",
+    "ora": "^5.4.1",
+    "ws": "^8.19.0"
   }
 }

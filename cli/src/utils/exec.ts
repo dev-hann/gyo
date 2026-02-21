@@ -14,7 +14,10 @@ export function executeCommand(
   options: SpawnOptions = {}
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
-    const proc = spawn(command, args, {
+    // Combine command and args into a single string to avoid DEP0190 warning
+    // when using shell: true with args array
+    const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
+    const proc = spawn(fullCommand, [], {
       ...options,
       shell: true
     });

@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import chalk from 'chalk';
 import { logger } from '../utils/logger.js';
 import { loadConfig, saveConfig, GyoConfig } from '../utils/config.js';
+import { GyoError } from '../utils/errors.js';
 
 export function registerConfigCommand(program: Command): void {
   const config = program
@@ -33,7 +33,7 @@ export function registerConfigCommand(program: Command): void {
 async function showConfig(): Promise<void> {
   const config = await loadConfig();
   if (!config) {
-    process.exit(1);
+    throw new GyoError('Configuration not found');
   }
   
   logger.info('Current gyo configuration:\n');
@@ -43,7 +43,7 @@ async function showConfig(): Promise<void> {
 async function setConfig(key: string, value: string): Promise<void> {
   const config = await loadConfig();
   if (!config) {
-    process.exit(1);
+    throw new GyoError('Configuration not found');
   }
   
   const keys = key.split('.');
@@ -51,8 +51,7 @@ async function setConfig(key: string, value: string): Promise<void> {
   
   for (let i = 0; i < keys.length - 1; i++) {
     if (!(keys[i] in current)) {
-      logger.error(`Invalid configuration key: ${key}`);
-      process.exit(1);
+      throw new GyoError(`Invalid configuration key: ${key}`);
     }
     current = current[keys[i]];
   }
@@ -73,7 +72,7 @@ async function setConfig(key: string, value: string): Promise<void> {
 async function getConfig(key: string): Promise<void> {
   const config = await loadConfig();
   if (!config) {
-    process.exit(1);
+    throw new GyoError('Configuration not found');
   }
   
   const keys = key.split('.');
@@ -81,8 +80,7 @@ async function getConfig(key: string): Promise<void> {
   
   for (const k of keys) {
     if (!(k in current)) {
-      logger.error(`Configuration key not found: ${key}`);
-      process.exit(1);
+      throw new GyoError(`Configuration key not found: ${key}`);
     }
     current = current[k];
   }

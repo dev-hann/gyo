@@ -6,6 +6,7 @@ import { AndroidRunCommand } from './run/AndroidRunCommand.js';
 import { IOSRunCommand } from './run/IOSRunCommand.js';
 import { getAllDevices, Device } from '../utils/devices.js';
 import { logger } from '../utils/logger.js';
+import { GyoError } from '../utils/errors.js';
 
 export function registerRunCommand(program: Command): void {
   program
@@ -26,7 +27,6 @@ async function runOnDevice(rawOptions: { device?: string; profile: string; verbo
   const spinner = ora('Detecting devices...').start();
 
   try {
-    // Detect all available devices
     const devices = await getAllDevices();
 
     if (devices.length === 0) {
@@ -37,36 +37,32 @@ async function runOnDevice(rawOptions: { device?: string; profile: string; verbo
       logger.info('  - For Android: Ensure ADB is installed and a device/emulator is connected');
       logger.info('  - For iOS: Ensure libimobiledevice-utils is installed and a device is connected');
       logger.info('    Install on Linux: sudo apt install libimobiledevice-utils');
-      process.exit(1);
+      throw new GyoError('No devices found');
     }
 
     let selectedDevice: Device;
 
-    // If device ID is specified, find it
     if (rawOptions.device) {
       const device = devices.find(d => d.id === rawOptions.device);
       if (!device) {
         spinner.fail(`Device '${rawOptions.device}' not found`);
         logger.error('Available devices:');
         devices.forEach(d => logger.info(`  - ${d.platform}: ${d.name} (${d.id})`));
-        process.exit(1);
+        throw new GyoError(`Device '${rawOptions.device}' not found`);
       }
       selectedDevice = device;
       spinner.stop();
       logger.info(`Using specified device: ${selectedDevice.name} (${selectedDevice.platform})`);
     } else if (devices.length === 1) {
-      // Auto-select the only available device
       selectedDevice = devices[0];
       spinner.stop();
       logger.info(`Found 1 device. Automatically selecting '${selectedDevice.name}' (${selectedDevice.platform})`);
     } else {
-      // Multiple devices - display list and prompt for number
       spinner.stop();
       logger.log('');
       logger.success(`Found ${devices.length} devices:`);
       logger.log('');
 
-      // Display numbered list
       devices.forEach((device, index) => {
         logger.log(`  ${index + 1}. [${device.platform.toUpperCase()}] ${device.name}`);
         logger.log(`     ID: ${device.id}`);
@@ -93,7 +89,6 @@ async function runOnDevice(rawOptions: { device?: string; profile: string; verbo
       selectedDevice = devices[selectedIndex];
     }
 
-    // Determine platform and create appropriate command
     const platform: Platform = selectedDevice.platform;
     
     const options: RunCommandOptions = {
@@ -116,6 +111,6 @@ async function runOnDevice(rawOptions: { device?: string; profile: string; verbo
   } catch (error) {
     spinner.fail('Run failed');
     logger.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
+    throw error;
   }
 }
