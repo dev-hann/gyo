@@ -4,14 +4,6 @@
 
 ### Added
 
-#### 🔥 Hot Reload (✅ COMPLETED)
-- **WebSocket-based Hot Reload server** for instant app updates during development
-- **Chokidar file watcher** monitors `lib/src` for changes
-- Automatic WebView reload when web code changes
-- Support for multiple connected devices
-- Zero-config setup (automatically starts with `gyo run`)
-- Integrated into `AbstractRunCommand` with proper cleanup
-
 #### 📷 Camera Plugin (`gyo-camera`) (✅ COMPLETED)
 - Take photos using device camera
 - Pick images from gallery
@@ -58,7 +50,6 @@
   - Better error handling
 
 ### Infrastructure
-- Added dependencies: `ws`, `open`, `chokidar` for hot reload and debugging
 - Type definitions updated for better IDE support
 - Build system optimized
 - Plugin directory structure standardized
@@ -67,9 +58,6 @@
 
 | Feature | Status | Progress |
 |---------|--------|----------|
-| Hot Reload (CLI) | ✅ Complete | 100% |
-| Hot Reload (Android) | ✅ Complete | 100% |
-| Hot Reload (iOS) | ✅ Complete | 100% |
 | Camera Plugin | ✅ Complete | 100% |
 | Geolocation Plugin | ✅ Complete | 100% |
 | BridgeRegistry | ✅ Complete | 100% |
@@ -80,16 +68,13 @@
 ### ✅ Phase 2 Complete
 
 All core features have been implemented:
-- **Android Template**: Hot Reload WebSocket client (OkHttp), Camera & Geolocation bridges registered
-- **iOS Template**: Hot Reload WebSocket client (URLSession), Camera & Geolocation bridges registered
-- **WebSocket Server**: Port 3001, broadcasts "reload" on file changes
-- **File Watcher**: Chokidar monitoring `lib/src` directory
-- **Auto-cleanup**: Proper WebSocket cleanup in CLI and native apps
+- **Android Template**: Camera & Geolocation bridges registered
+- **iOS Template**: Camera & Geolocation bridges registered
 
 ### ✅ Phase 3 Complete
 
 All documentation and testing tasks completed:
-- **Documentation**: Hot Reload, Geolocation, Creating Plugins guides
+- **Documentation**: Geolocation, Creating Plugins guides
 - **Unit Tests**: Camera and Geolocation plugins (Jest)
 - **Example Projects**: basic, camera-demo, location-tracker
 - **Docs Index**: Comprehensive README with quick links
@@ -121,7 +106,6 @@ All documentation and testing tasks completed:
 ---
 
 For detailed documentation, see:
-- [Hot Reload Guide](docs/HOT_RELOAD.md)
 - [Camera Plugin](docs/CAMERA_PLUGIN.md)
 - [Geolocation Plugin](docs/GEOLOCATION_PLUGIN.md)
 - [Plugin System](docs/PLUGIN_SYSTEM_README.md)
