@@ -1,36 +1,25 @@
 import * as path from "path";
 import os from "os";
 import { ChildProcess, spawn } from "child_process";
-import chokidar from "chokidar";
-import {
-  AbstractPlatformCommand,
-  Platform,
-  RunCommandOptions,
-} from "../common/AbstractPlatformCommand.js";
+import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index.js";
 import { logger } from "../../utils/logger.js";
 import { executeCommand, checkCommandExists } from "../../utils/exec.js";
 import { pathExists } from "../../utils/fs.js";
-import { saveConfig, shouldStartLocalServer } from "../../utils/config.js";
-import { ServerStartError, GyoError } from "../../utils/errors.js";
-import { HotReloadServer } from "../../utils/hot-reload-server.js";
+import { saveConfig, shouldStartLocalServer } from "../../services/config.service.js";
+import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS } from "../../core/index.js";
 
-const DEFAULT_PORT = 3000;
-const WEB_SERVER_TIMEOUT_MS = 30000;
-const PROCESS_KILL_TIMEOUT_MS = 2000;
 const LOCALHOST = "localhost";
-const LOCAL_IPV4 = "0.0.0.0";
 
-export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunCommandOptions> {
+export interface RunCommandOptions extends PlatformCommandOptions {
+  profile: string;
+  device?: string;
+}
+
+export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
   protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = "";
   protected isCleaningUp: boolean = false;
-  protected hotReloadServer: HotReloadServer | null = null;
-  protected fileWatcher: chokidar.FSWatcher | null = null;
-
-  constructor(platform: Platform, options: RunCommandOptions) {
-    super(platform, options);
-  }
 
   protected getValidPlatforms(): Platform[] {
     return ["android", "ios"];
@@ -56,7 +45,6 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
     this.setupSignalHandlers();
 
-    // Check if we should start local server based on profile config
     const startLocalServer = shouldStartLocalServer(
       this.config,
       this.options.profile
@@ -64,31 +52,25 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
 
     if (startLocalServer) {
       try {
-        // Start local development server
         const port = this.getPortFromProfile(this.options.profile);
 
-        this.spinner.text = "Starting local web server...";
+        this.updateSpinner("Starting local web server...");
         const libPath = path.join(this.projectPath, "lib");
 
         this.serverUrl = await this.startWebServer(libPath, port);
 
-        // Auto-update profile with actual server URL
         await this.updateProfileUrl(this.options.profile, this.serverUrl);
 
-        this.spinner.succeed(
+        this.succeedSpinner(
           `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
         );
-
-        // Start Hot Reload server
-        this.startHotReload();
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        this.spinner.fail(`Failed to start web server: ${errorMsg}`);
+        this.failSpinner(`Failed to start web server: ${errorMsg}`);
         await this.cleanup();
         throw error;
       }
     } else {
-      // Use URL from config (external server)
       if (!this.config.profiles?.[this.options.profile]) {
         throw new Error(
           `Profile '${this.options.profile}' not found in gyo.config.json`
@@ -96,12 +78,12 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       }
 
       this.serverUrl = this.config.profiles[this.options.profile].serverUrl;
-      this.spinner.succeed(
+      this.succeedSpinner(
         `Using ${this.options.profile} profile: ${this.serverUrl}`
       );
     }
 
-    this.spinner.start(`Running ${this.platform} app...`);
+    this.startSpinner(`Running ${this.platform} app...`);
 
     try {
       await this.runPlatform(this.serverUrl);
@@ -110,14 +92,6 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     }
   }
 
-  /**
-   * Extracts port number from profile URL.
-   */
-  /**
-   * Gets the start command to run for the local development server.
-   * The command is executed directly as configured by the developer.
-   * @throws Error if the command is empty or not configured
-   */
   protected getStartCommand(): string {
     const command = this.config?.script?.start;
 
@@ -148,9 +122,6 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     }
   }
 
-  /**
-   * Updates the profile with the actual server URL.
-   */
   protected async updateProfileUrl(
     profile: string,
     serverUrl: string
@@ -159,19 +130,16 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       return;
     }
 
-    // Ensure profiles object exists
     if (!this.config.profiles) {
       this.config.profiles = {};
     }
 
-    // Ensure profile exists
     if (!this.config.profiles[profile]) {
       this.config.profiles[profile] = { serverUrl: serverUrl };
     } else {
       this.config.profiles[profile].serverUrl = serverUrl;
     }
 
-    // Save updated config
     await saveConfig(this.config, this.projectPath);
   }
 
@@ -181,7 +149,7 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   ): Promise<string> {
     const nodeModulesPath = path.join(webPath, "node_modules");
     if (!(await pathExists(nodeModulesPath))) {
-      this.spinner.text = "Installing web dependencies...";
+      this.updateSpinner("Installing web dependencies...");
       const installResult = await executeCommand("npm", ["install"], {
         cwd: webPath,
         stdio: "inherit",
@@ -214,10 +182,6 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     return serverUrl;
   }
 
-  /**
-   * Waits for the development server to be ready by monitoring its output.
-   * Supports multiple frameworks (Vite, Next.js, etc.)
-   */
   protected async waitForServerReady(expectedPort: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -320,76 +284,17 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       }
       this.isCleaningUp = true;
 
-      // Full cleanup (web server + platform)
       this.cleanupSync();
 
       process.exit(0);
     };
 
-    // Only handle user interruption signals
     process.on("SIGINT", interruptCleanup);
     process.on("SIGTERM", interruptCleanup);
   }
 
-  /**
-   * Async cleanup method for graceful shutdown
-   */
-  /**
-   * Start Hot Reload server and file watcher
-   */
-  protected startHotReload(): void {
-    try {
-      // Start WebSocket server
-      this.hotReloadServer = new HotReloadServer(3001);
-      this.hotReloadServer.start();
-
-      // Start file watcher
-      const watchPath = path.join(this.projectPath, "lib", "src");
-      
-      this.fileWatcher = chokidar.watch(watchPath, {
-        ignored: /(^|[\/\\])\../, // Ignore dotfiles
-        persistent: true,
-        ignoreInitial: true,
-      });
-
-      this.fileWatcher.on("change", (filePath) => {
-        logger.verbose(`File changed: ${filePath}`);
-        this.hotReloadServer?.notifyReload();
-      });
-
-      this.fileWatcher.on("add", (filePath) => {
-        logger.verbose(`File added: ${filePath}`);
-        this.hotReloadServer?.notifyReload();
-      });
-
-      this.fileWatcher.on("unlink", (filePath) => {
-        logger.verbose(`File removed: ${filePath}`);
-        this.hotReloadServer?.notifyReload();
-      });
-
-      logger.verbose(`Hot Reload: Watching ${watchPath}`);
-      logger.info("🔥 Hot Reload enabled - changes will auto-refresh the app");
-    } catch (error) {
-      logger.warn(`Failed to start Hot Reload: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  /**
-   * Async cleanup method for graceful shutdown
-   */
   protected async cleanup(): Promise<void> {
     const promises: Promise<void>[] = [];
-
-    // Cleanup Hot Reload
-    if (this.fileWatcher) {
-      await this.fileWatcher.close();
-      this.fileWatcher = null;
-    }
-
-    if (this.hotReloadServer) {
-      this.hotReloadServer.stop();
-      this.hotReloadServer = null;
-    }
 
     if (this.webServerProcess && !this.webServerProcess.killed) {
       promises.push(
@@ -426,40 +331,14 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
     await Promise.all(promises);
   }
 
-  /**
-   * Synchronous cleanup for exit handler
-   * Uses SIGKILL directly for immediate termination
-   */
   protected cleanupSync(): void {
-    // Cleanup Hot Reload (synchronous)
-    if (this.fileWatcher) {
-      try {
-        this.fileWatcher.close();
-        this.fileWatcher = null;
-      } catch (error) {
-        // Ignore
-      }
-    }
-
-    if (this.hotReloadServer) {
-      try {
-        this.hotReloadServer.stop();
-        this.hotReloadServer = null;
-      } catch (error) {
-        // Ignore
-      }
-    }
-
-    // Cleanup web server process
     if (this.webServerProcess && !this.webServerProcess.killed) {
       try {
         const pid = this.webServerProcess.pid;
         if (pid) {
           try {
-            // Kill entire process group with SIGKILL for immediate termination
             process.kill(-pid, "SIGKILL");
           } catch (e) {
-            // If process group kill fails, kill just the process
             try {
               this.webServerProcess.kill("SIGKILL");
             } catch (innerError) {
@@ -472,16 +351,13 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
       }
     }
 
-    // Cleanup platform process
     if (this.platformProcess && !this.platformProcess.killed) {
       try {
         const pid = this.platformProcess.pid;
         if (pid) {
           try {
-            // Kill entire process group with SIGKILL for immediate termination
             process.kill(-pid, "SIGKILL");
           } catch (e) {
-            // If process group kill fails, kill just the process
             try {
               this.platformProcess.kill("SIGKILL");
             } catch (innerError) {
@@ -543,7 +419,7 @@ export abstract class AbstractRunCommand extends AbstractPlatformCommand<RunComm
   }
 
   protected async handleError(error: unknown): Promise<void> {
-    this.spinner.fail("Run failed");
+    this.failSpinner("Run failed");
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);

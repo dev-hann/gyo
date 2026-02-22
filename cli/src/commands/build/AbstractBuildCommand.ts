@@ -1,48 +1,32 @@
 import * as path from "path";
 import fs from "fs-extra";
-import {
-  AbstractPlatformCommand,
-  Platform,
-  BuildCommandOptions,
-} from "../common/AbstractPlatformCommand.js";
+import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index.js";
 import { logger } from "../../utils/logger.js";
 import { executeCommand } from "../../utils/exec.js";
 import { pathExists, writeFile } from "../../utils/fs.js";
-import { getProfileUrl } from "../../utils/config.js";
-import { autoSyncPlugins } from "../../utils/plugin-sync.js";
+import { getProfileUrl } from "../../services/config.service.js";
 
-export abstract class AbstractBuildCommand extends AbstractPlatformCommand<BuildCommandOptions> {
-  constructor(platform: Platform, options: BuildCommandOptions) {
-    super(platform, options);
-  }
+export interface BuildCommandOptions extends PlatformCommandOptions {
+  profile: string;
+  release: boolean;
+}
 
-  /**
-   * Build commands support android and ios platforms.
-   */
+export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandOptions> {
   protected getValidPlatforms(): Platform[] {
     return ["android", "ios"];
   }
 
-  /**
-   * Main execution flow for build command.
-   * Builds lib assets first, then runs platform-specific logic.
-   */
   protected async run(): Promise<void> {
     logger.info(`Building with profile: ${this.options.profile}`);
 
-    // Auto-sync plugins if needed
-    await autoSyncPlugins(this.projectPath);
-
-    // Build lib assets
     await this.buildLibAssets();
 
-    // Build platform-specific app
-    this.spinner.start(`Building ${this.platform} app...`);
+    this.startSpinner(`Building ${this.platform} app...`);
     await this.buildPlatform();
   }
 
   protected async buildLibAssets(): Promise<void> {
-    this.spinner.text = "Building lib assets...";
+    this.updateSpinner("Building lib assets...");
     const libPath = path.join(this.projectPath, "lib");
 
     if (await pathExists(libPath)) {
@@ -52,12 +36,12 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
       });
 
       if (!libBuildResult.success) {
-        this.spinner.fail("Lib build failed");
+        this.failSpinner("Lib build failed");
         logger.error(libBuildResult.stderr || libBuildResult.stdout);
         process.exit(1);
       }
 
-      this.spinner.succeed("Lib assets built successfully");
+      this.succeedSpinner("Lib assets built successfully");
       logger.verbose(libBuildResult.stdout);
     } else {
       logger.warn("Lib directory not found, skipping lib build");
@@ -75,7 +59,7 @@ export abstract class AbstractBuildCommand extends AbstractPlatformCommand<Build
     configPath: string,
     serverUrl: string
   ): Promise<void> {
-    this.spinner.text = `Configuring server URL: ${serverUrl}`;
+    this.updateSpinner(`Configuring server URL: ${serverUrl}`);
     await fs.ensureDir(path.dirname(configPath));
     await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
   }

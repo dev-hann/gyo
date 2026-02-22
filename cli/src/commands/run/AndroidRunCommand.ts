@@ -5,13 +5,17 @@ import { AbstractRunCommand } from "./AbstractRunCommand.js";
 import { logger } from "../../utils/logger.js";
 import { executeCommand } from "../../utils/exec.js";
 import { pathExists } from "../../utils/fs.js";
-import { CommandNotFoundError, BuildFailedError } from "../../utils/errors.js";
+import { CommandNotFoundError, BuildFailedError } from "../../core/errors.js";
 
 export class AndroidRunCommand extends AbstractRunCommand {
+  getMeta() {
+    return { name: "run-android", description: "" };
+  }
+
   protected async runPlatform(serverUrl: string): Promise<void> {
     const androidPath = path.join(this.projectPath, "android");
 
-    await this.checkPlatformExists("android");
+    await this.checkPlatformDirectoryExists();
     await this.checkAdbAvailable();
     await this.updateServerUrl(androidPath, serverUrl);
     const selectedDevice = await this.getConnectedDevice();
@@ -25,7 +29,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
   private async checkAdbAvailable(): Promise<void> {
     if (!(await this.checkCommandExists("adb"))) {
-      this.spinner.fail("adb not found");
+      this.failSpinner("adb not found");
       logger.error("Please install Android SDK and add adb to your PATH");
       throw new CommandNotFoundError("adb");
     }
@@ -35,16 +39,13 @@ export class AndroidRunCommand extends AbstractRunCommand {
     androidPath: string,
     serverUrl: string
   ): Promise<void> {
-    this.spinner.text = `Updating server URL to ${serverUrl}...`;
+    this.updateSpinner(`Updating server URL to ${serverUrl}...`);
 
-    // Update assets/gyo-config.json
     const assetsPath = path.join(androidPath, "app/src/main/assets");
     const configPath = path.join(assetsPath, "gyo-config.json");
 
-    // Ensure assets directory exists
     await fs.ensureDir(assetsPath);
 
-    // Create or update gyo-config.json
     const config = {
       serverUrl: serverUrl,
     };
@@ -53,20 +54,20 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async getConnectedDevice(): Promise<string> {
-    return this.options.device;
+    return this.options.device || "";
   }
 
   private async buildApp(androidPath: string): Promise<void> {
     const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 
-    this.spinner.text = "Building Android app...";
+    this.updateSpinner("Building Android app...");
     const buildResult = await executeCommand(gradlew, ["assembleDebug"], {
       cwd: androidPath,
       stdio: "pipe",
     });
 
     if (!buildResult.success) {
-      this.spinner.fail("Build failed");
+      this.failSpinner("Build failed");
       throw new BuildFailedError("Android build failed");
     }
   }
@@ -74,14 +75,14 @@ export class AndroidRunCommand extends AbstractRunCommand {
   private async installApp(androidPath: string): Promise<void> {
     const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
 
-    this.spinner.text = "Installing app on device...";
+    this.updateSpinner("Installing app on device...");
     const installResult = await executeCommand(gradlew, ["installDebug"], {
       cwd: androidPath,
       stdio: "pipe",
     });
 
     if (!installResult.success) {
-      this.spinner.fail("Failed to install app");
+      this.failSpinner("Failed to install app");
       logger.error(installResult.stderr || installResult.stdout);
       throw new BuildFailedError("Failed to install app");
     }
@@ -106,7 +107,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     packageName: string | null,
     selectedDevice: string
   ): Promise<void> {
-    this.spinner.text = "Launching app...";
+    this.updateSpinner("Launching app...");
     if (packageName && selectedDevice) {
       const launchArgs = [
         "-s",
@@ -122,13 +123,13 @@ export class AndroidRunCommand extends AbstractRunCommand {
       });
 
       if (launchResult.success) {
-        this.spinner.succeed("App installed and launched on Android device!");
+        this.succeedSpinner("App installed and launched on Android device!");
       } else {
-        this.spinner.succeed("App installed on Android device!");
+        this.succeedSpinner("App installed on Android device!");
         logger.warn("Could not auto-launch app. Please launch manually.");
       }
     } else {
-      this.spinner.succeed("App installed on Android device!");
+      this.succeedSpinner("App installed on Android device!");
     }
   }
 

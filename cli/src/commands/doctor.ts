@@ -1,16 +1,9 @@
-import { Command } from "commander";
+import { BaseCommand, CommandMeta, BaseCommandOptions } from "./base/index.js";
 import { logger } from "../utils/logger.js";
 import { checkCommandExists, executeCommand } from "../utils/exec.js";
-import { GyoError } from "../utils/errors.js";
+import { GyoError } from "../core/index.js";
 
-export function registerDoctorCommand(program: Command): void {
-  program
-    .command("doctor")
-    .description("Check your environment for required dependencies")
-    .action(async () => {
-      await runDoctor();
-    });
-}
+interface DoctorCommandOptions extends BaseCommandOptions {}
 
 interface CheckResult {
   name: string;
@@ -19,226 +12,217 @@ interface CheckResult {
   optional?: boolean;
 }
 
-async function runDoctor(): Promise<void> {
-  try {
-    logger.info("Running gyo environment checks...\n");
-
-    const results: CheckResult[] = [];
-
-    results.push(await checkNodeJS());
-    results.push(await checkNPM());
-    results.push(await checkGit());
-
-    logger.info("\nAndroid Development:");
-    results.push(await checkAndroidSDK());
-    results.push(await checkADB());
-    results.push(await checkGradle());
-
-    logger.info("\niOS Development:");
-    results.push(await checkSwift());
-    results.push(await checkXtool());
-    results.push(await checkLibimobiledevice());
-
-    displaySummary(results);
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Doctor check failed: ${message}`);
-    throw new GyoError(message);
-  }
+interface CheckConfig {
+  name: string;
+  command: string;
+  versionArgs?: string[];
+  versionParser?: (stdout: string) => string;
+  notInstalledMessage?: string;
+  optional?: boolean;
+  minVersion?: { parse: (stdout: string) => number; required: number };
 }
 
-function displaySummary(results: CheckResult[]): void {
-  logger.info("\n" + "=".repeat(50));
-  logger.info("Summary:\n");
+export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
+  getMeta(): CommandMeta {
+    return {
+      name: "doctor",
+      description: "Check your environment for required dependencies",
+    };
+  }
 
-  const passed = results.filter((r) => r.passed && !r.optional).length;
-  const total = results.filter((r) => !r.optional).length;
-  const optional = results.filter((r) => r.optional);
+  protected async run(): Promise<void> {
+    try {
+      logger.info("Running gyo environment checks...\n");
 
-  results.forEach((result) => {
-    if (result.passed) {
-      logger.success(`${result.name}: ${result.message}`);
-    } else {
-      if (result.optional) {
+      const checks = this.getCheckConfigs();
+      const results: CheckResult[] = [];
+
+      logger.info("Core Dependencies:");
+      results.push(await this.runCheck(checks[0])); // Node.js
+      results.push(await this.runCheck(checks[1])); // npm
+      results.push(await this.runCheck(checks[2])); // Git
+
+      logger.info("\nAndroid Development:");
+      results.push(await this.checkAndroidSDK());
+      results.push(await this.runCheck(checks[4])); // ADB
+      results.push(await this.runCheck(checks[5])); // Gradle
+
+      logger.info("\niOS Development:");
+      results.push(await this.runCheck(checks[6])); // Swift
+      results.push(await this.runCheck(checks[7])); // xtool
+      results.push(await this.runCheck(checks[8])); // libimobiledevice
+
+      this.displaySummary(results);
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Doctor check failed: ${message}`);
+      throw new GyoError(message);
+    }
+  }
+
+  private getCheckConfigs(): CheckConfig[] {
+    return [
+      {
+        name: "Node.js",
+        command: "node",
+        versionArgs: ["--version"],
+        notInstalledMessage: "Not installed. Visit https://nodejs.org",
+        minVersion: {
+          parse: (stdout) => parseInt(stdout.trim().replace("v", "").split(".")[0]),
+          required: 18,
+        },
+        versionParser: (stdout) => stdout.trim(),
+      },
+      {
+        name: "npm",
+        command: "npm",
+        versionArgs: ["--version"],
+        versionParser: (stdout) => `v${stdout.trim()} installed`,
+      },
+      {
+        name: "Git",
+        command: "git",
+        versionArgs: ["--version"],
+        optional: true,
+      },
+      {
+        name: "Android SDK",
+        command: "",
+        optional: true,
+      },
+      {
+        name: "ADB",
+        command: "adb",
+        optional: true,
+      },
+      {
+        name: "Gradle",
+        command: "gradle",
+        optional: true,
+        notInstalledMessage: "Not found (will use gradlew)",
+      },
+      {
+        name: "Swift",
+        command: "swift",
+        versionArgs: ["--version"],
+        versionParser: (stdout) => {
+          const match = stdout.match(/Swift version ([\d.]+)/);
+          return match ? `Version ${match[1]}` : "Installed";
+        },
+        notInstalledMessage: "Not installed. Required for iOS development",
+        optional: true,
+      },
+      {
+        name: "xtool",
+        command: "xtool",
+        versionArgs: ["--version"],
+        notInstalledMessage: "Not installed. Visit https://xtool.sh for cross-platform iOS builds",
+        optional: true,
+      },
+      {
+        name: "libimobiledevice",
+        command: "idevice_id",
+        optional: true,
+        notInstalledMessage: "Not installed. Required for iOS device communication",
+      },
+    ];
+  }
+
+  private async runCheck(config: CheckConfig): Promise<CheckResult> {
+    if (!config.command) {
+      return {
+        name: config.name,
+        passed: false,
+        message: config.notInstalledMessage || "Not configured",
+        optional: config.optional,
+      };
+    }
+
+    const exists = await checkCommandExists(config.command);
+    if (!exists) {
+      return {
+        name: config.name,
+        passed: false,
+        message: config.notInstalledMessage || "Not installed",
+        optional: config.optional,
+      };
+    }
+
+    if (!config.versionArgs) {
+      return {
+        name: config.name,
+        passed: true,
+        message: "Installed",
+        optional: config.optional,
+      };
+    }
+
+    const result = await executeCommand(config.command, config.versionArgs, { stdio: "pipe" });
+    const versionOutput = config.versionParser ? config.versionParser(result.stdout) : result.stdout.trim();
+
+    if (config.minVersion) {
+      const currentVersion = config.minVersion.parse(result.stdout);
+      const passed = currentVersion >= config.minVersion.required;
+      return {
+        name: config.name,
+        passed,
+        message: passed
+          ? versionOutput
+          : `${versionOutput} (requires v${config.minVersion.required} or higher)`,
+        optional: config.optional,
+      };
+    }
+
+    return {
+      name: config.name,
+      passed: true,
+      message: versionOutput || "Installed",
+      optional: config.optional,
+    };
+  }
+
+  private async checkAndroidSDK(): Promise<CheckResult> {
+    const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+
+    return {
+      name: "Android SDK",
+      passed: !!androidHome,
+      message: androidHome ? `Found at ${androidHome}` : "ANDROID_HOME not set",
+      optional: true,
+    };
+  }
+
+  private displaySummary(results: CheckResult[]): void {
+    logger.info("\n" + "=".repeat(50));
+    logger.info("Summary:\n");
+
+    const required = results.filter((r) => !r.optional);
+    const optional = results.filter((r) => r.optional);
+    const passed = required.filter((r) => r.passed).length;
+
+    for (const result of results) {
+      if (result.passed) {
+        logger.success(`${result.name}: ${result.message}`);
+      } else if (result.optional) {
         logger.warn(`${result.name}: ${result.message} (optional)`);
       } else {
         logger.error(`${result.name}: ${result.message}`);
       }
     }
-  });
 
-  logger.info("\n" + "=".repeat(50));
-  logger.info(`\nPassed: ${passed}/${total} required checks`);
+    logger.info("\n" + "=".repeat(50));
+    logger.info(`\nPassed: ${passed}/${required.length} required checks`);
 
-  if (optional.length > 0) {
-    const passedOptional = optional.filter((r) => r.passed).length;
-    logger.info(`Optional: ${passedOptional}/${optional.length} checks`);
+    if (optional.length > 0) {
+      const passedOptional = optional.filter((r) => r.passed).length;
+      logger.info(`Optional: ${passedOptional}/${optional.length} checks`);
+    }
+
+    if (passed === required.length) {
+      logger.success("\nYour environment is ready for gyo development!");
+    } else {
+      logger.warn("\nSome checks failed. Please fix the issues above.");
+    }
   }
-
-  if (passed === total) {
-    logger.success("\nYour environment is ready for gyo development!");
-  } else {
-    logger.warn("\nSome checks failed. Please fix the issues above.");
-  }
-}
-
-async function checkCommandVersion(
-  command: string,
-  args: string[],
-  versionParser: (stdout: string) => string
-): Promise<CheckResult> {
-  const exists = await checkCommandExists(command);
-  if (!exists) {
-    return { name: command, passed: false, message: "Not installed" };
-  }
-
-  const result = await executeCommand(command, args, { stdio: "pipe" });
-  const version = versionParser(result.stdout);
-  return { name: command, passed: true, message: version };
-}
-
-async function checkNodeJS(): Promise<CheckResult> {
-  const exists = await checkCommandExists("node");
-  if (!exists) {
-    return {
-      name: "Node.js",
-      passed: false,
-      message: "Not installed. Visit https://nodejs.org",
-    };
-  }
-
-  const result = await executeCommand("node", ["--version"], { stdio: "pipe" });
-  const version = result.stdout.trim();
-  const majorVersion = parseInt(version.replace("v", "").split(".")[0]);
-
-  return {
-    name: "Node.js",
-    passed: majorVersion >= 18,
-    message: majorVersion >= 18 
-      ? `${version} installed` 
-      : `${version} installed (requires v18 or higher)`,
-  };
-}
-
-async function checkNPM(): Promise<CheckResult> {
-  return checkCommandVersion("npm", ["--version"], (stdout) => 
-    `v${stdout.trim()} installed`
-  );
-}
-
-async function checkGit(): Promise<CheckResult> {
-  const exists = await checkCommandExists("git");
-  if (!exists) {
-    return {
-      name: "Git",
-      passed: false,
-      message: "Not installed",
-      optional: true,
-    };
-  }
-
-  const result = await executeCommand("git", ["--version"], { stdio: "pipe" });
-  return {
-    name: "Git",
-    passed: true,
-    message: result.stdout.trim(),
-    optional: true,
-  };
-}
-
-async function checkAndroidSDK(): Promise<CheckResult> {
-  const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-
-  return {
-    name: "Android SDK",
-    passed: !!androidHome,
-    message: androidHome ? `Found at ${androidHome}` : "ANDROID_HOME not set",
-    optional: true,
-  };
-}
-
-async function checkADB(): Promise<CheckResult> {
-  const exists = await checkCommandExists("adb");
-  return {
-    name: "ADB",
-    passed: exists,
-    message: exists ? "Installed" : "Not found in PATH",
-    optional: true,
-  };
-}
-
-async function checkGradle(): Promise<CheckResult> {
-  const exists = await checkCommandExists("gradle");
-  return {
-    name: "Gradle",
-    passed: exists,
-    message: exists ? "Installed" : "Not found (will use gradlew)",
-    optional: true,
-  };
-}
-
-async function checkSwift(): Promise<CheckResult> {
-  const exists = await checkCommandExists("swift");
-  if (!exists) {
-    return {
-      name: "Swift",
-      passed: false,
-      message: "Not installed. Required for iOS development",
-      optional: true,
-    };
-  }
-
-  const result = await executeCommand("swift", ["--version"], { stdio: "pipe" });
-  const versionMatch = result.stdout.match(/Swift version ([\d.]+)/);
-  const version = versionMatch ? versionMatch[1] : "Installed";
-
-  return {
-    name: "Swift",
-    passed: true,
-    message: `Version ${version}`,
-    optional: true,
-  };
-}
-
-async function checkXtool(): Promise<CheckResult> {
-  const exists = await checkCommandExists("xtool");
-  if (!exists) {
-    return {
-      name: "xtool",
-      passed: false,
-      message: "Not installed. Visit https://xtool.sh for cross-platform iOS builds",
-      optional: true,
-    };
-  }
-
-  const result = await executeCommand("xtool", ["--version"], { stdio: "pipe" });
-  return {
-    name: "xtool",
-    passed: true,
-    message: result.stdout.trim() || "Installed",
-    optional: true,
-  };
-}
-
-async function checkLibimobiledevice(): Promise<CheckResult> {
-  const exists = await checkCommandExists("idevice_id");
-  if (!exists) {
-    return {
-      name: "libimobiledevice",
-      passed: false,
-      message: "Not installed. Required for iOS device communication",
-      optional: true,
-    };
-  }
-
-  const tools = ["idevice_id", "ideviceinfo", "idevicesyslog", "ideviceimagemounter"];
-  const installedTools = tools.filter(async (tool) => await checkCommandExists(tool));
-
-  return {
-    name: "libimobiledevice",
-    passed: true,
-    message: `Installed (${installedTools.length}/${tools.length} tools available)`,
-    optional: true,
-  };
 }

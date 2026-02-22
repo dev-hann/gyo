@@ -1,60 +1,47 @@
-import { Command } from "commander";
-import {
-  Platform,
-  BuildCommandOptions,
-} from "./common/AbstractPlatformCommand.js";
+import { BaseCommand, CommandMeta, Platform } from "./base/index.js";
 import { AndroidBuildCommand } from "./build/AndroidBuildCommand.js";
 import { IOSBuildCommand } from "./build/IOSBuildCommand.js";
-import { logger } from "../utils/logger.js";
+import { InvalidPlatformError } from "../core/index.js";
 
-export function registerBuildCommand(program: Command): void {
-  program
-    .command("build <platform>")
-    .description("Build the native application for the specified platform")
-    .option("-r, --release", "Build for release (production)", false)
-    .option(
-      "-p, --profile <profile>",
-      "Build profile to use (development, production, etc.)",
-      "development"
-    )
-    .option("-v, --verbose", "Show detailed logs")
-    .action(
-      async (
-        platform: string,
-        rawOptions: { release: boolean; profile: string; verbose?: boolean }
-      ) => {
-        if (rawOptions.verbose) {
-          logger.setVerbose(true);
-        }
-
-        const options: BuildCommandOptions = {
-          profile: rawOptions.profile,
-          release: rawOptions.release,
-        };
-
-        await buildPlatform(platform as Platform, options);
-      }
-    );
+interface BuildCommandOptions {
+  profile: string;
+  release: boolean;
+  verbose?: boolean;
 }
 
-async function buildPlatform(
-  platform: Platform,
-  options: BuildCommandOptions
-): Promise<void> {
-  let command;
+export class BuildCommand extends BaseCommand<BuildCommandOptions> {
+  private platform: Platform = "android";
 
-  switch (platform) {
-    case "android":
-      command = new AndroidBuildCommand(platform, options);
-      break;
-    case "ios":
-      command = new IOSBuildCommand(platform, options);
-      break;
-    default:
-      // Invalid platform - let the command's validation handle it
-      command = new AndroidBuildCommand(platform, options);
-      break;
+  getMeta(): CommandMeta {
+    return {
+      name: "build <platform>",
+      description: "Build the native application for the specified platform",
+      options: [
+        { flags: "-r, --release", description: "Build for release (production)", default: false },
+        { flags: "-p, --profile <profile>", description: "Build profile to use", default: "development" },
+        { flags: "-v, --verbose", description: "Show detailed logs" },
+      ],
+    };
   }
 
-  await command.execute();
+  setPlatform(platform: Platform): void {
+    this.platform = platform;
+  }
+
+  protected async run(): Promise<void> {
+    const command = this.createCommand(this.platform);
+    command.setOptions(this.options);
+    await command.execute();
+  }
+
+  private createCommand(platform: Platform): AndroidBuildCommand | IOSBuildCommand {
+    switch (platform) {
+      case "android":
+        return new AndroidBuildCommand();
+      case "ios":
+        return new IOSBuildCommand();
+      default:
+        throw new InvalidPlatformError(platform, ["android", "ios"]);
+    }
+  }
 }

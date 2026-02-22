@@ -1,89 +1,126 @@
-import { Command } from 'commander';
-import { logger } from '../utils/logger.js';
-import { loadConfig, saveConfig, GyoConfig } from '../utils/config.js';
-import { GyoError } from '../utils/errors.js';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from "./base/index.js";
+import { logger } from "../utils/logger.js";
+import { loadConfig, saveConfig } from "../services/config.service.js";
+import { GyoError } from "../core/index.js";
 
-export function registerConfigCommand(program: Command): void {
-  const config = program
-    .command('config')
-    .description('Manage gyo configuration');
-  
-  config
-    .command('show')
-    .description('Show current configuration')
-    .action(async () => {
-      await showConfig();
-    });
-  
-  config
-    .command('set <key> <value>')
-    .description('Set a configuration value')
-    .action(async (key: string, value: string) => {
-      await setConfig(key, value);
-    });
-  
-  config
-    .command('get <key>')
-    .description('Get a configuration value')
-    .action(async (key: string) => {
-      await getConfig(key);
-    });
+interface ConfigCommandOptions extends BaseCommandOptions {
+  action: "show" | "set" | "get";
+  key?: string;
+  value?: string;
 }
 
-async function showConfig(): Promise<void> {
-  const config = await loadConfig();
-  if (!config) {
-    throw new GyoError('Configuration not found');
+export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
+  static getSubcommands(): CommandMeta[] {
+    return [
+      {
+        name: "show",
+        description: "Show current configuration",
+      },
+      {
+        name: "set",
+        arguments: "<key> <value>",
+        description: "Set a configuration value",
+      },
+      {
+        name: "get",
+        arguments: "<key>",
+        description: "Get a configuration value",
+      },
+    ];
   }
-  
-  logger.info('Current gyo configuration:\n');
-  console.log(JSON.stringify(config, null, 2));
-}
 
-async function setConfig(key: string, value: string): Promise<void> {
-  const config = await loadConfig();
-  if (!config) {
-    throw new GyoError('Configuration not found');
+  getMeta(): CommandMeta {
+    return {
+      name: "config",
+      description: "Manage gyo configuration",
+    };
   }
-  
-  const keys = key.split('.');
-  let current: any = config;
-  
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (!(keys[i] in current)) {
-      throw new GyoError(`Invalid configuration key: ${key}`);
+
+  setAction(action: "show" | "set" | "get"): void {
+    this.options = { ...this.options, action };
+  }
+
+  setKeyValue(key: string, value?: string): void {
+    this.options = { ...this.options, key, value };
+  }
+
+  protected async run(): Promise<void> {
+    switch (this.options.action) {
+      case "show":
+        await this.showConfig();
+        break;
+      case "set":
+        await this.setConfig();
+        break;
+      case "get":
+        await this.getConfig();
+        break;
     }
-    current = current[keys[i]];
   }
-  
-  const lastKey = keys[keys.length - 1];
-  
-  let parsedValue: any = value;
-  if (value === 'true') parsedValue = true;
-  else if (value === 'false') parsedValue = false;
-  else if (!isNaN(Number(value))) parsedValue = Number(value);
-  
-  current[lastKey] = parsedValue;
-  
-  await saveConfig(config);
-  logger.success(`Set ${key} = ${parsedValue}`);
-}
 
-async function getConfig(key: string): Promise<void> {
-  const config = await loadConfig();
-  if (!config) {
-    throw new GyoError('Configuration not found');
-  }
-  
-  const keys = key.split('.');
-  let current: any = config;
-  
-  for (const k of keys) {
-    if (!(k in current)) {
-      throw new GyoError(`Configuration key not found: ${key}`);
+  private async showConfig(): Promise<void> {
+    const config = await loadConfig(this.projectPath);
+    if (!config) {
+      throw new GyoError("Configuration not found");
     }
-    current = current[k];
+
+    logger.info("Current gyo configuration:\n");
+    console.log(JSON.stringify(config, null, 2));
   }
-  
-  logger.info(`${key} = ${JSON.stringify(current, null, 2)}`);
+
+  private async setConfig(): Promise<void> {
+    if (!this.options.key || this.options.value === undefined) {
+      throw new GyoError("Key and value are required for set operation");
+    }
+
+    const config = await loadConfig(this.projectPath);
+    if (!config) {
+      throw new GyoError("Configuration not found");
+    }
+
+    const keys = this.options.key.split(".");
+    let current: any = config;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in current)) {
+        throw new GyoError(`Invalid configuration key: ${this.options.key}`);
+      }
+      current = current[keys[i]];
+    }
+
+    const lastKey = keys[keys.length - 1];
+
+    let parsedValue: any = this.options.value;
+    if (this.options.value === "true") parsedValue = true;
+    else if (this.options.value === "false") parsedValue = false;
+    else if (!isNaN(Number(this.options.value))) parsedValue = Number(this.options.value);
+
+    current[lastKey] = parsedValue;
+
+    await saveConfig(config, this.projectPath);
+    logger.success(`Set ${this.options.key} = ${parsedValue}`);
+  }
+
+  private async getConfig(): Promise<void> {
+    if (!this.options.key) {
+      throw new GyoError("Key is required for get operation");
+    }
+
+    const config = await loadConfig(this.projectPath);
+    if (!config) {
+      throw new GyoError("Configuration not found");
+    }
+
+    const keys = this.options.key.split(".");
+    let current: any = config;
+
+    for (const k of keys) {
+      if (!(k in current)) {
+        throw new GyoError(`Configuration key not found: ${this.options.key}`);
+      }
+      current = current[k];
+    }
+
+    logger.info(`${this.options.key} = ${JSON.stringify(current, null, 2)}`);
+  }
 }
