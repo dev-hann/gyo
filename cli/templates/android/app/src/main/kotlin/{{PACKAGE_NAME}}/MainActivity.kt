@@ -11,17 +11,10 @@ import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import gyo.plugins.bridge.AndroidBridgeInterface
 import gyo.plugins.bridge.BridgeRegistry
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.WebSocket
-import okhttp3.WebSocketListener
-import java.net.URI
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var gyoConfig: GyoConfig
-    private var hotReloadWebSocket: WebSocket? = null
-    private val okHttpClient = OkHttpClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,50 +82,6 @@ class MainActivity : AppCompatActivity() {
     private fun loadApp() {
         val url = gyoConfig.serverUrl
         webView.loadUrl(url)
-        
-        // Connect to Hot Reload WebSocket in development mode
-        connectHotReload(url)
-    }
-    
-    private fun connectHotReload(serverUrl: String) {
-        try {
-            // Extract host from server URL
-            val uri = URI(serverUrl)
-            val host = uri.host
-            val wsUrl = "ws://$host:3001"
-            
-            Log.i("MainActivity", "Connecting to Hot Reload WebSocket: $wsUrl")
-            
-            val request = Request.Builder()
-                .url(wsUrl)
-                .build()
-            
-            hotReloadWebSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {
-                override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                    Log.i("HotReload", "WebSocket connected")
-                }
-                
-                override fun onMessage(webSocket: WebSocket, text: String) {
-                    Log.i("HotReload", "Received message: $text")
-                    if (text == "reload") {
-                        runOnUiThread {
-                            Log.i("HotReload", "Reloading WebView")
-                            webView.reload()
-                        }
-                    }
-                }
-                
-                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.i("HotReload", "WebSocket closing: $reason")
-                }
-                
-                override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                    Log.w("HotReload", "WebSocket connection failed (this is normal in production): ${t.message}")
-                }
-            })
-        } catch (e: Exception) {
-            Log.w("HotReload", "Failed to connect to Hot Reload (this is normal in production): ${e.message}")
-        }
     }
 
     private fun injectGyoRuntime() {
@@ -190,11 +139,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    override fun onDestroy() {
-        super.onDestroy()
-        hotReloadWebSocket?.close(1000, "Activity destroyed")
-    }
-
     data class GyoConfig(
         val serverUrl: String
     )

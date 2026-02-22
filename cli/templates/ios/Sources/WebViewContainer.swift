@@ -7,7 +7,6 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     private var webView: WKWebView!
     private var serverUrl: String
     private var bridgeInterface: IOSBridgeInterface!
-    private var hotReloadWebSocket: URLSessionWebSocketTask?
     
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         // Load config before calling super.init
@@ -59,58 +58,6 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         guard let url = URL(string: serverUrl) else { return }
         let request = URLRequest(url: url)
         webView.load(request)
-        
-        // Connect to Hot Reload WebSocket in development mode
-        connectHotReload(serverUrl: serverUrl)
-    }
-    
-    private func connectHotReload(serverUrl: String) {
-        guard let serverURL = URL(string: serverUrl),
-              let host = serverURL.host else {
-            print("Invalid server URL for Hot Reload")
-            return
-        }
-        
-        let wsURLString = "ws://\(host):3001"
-        guard let wsURL = URL(string: wsURLString) else {
-            print("Invalid WebSocket URL: \(wsURLString)")
-            return
-        }
-        
-        print("Connecting to Hot Reload WebSocket: \(wsURLString)")
-        
-        let session = URLSession(configuration: .default)
-        hotReloadWebSocket = session.webSocketTask(with: wsURL)
-        hotReloadWebSocket?.resume()
-        
-        receiveHotReloadMessage()
-    }
-    
-    private func receiveHotReloadMessage() {
-        hotReloadWebSocket?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                switch message {
-                case .string(let text):
-                    print("Hot Reload message received: \(text)")
-                    if text == "reload" {
-                        DispatchQueue.main.async {
-                            print("Reloading WebView")
-                            self?.webView.reload()
-                        }
-                    }
-                case .data(let data):
-                    print("Hot Reload received data: \(data)")
-                @unknown default:
-                    break
-                }
-                // Continue listening for messages
-                self?.receiveHotReloadMessage()
-                
-            case .failure(let error):
-                print("Hot Reload WebSocket error (this is normal in production): \(error.localizedDescription)")
-            }
-        }
     }
     
     private func injectGyoRuntime() {
@@ -148,7 +95,4 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         injectGyoRuntime()
     }
     
-    deinit {
-        hotReloadWebSocket?.cancel(with: .goingAway, reason: nil)
-    }
 }
