@@ -39,5 +39,14 @@ export const logger = {
   
   log: (message: string) => {
     console.log(message);
+  },
+
+  suggestNextSteps: (steps: string[]) => {
+    console.log('');
+    console.log(chalk.blue('ℹ'), "What's next:");
+    for (const step of steps) {
+      console.log(chalk.blue('ℹ'), `  • ${step}`);
+    }
+    console.log('');
   }
 };

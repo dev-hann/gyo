@@ -8,6 +8,10 @@ export interface ExecResult {
   code: number | null;
 }
 
+export function getGradlew(): string {
+  return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+}
+
 export function executeCommand(
   command: string,
   args: string[] = [],
