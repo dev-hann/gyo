@@ -1,9 +1,9 @@
 import * as path from "path";
 import { readJson, writeJson, pathExists } from "../utils/fs.js";
 import { logger } from "../utils/logger.js";
-import { GyoConfig, DEFAULT_CONFIG } from "../core/index.js";
+import { GyoConfig } from "../core/index.js";
 
-export { GyoConfig, DEFAULT_CONFIG } from "../core/index.js";
+export { GyoConfig } from "../core/index.js";
 
 export async function loadConfig(
   projectPath: string = process.cwd()

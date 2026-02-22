@@ -6,9 +6,7 @@ import { logger } from "../../utils/logger.js";
 import { executeCommand, checkCommandExists } from "../../utils/exec.js";
 import { pathExists } from "../../utils/fs.js";
 import { saveConfig, shouldStartLocalServer } from "../../services/config.service.js";
-import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS } from "../../core/index.js";
-
-const LOCALHOST = "localhost";
+import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS, LOCALHOST } from "../../core/index.js";
 
 export interface RunCommandOptions extends PlatformCommandOptions {
   profile: string;
