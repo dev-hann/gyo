@@ -1,9 +1,7 @@
-import { BaseCommand, CommandMeta, BaseCommandOptions } from "./base/index.js";
-import { logger } from "../utils/logger.js";
-import { checkCommandExists, executeCommand } from "../utils/exec.js";
-import { GyoError } from "../core/index.js";
-
-interface DoctorCommandOptions extends BaseCommandOptions {}
+import { BaseCommand, CommandMeta } from './base/index.js';
+import { logger } from '../utils/logger.js';
+import { checkCommandExists, executeCommand } from '../utils/exec.js';
+import { GyoError } from '../core/index.js';
 
 interface CheckResult {
   name: string;
@@ -22,38 +20,37 @@ interface CheckConfig {
   minVersion?: { parse: (stdout: string) => number; required: number };
 }
 
-export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
+export class DoctorCommand extends BaseCommand {
   getMeta(): CommandMeta {
     return {
-      name: "doctor",
-      description: "Check your environment for required dependencies",
+      name: 'doctor',
+      description: 'Check your environment for required dependencies',
     };
   }
 
   protected async run(): Promise<void> {
     try {
-      logger.info("Running gyo environment checks...\n");
+      logger.info('Running gyo environment checks...\n');
 
       const checks = this.getCheckConfigs();
       const results: CheckResult[] = [];
 
-      logger.info("Core Dependencies:");
+      logger.info('Core Dependencies:');
       results.push(await this.runCheck(checks[0])); // Node.js
       results.push(await this.runCheck(checks[1])); // npm
       results.push(await this.runCheck(checks[2])); // Git
 
-      logger.info("\nAndroid Development:");
+      logger.info('\nAndroid Development:');
       results.push(await this.checkAndroidSDK());
       results.push(await this.runCheck(checks[4])); // ADB
       results.push(await this.runCheck(checks[5])); // Gradle
 
-      logger.info("\niOS Development:");
+      logger.info('\niOS Development:');
       results.push(await this.runCheck(checks[6])); // Swift
       results.push(await this.runCheck(checks[7])); // xtool
       results.push(await this.runCheck(checks[8])); // libimobiledevice
 
       this.displaySummary(results);
-
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Doctor check failed: ${message}`);
@@ -64,67 +61,67 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
   private getCheckConfigs(): CheckConfig[] {
     return [
       {
-        name: "Node.js",
-        command: "node",
-        versionArgs: ["--version"],
-        notInstalledMessage: "Not installed. Visit https://nodejs.org",
+        name: 'Node.js',
+        command: 'node',
+        versionArgs: ['--version'],
+        notInstalledMessage: 'Not installed. Visit https://nodejs.org',
         minVersion: {
-          parse: (stdout) => parseInt(stdout.trim().replace("v", "").split(".")[0]),
+          parse: (stdout) => parseInt(stdout.trim().replace('v', '').split('.')[0]),
           required: 18,
         },
         versionParser: (stdout) => stdout.trim(),
       },
       {
-        name: "npm",
-        command: "npm",
-        versionArgs: ["--version"],
+        name: 'npm',
+        command: 'npm',
+        versionArgs: ['--version'],
         versionParser: (stdout) => `v${stdout.trim()} installed`,
       },
       {
-        name: "Git",
-        command: "git",
-        versionArgs: ["--version"],
+        name: 'Git',
+        command: 'git',
+        versionArgs: ['--version'],
         optional: true,
       },
       {
-        name: "Android SDK",
-        command: "",
+        name: 'Android SDK',
+        command: '',
         optional: true,
       },
       {
-        name: "ADB",
-        command: "adb",
+        name: 'ADB',
+        command: 'adb',
         optional: true,
       },
       {
-        name: "Gradle",
-        command: "gradle",
+        name: 'Gradle',
+        command: 'gradle',
         optional: true,
-        notInstalledMessage: "Not found (will use gradlew)",
+        notInstalledMessage: 'Not found (will use gradlew)',
       },
       {
-        name: "Swift",
-        command: "swift",
-        versionArgs: ["--version"],
-        versionParser: (stdout) => {
+        name: 'Swift',
+        command: 'swift',
+        versionArgs: ['--version'],
+        versionParser: (stdout: string): string => {
           const match = stdout.match(/Swift version ([\d.]+)/);
-          return match ? `Version ${match[1]}` : "Installed";
+          return match ? `Version ${match[1]}` : 'Installed';
         },
-        notInstalledMessage: "Not installed. Required for iOS development",
+        notInstalledMessage: 'Not installed. Required for iOS development',
         optional: true,
       },
       {
-        name: "xtool",
-        command: "xtool",
-        versionArgs: ["--version"],
-        notInstalledMessage: "Not installed. Visit https://xtool.sh for cross-platform iOS builds",
+        name: 'xtool',
+        command: 'xtool',
+        versionArgs: ['--version'],
+        notInstalledMessage: 'Not installed. Visit https://xtool.sh for cross-platform iOS builds',
         optional: true,
       },
       {
-        name: "libimobiledevice",
-        command: "idevice_id",
+        name: 'libimobiledevice',
+        command: 'idevice_id',
         optional: true,
-        notInstalledMessage: "Not installed. Required for iOS device communication",
+        notInstalledMessage: 'Not installed. Required for iOS device communication',
       },
     ];
   }
@@ -134,7 +131,7 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
       return {
         name: config.name,
         passed: false,
-        message: config.notInstalledMessage || "Not configured",
+        message: config.notInstalledMessage || 'Not configured',
         optional: config.optional,
       };
     }
@@ -144,7 +141,7 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
       return {
         name: config.name,
         passed: false,
-        message: config.notInstalledMessage || "Not installed",
+        message: config.notInstalledMessage || 'Not installed',
         optional: config.optional,
       };
     }
@@ -153,13 +150,15 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
       return {
         name: config.name,
         passed: true,
-        message: "Installed",
+        message: 'Installed',
         optional: config.optional,
       };
     }
 
-    const result = await executeCommand(config.command, config.versionArgs, { stdio: "pipe" });
-    const versionOutput = config.versionParser ? config.versionParser(result.stdout) : result.stdout.trim();
+    const result = await executeCommand(config.command, config.versionArgs, { stdio: 'pipe' });
+    const versionOutput = config.versionParser
+      ? config.versionParser(result.stdout)
+      : result.stdout.trim();
 
     if (config.minVersion) {
       const currentVersion = config.minVersion.parse(result.stdout);
@@ -177,7 +176,7 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
     return {
       name: config.name,
       passed: true,
-      message: versionOutput || "Installed",
+      message: versionOutput || 'Installed',
       optional: config.optional,
     };
   }
@@ -186,16 +185,16 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
     const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
 
     return {
-      name: "Android SDK",
+      name: 'Android SDK',
       passed: !!androidHome,
-      message: androidHome ? `Found at ${androidHome}` : "ANDROID_HOME not set",
+      message: androidHome ? `Found at ${androidHome}` : 'ANDROID_HOME not set',
       optional: true,
     };
   }
 
   private displaySummary(results: CheckResult[]): void {
-    logger.info("\n" + "=".repeat(50));
-    logger.info("Summary:\n");
+    logger.info('\n' + '='.repeat(50));
+    logger.info('Summary:\n');
 
     const required = results.filter((r) => !r.optional);
     const optional = results.filter((r) => r.optional);
@@ -211,7 +210,7 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
       }
     }
 
-    logger.info("\n" + "=".repeat(50));
+    logger.info('\n' + '='.repeat(50));
     logger.info(`\nPassed: ${passed}/${required.length} required checks`);
 
     if (optional.length > 0) {
@@ -220,9 +219,9 @@ export class DoctorCommand extends BaseCommand<DoctorCommandOptions> {
     }
 
     if (passed === required.length) {
-      logger.success("\nYour environment is ready for gyo development!");
+      logger.success('\nYour environment is ready for gyo development!');
     } else {
-      logger.warn("\nSome checks failed. Please fix the issues above.");
+      logger.warn('\nSome checks failed. Please fix the issues above.');
     }
   }
 }

@@ -1,4 +1,4 @@
-export type Platform = "android" | "ios";
+export type Platform = 'android' | 'ios';
 
 export interface ProfileConfig {
   serverUrl: string;

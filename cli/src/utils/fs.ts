@@ -15,11 +15,11 @@ export async function pathExists(filePath: string): Promise<boolean> {
   return await fs.pathExists(filePath);
 }
 
-export async function readJson(filePath: string): Promise<any> {
+export async function readJson<T = unknown>(filePath: string): Promise<T> {
   return await fs.readJson(filePath);
 }
 
-export async function writeJson(filePath: string, data: any): Promise<void> {
+export async function writeJson<T>(filePath: string, data: T): Promise<void> {
   await fs.writeJson(filePath, data, { spaces: 2 });
 }
 

@@ -1,9 +1,16 @@
-import * as path from "path";
-import fs from "fs-extra";
-import { BaseCommand, CommandMeta, BaseCommandOptions } from "./base/index.js";
-import { logger } from "../utils/logger.js";
-import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from "../utils/fs.js";
-import { GyoError, DirectoryExistsError } from "../core/index.js";
+import * as path from 'path';
+import fs from 'fs-extra';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index.js';
+import { logger } from '../utils/logger.js';
+import {
+  ensureDir,
+  copyDir,
+  pathExists,
+  writeFile,
+  readFile,
+  getTemplatesPath,
+} from '../utils/fs.js';
+import { GyoError, DirectoryExistsError } from '../core/index.js';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName: string;
@@ -27,10 +34,10 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
   getMeta(): CommandMeta {
     return {
-      name: "create <project-name>",
-      description: "Create a new gyo project",
+      name: 'create <project-name>',
+      description: 'Create a new gyo project',
       options: [
-        { flags: "-t, --template <template>", description: "Project template", default: "react" },
+        { flags: '-t, --template <template>', description: 'Project template', default: 'react' },
       ],
     };
   }
@@ -41,7 +48,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
   protected async run(): Promise<void> {
     this.targetPath = path.join(process.cwd(), this.options.projectName);
-    this.startSpinner("Creating gyo project...");
+    this.startSpinner('Creating gyo project...');
 
     try {
       this.validateProjectName();
@@ -61,7 +68,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
       this.succeedSpinner(`Project "${this.options.projectName}" created.`);
       this.showNextSteps();
-
     } catch (error) {
       if (error instanceof GyoError) {
         throw error;
@@ -73,37 +79,37 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private validateProjectName(): void {
-    if (!this.options.projectName || this.options.projectName.trim() === "") {
-      throw new GyoError("Project name cannot be empty");
+    if (!this.options.projectName || this.options.projectName.trim() === '') {
+      throw new GyoError('Project name cannot be empty');
     }
   }
 
   private async validateProjectDirectory(): Promise<void> {
     if (await pathExists(this.targetPath)) {
-      this.failSpinner("Directory already exists");
+      this.failSpinner('Directory already exists');
       throw new DirectoryExistsError(path.basename(this.targetPath));
     }
   }
 
   private createPlaceholderContext(): PlaceholderContext {
-    const packageName = `com.example.${this.options.projectName.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+    const packageName = `com.example.${this.options.projectName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
     return {
       projectName: this.options.projectName,
       projectNameLower: this.options.projectName.toLowerCase(),
-      packageName
+      packageName,
     };
   }
 
   private async createProjectDirectory(): Promise<void> {
-    this.updateSpinner("Creating project directory...");
+    this.updateSpinner('Creating project directory...');
     await ensureDir(this.targetPath);
-    await ensureDir(path.join(this.targetPath, "lib"));
+    await ensureDir(path.join(this.targetPath, 'lib'));
   }
 
   private getPlatforms(): PlatformConfig[] {
     return [
-      { name: "android", extraSteps: this.setupAndroidExtras.bind(this) },
-      { name: "ios", extraSteps: undefined },
+      { name: 'android', extraSteps: this.setupAndroidExtras.bind(this) },
+      { name: 'ios', extraSteps: undefined },
     ];
   }
 
@@ -135,10 +141,10 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async setupConfig(): Promise<void> {
-    this.updateSpinner("Creating configuration...");
+    this.updateSpinner('Creating configuration...');
     const templatesPath = getTemplatesPath();
-    const configSrcPath = path.join(templatesPath, "gyo.config.json");
-    const configDestPath = path.join(this.targetPath, "gyo.config.json");
+    const configSrcPath = path.join(templatesPath, 'gyo.config.json');
+    const configDestPath = path.join(this.targetPath, 'gyo.config.json');
 
     if (await pathExists(configSrcPath)) {
       let configContent = await readFile(configSrcPath);
@@ -150,13 +156,13 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async createProjectFiles(): Promise<void> {
-    this.updateSpinner("Creating project files...");
+    this.updateSpinner('Creating project files...');
 
     const readmeContent = this.generateReadme(this.options.projectName);
-    await writeFile(path.join(this.targetPath, "README.md"), readmeContent);
+    await writeFile(path.join(this.targetPath, 'README.md'), readmeContent);
 
     const gitignoreContent = this.generateGitignore();
-    await writeFile(path.join(this.targetPath, ".gitignore"), gitignoreContent);
+    await writeFile(path.join(this.targetPath, '.gitignore'), gitignoreContent);
   }
 
   private async replacePlaceholders(dirPath: string, context: PlaceholderContext): Promise<void> {
@@ -180,9 +186,9 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
   private hasPlaceholders(content: string): boolean {
     return (
-      content.includes("{{PROJECT_NAME}}") ||
-      content.includes("{{PROJECT_NAME_LOWER}}") ||
-      content.includes("{{PACKAGE_NAME}}")
+      content.includes('{{PROJECT_NAME}}') ||
+      content.includes('{{PROJECT_NAME_LOWER}}') ||
+      content.includes('{{PACKAGE_NAME}}')
     );
   }
 
@@ -194,19 +200,19 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async moveKotlinSources(androidPath: string, packageName: string): Promise<void> {
-    const kotlinTemplateDir = path.join(androidPath, "app/src/main/kotlin/{{PACKAGE_NAME}}");
+    const kotlinTemplateDir = path.join(androidPath, 'app/src/main/kotlin/{{PACKAGE_NAME}}');
 
     if (!(await pathExists(kotlinTemplateDir))) {
       return;
     }
 
-    const packagePath = packageName.replace(/\./g, "/");
+    const packagePath = packageName.replace(/\./g, '/');
     const kotlinDestDir = path.join(androidPath, `app/src/main/java/${packagePath}`);
     await ensureDir(kotlinDestDir);
 
     await fs.copy(kotlinTemplateDir, kotlinDestDir, { overwrite: true });
 
-    const kotlinDir = path.join(androidPath, "app/src/main/kotlin");
+    const kotlinDir = path.join(androidPath, 'app/src/main/kotlin');
     if (await pathExists(kotlinDir)) {
       await fs.remove(kotlinDir);
     }
@@ -214,19 +220,17 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
   private async createLocalProperties(androidPath: string): Promise<void> {
     const androidHome =
-      process.env.ANDROID_HOME ||
-      process.env.ANDROID_SDK_ROOT ||
-      `${process.env.HOME}/Android/Sdk`;
+      process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Android/Sdk`;
 
     const content = `sdk.dir=${androidHome}\n`;
-    await writeFile(path.join(androidPath, "local.properties"), content);
+    await writeFile(path.join(androidPath, 'local.properties'), content);
   }
 
   private async createDefaultConfig(configPath: string): Promise<void> {
     const defaultConfig = {
       name: this.context.projectName,
-      version: "1.0.0",
-      serverUrl: "http://localhost:3000",
+      version: '1.0.0',
+      serverUrl: 'http://localhost:3000',
       platforms: {
         android: { enabled: true, packageName: this.context.packageName },
         ios: { enabled: true, bundleId: this.context.packageName },
@@ -318,11 +322,11 @@ ios/*.xcworkspace
   }
 
   private showNextSteps(): void {
-    logger.log("");
+    logger.log('');
     logger.suggestNextSteps([
       `cd ${this.options.projectName}`,
-      "gyo run android  # Run on Android",
-      "gyo run ios      # Run on iOS"
+      'gyo run android  # Run on Android',
+      'gyo run ios      # Run on iOS',
     ]);
   }
 }

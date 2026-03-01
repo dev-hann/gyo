@@ -18,7 +18,7 @@ export async function getAndroidDevices(): Promise<Device[]> {
 
   try {
     const result = await executeCommand('adb', ['devices', '-l'], { stdio: 'pipe' });
-    
+
     if (!result.success) {
       logger.debug('Failed to get Android devices');
       return devices;
@@ -52,7 +52,7 @@ export async function getAndroidDevices(): Promise<Device[]> {
         platform: 'android',
         id: deviceId,
         name: model,
-        state: 'Available'
+        state: 'Available',
       });
     }
   } catch (error) {
@@ -72,26 +72,37 @@ export async function getIOSDevices(): Promise<Device[]> {
 
   try {
     const deviceResult = await executeCommand('idevice_id', ['-l'], { stdio: 'pipe' });
-    
+
     if (deviceResult.success && deviceResult.stdout) {
-      const deviceIds = deviceResult.stdout.trim().split('\n').filter(id => id.trim());
-      
+      const deviceIds = deviceResult.stdout
+        .trim()
+        .split('\n')
+        .filter((id) => id.trim());
+
       if (deviceIds.length === 0) {
         logger.debug('No iOS devices connected');
         return devices;
       }
-      
+
       for (const deviceId of deviceIds) {
         let deviceName = 'iOS Device';
         let deviceModel = '';
-        
+
         if (await checkCommandExists('ideviceinfo')) {
-          const nameResult = await executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' });
+          const nameResult = await executeCommand(
+            'ideviceinfo',
+            ['-u', deviceId, '-k', 'DeviceName'],
+            { stdio: 'pipe' }
+          );
           if (nameResult.success && nameResult.stdout) {
             deviceName = nameResult.stdout.trim() || deviceName;
           }
-          
-          const modelResult = await executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' });
+
+          const modelResult = await executeCommand(
+            'ideviceinfo',
+            ['-u', deviceId, '-k', 'ProductType'],
+            { stdio: 'pipe' }
+          );
           if (modelResult.success && modelResult.stdout) {
             deviceModel = modelResult.stdout.trim();
             if (deviceModel) {
@@ -104,7 +115,7 @@ export async function getIOSDevices(): Promise<Device[]> {
           platform: 'ios',
           id: deviceId,
           name: deviceName,
-          state: 'Available'
+          state: 'Available',
         });
       }
     }
@@ -116,10 +127,7 @@ export async function getIOSDevices(): Promise<Device[]> {
 }
 
 export async function getAllDevices(): Promise<Device[]> {
-  const [androidDevices, iosDevices] = await Promise.all([
-    getAndroidDevices(),
-    getIOSDevices()
-  ]);
+  const [androidDevices, iosDevices] = await Promise.all([getAndroidDevices(), getIOSDevices()]);
 
   return [...androidDevices, ...iosDevices];
 }

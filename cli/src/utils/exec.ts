@@ -23,12 +23,12 @@ export function executeCommand(
     const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
     const proc = spawn(fullCommand, [], {
       ...options,
-      shell: true
+      shell: true,
     });
-    
+
     let stdout = '';
     let stderr = '';
-    
+
     if (proc.stdout) {
       proc.stdout.on('data', (data) => {
         const output = data.toString();
@@ -39,7 +39,7 @@ export function executeCommand(
         }
       });
     }
-    
+
     if (proc.stderr) {
       proc.stderr.on('data', (data) => {
         const output = data.toString();
@@ -50,23 +50,23 @@ export function executeCommand(
         }
       });
     }
-    
+
     proc.on('close', (code) => {
       resolve({
         success: code === 0,
         stdout: stdout.trim(),
         stderr: stderr.trim(),
-        code
+        code,
       });
     });
-    
+
     proc.on('error', (error) => {
       logger.error(`Failed to execute command: ${error.message}`);
       resolve({
         success: false,
         stdout: stdout.trim(),
         stderr: error.message,
-        code: null
+        code: null,
       });
     });
   });

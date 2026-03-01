@@ -1,7 +1,7 @@
-import { BaseCommand, CommandMeta, Platform } from "./base/index.js";
-import { AndroidBuildCommand } from "./build/AndroidBuildCommand.js";
-import { IOSBuildCommand } from "./build/IOSBuildCommand.js";
-import { InvalidPlatformError } from "../core/index.js";
+import { BaseCommand, CommandMeta, Platform } from './base/index.js';
+import { AndroidBuildCommand } from './build/AndroidBuildCommand.js';
+import { IOSBuildCommand } from './build/IOSBuildCommand.js';
+import { InvalidPlatformError } from '../core/index.js';
 
 interface BuildCommandOptions {
   profile: string;
@@ -10,16 +10,20 @@ interface BuildCommandOptions {
 }
 
 export class BuildCommand extends BaseCommand<BuildCommandOptions> {
-  private platform: Platform = "android";
+  private platform: Platform = 'android';
 
   getMeta(): CommandMeta {
     return {
-      name: "build <platform>",
-      description: "Build the native application for the specified platform",
+      name: 'build <platform>',
+      description: 'Build the native application for the specified platform',
       options: [
-        { flags: "-r, --release", description: "Build for release (production)", default: false },
-        { flags: "-p, --profile <profile>", description: "Build profile to use", default: "development" },
-        { flags: "-v, --verbose", description: "Show detailed logs" },
+        { flags: '-r, --release', description: 'Build for release (production)', default: false },
+        {
+          flags: '-p, --profile <profile>',
+          description: 'Build profile to use',
+          default: 'development',
+        },
+        { flags: '-v, --verbose', description: 'Show detailed logs' },
       ],
     };
   }
@@ -36,12 +40,12 @@ export class BuildCommand extends BaseCommand<BuildCommandOptions> {
 
   private createCommand(platform: Platform): AndroidBuildCommand | IOSBuildCommand {
     switch (platform) {
-      case "android":
+      case 'android':
         return new AndroidBuildCommand();
-      case "ios":
+      case 'ios':
         return new IOSBuildCommand();
       default:
-        throw new InvalidPlatformError(platform, ["android", "ios"]);
+        throw new InvalidPlatformError(platform, ['android', 'ios']);
     }
   }
 }

@@ -3,50 +3,50 @@ import chalk from 'chalk';
 let verboseMode = false;
 
 export const logger = {
-  setVerbose: (verbose: boolean) => {
+  setVerbose: (verbose: boolean): void => {
     verboseMode = verbose;
   },
-  
-  isVerbose: () => verboseMode,
-  
-  info: (message: string) => {
+
+  isVerbose: (): boolean => verboseMode,
+
+  info: (message: string): void => {
     console.log(chalk.blue('ℹ'), message);
   },
-  
-  success: (message: string) => {
+
+  success: (message: string): void => {
     console.log(chalk.green('✓'), message);
   },
-  
-  warn: (message: string) => {
+
+  warn: (message: string): void => {
     console.log(chalk.yellow('⚠'), message);
   },
-  
-  error: (message: string) => {
+
+  error: (message: string): void => {
     console.log(chalk.red('✗'), message);
   },
-  
-  debug: (message: string) => {
+
+  debug: (message: string): void => {
     if (process.env.DEBUG) {
       console.log(chalk.gray('🐛'), message);
     }
   },
-  
-  verbose: (message: string) => {
+
+  verbose: (message: string): void => {
     if (verboseMode) {
       console.log(chalk.gray(message));
     }
   },
-  
-  log: (message: string) => {
+
+  log: (message: string): void => {
     console.log(message);
   },
 
-  suggestNextSteps: (steps: string[]) => {
+  suggestNextSteps: (steps: string[]): void => {
     console.log('');
     console.log(chalk.blue('ℹ'), "What's next:");
     for (const step of steps) {
       console.log(chalk.blue('ℹ'), `  • ${step}`);
     }
     console.log('');
-  }
+  },
 };

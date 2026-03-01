@@ -1,5 +1,8 @@
 export class GyoError extends Error {
-  constructor(message: string, public exitCode: number = 1) {
+  constructor(
+    message: string,
+    public exitCode: number = 1
+  ) {
     super(message);
     this.name = 'GyoError';
   }
@@ -29,17 +32,9 @@ export class PlatformDisabledError extends GyoError {
   }
 }
 
-export class BuildFailedError extends GyoError {
-  constructor(message: string) {
-    super(message);
-  }
-}
+export class BuildFailedError extends GyoError {}
 
-export class ServerStartError extends GyoError {
-  constructor(message: string) {
-    super(message);
-  }
-}
+export class ServerStartError extends GyoError {}
 
 export class DirectoryExistsError extends GyoError {
   constructor(directory: string) {

@@ -15,7 +15,10 @@
     "build": "npm run build:bridge && npm run build:plugins",
     "build:bridge": "cd plugins/bridge && npm run build",
     "build:plugins": "cd plugins/camera && npm run build && cd ../geolocation && npm run build",
-    "lint": "echo 'No linter configured yet'"
+    "lint": "cd cli && npm run lint",
+    "lint:fix": "cd cli && npm run lint:fix",
+    "format": "cd cli && npm run format",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -31,6 +34,8 @@
   "homepage": "https://github.com/dev-hann/gyo#readme",
   "devDependencies": {
     "@types/node": "^25.0.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.0",
     "typescript": "^5.9.3"
   }
 }

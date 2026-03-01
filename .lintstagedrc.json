@@ -1,0 +1,3 @@
+{
+  "cli/src/**/*.ts": ["cd cli && npx eslint --fix", "cd cli && npx prettier --write"]
+}

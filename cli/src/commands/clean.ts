@@ -1,31 +1,29 @@
-import * as path from "path";
-import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from "./base/index.js";
-import { logger } from "../utils/logger.js";
-import { executeCommand, getGradlew } from "../utils/exec.js";
-import { pathExists, removeDir } from "../utils/fs.js";
-import { GyoError } from "../core/index.js";
+import * as path from 'path';
+import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from './base/index.js';
+import { logger } from '../utils/logger.js';
+import { executeCommand, getGradlew } from '../utils/exec.js';
+import { pathExists, removeDir } from '../utils/fs.js';
+import { GyoError } from '../core/index.js';
 
-interface CleanCommandOptions extends MultiPlatformCommandOptions {}
-
-export class CleanCommand extends MultiPlatformCommand<CleanCommandOptions> {
+export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptions> {
   getMeta(): CommandMeta {
     return {
-      name: "clean",
-      arguments: "[platform]",
-      description: "Clean build artifacts (android, ios, lib, or all)",
+      name: 'clean',
+      arguments: '[platform]',
+      description: 'Clean build artifacts (android, ios, lib, or all)',
     };
   }
 
   protected getValidPlatforms(): string[] {
-    return ["android", "ios", "lib", "all"];
+    return ['android', 'ios', 'lib', 'all'];
   }
 
   protected async run(): Promise<void> {
-    this.startSpinner("Cleaning build artifacts...");
+    this.startSpinner('Cleaning build artifacts...');
 
     try {
-      await this.processAllPlatforms(p => this.cleanPlatform(p));
-      this.succeedSpinner("Clean complete!");
+      await this.processAllPlatforms((p) => this.cleanPlatform(p));
+      this.succeedSpinner('Clean complete!');
     } catch (error) {
       if (error instanceof GyoError) {
         throw error;
@@ -38,95 +36,95 @@ export class CleanCommand extends MultiPlatformCommand<CleanCommandOptions> {
 
   private async cleanPlatform(platform: string): Promise<void> {
     switch (platform) {
-      case "android":
+      case 'android':
         await this.cleanAndroid();
         break;
-      case "ios":
+      case 'ios':
         await this.cleanIOS();
         break;
-      case "lib":
+      case 'lib':
         await this.cleanLib();
         break;
     }
   }
 
   private async cleanAndroid(): Promise<void> {
-    const androidPath = path.join(this.projectPath, "android");
+    const androidPath = path.join(this.projectPath, 'android');
 
     if (!(await pathExists(androidPath))) {
-      logger.warn("Android project not found, skipping");
+      logger.warn('Android project not found, skipping');
       return;
     }
 
-    this.updateSpinner("Cleaning Android build...");
+    this.updateSpinner('Cleaning Android build...');
 
     const gradlew = getGradlew();
-    const cleanResult = await executeCommand(gradlew, ["clean"], {
+    const cleanResult = await executeCommand(gradlew, ['clean'], {
       cwd: androidPath,
-      stdio: "pipe",
+      stdio: 'pipe',
     });
 
     if (!cleanResult.success) {
-      logger.warn("Android clean failed");
+      logger.warn('Android clean failed');
       logger.error(cleanResult.stderr);
     } else {
-      logger.success("Android build cleaned");
+      logger.success('Android build cleaned');
     }
 
-    const buildPath = path.join(androidPath, "app/build");
+    const buildPath = path.join(androidPath, 'app/build');
     if (await pathExists(buildPath)) {
       await removeDir(buildPath);
     }
   }
 
   private async cleanIOS(): Promise<void> {
-    const iosPath = path.join(this.projectPath, "ios");
+    const iosPath = path.join(this.projectPath, 'ios');
 
     if (!(await pathExists(iosPath))) {
-      logger.warn("iOS project not found, skipping");
+      logger.warn('iOS project not found, skipping');
       return;
     }
 
-    this.updateSpinner("Cleaning iOS build...");
+    this.updateSpinner('Cleaning iOS build...');
 
     const cleanupTasks: Promise<void>[] = [];
 
-    const buildPath = path.join(iosPath, "build");
+    const buildPath = path.join(iosPath, 'build');
     if (await pathExists(buildPath)) {
-      cleanupTasks.push(removeDir(buildPath).then(() => logger.success("iOS build cleaned")));
+      cleanupTasks.push(removeDir(buildPath).then(() => logger.success('iOS build cleaned')));
     }
 
-    const podsPath = path.join(iosPath, "Pods");
+    const podsPath = path.join(iosPath, 'Pods');
     if (await pathExists(podsPath)) {
-      cleanupTasks.push(removeDir(podsPath).then(() => logger.success("iOS Pods cleaned")));
+      cleanupTasks.push(removeDir(podsPath).then(() => logger.success('iOS Pods cleaned')));
     }
 
     await Promise.all(cleanupTasks);
   }
 
   private async cleanLib(): Promise<void> {
-    const libPath = path.join(this.projectPath, "lib");
+    const libPath = path.join(this.projectPath, 'lib');
 
     if (!(await pathExists(libPath))) {
-      logger.warn("Lib project not found, skipping");
+      logger.warn('Lib project not found, skipping');
       return;
     }
 
-    this.updateSpinner("Cleaning lib build...");
+    this.updateSpinner('Cleaning lib build...');
 
     const cleanupTasks: Promise<void>[] = [];
 
-    const distPath = path.join(libPath, "dist");
+    const distPath = path.join(libPath, 'dist');
     if (await pathExists(distPath)) {
       cleanupTasks.push(removeDir(distPath));
     }
 
-    const nodeModulesPath = path.join(libPath, "node_modules");
+    const nodeModulesPath = path.join(libPath, 'node_modules');
     if (await pathExists(nodeModulesPath)) {
       cleanupTasks.push(removeDir(nodeModulesPath));
     }
 
     await Promise.all(cleanupTasks);
-    logger.success("Lib build cleaned");
+    logger.success('Lib build cleaned');
   }
 }
