@@ -5,7 +5,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         CLI (gyo)                           │
-│  create / run / build / install                             │
+│  create / run / build / config / doctor / devices / debug   │
 └─────────────────────────────────────────────────────────────┘
                               │
         ┌─────────────────────┼─────────────────────┐
@@ -43,24 +43,42 @@ Web (JS/TS)                 Native (Kotlin/Swift)
 ```
 cli/
 ├── src/
-│   ├── commands/
-│   │   ├── create/           # gyo create
-│   │   ├── run/              # gyo run (Android/iOS)
-│   │   └── build/            # gyo build
-│   ├── templates/
-│   │   ├── android/          # Android 프로젝트 템플릿
-│   │   ├── ios/              # iOS 프로젝트 템플릿
-│   │   └── lib/              # 웹 앱 템플릿 (React + Vite)
-│   └── utils/
-│       └── plugin-manager.ts
+│   ├── core/                 # Types, errors, constants
+│   │   ├── types.ts
+│   │   ├── errors.ts
+│   │   └── constants.ts
+│   ├── services/             # Business logic
+│   │   ├── config.service.ts
+│   │   └── device.service.ts
+│   ├── utils/                # Utilities
+│   │   ├── logger.ts
+│   │   ├── exec.ts
+│   │   └── fs.ts
+│   ├── commands/             # CLI commands
+│   │   ├── base/             # Base command classes
+│   │   ├── build/            # gyo build
+│   │   ├── run/              # gyo run
+│   │   ├── create.ts
+│   │   ├── config.ts
+│   │   ├── devices.ts
+│   │   ├── doctor.ts
+│   │   ├── debug.ts
+│   │   ├── upgrade.ts
+│   │   └── clean.ts
+│   └── index.ts              # Entry point
+└── templates/                # Project templates
+    ├── gyo.config.json
+    ├── android/              # Android project template
+    ├── ios/                  # iOS project template
+    └── lib/                  # Web app template (React + Vite)
 
 plugins/
-├── bridge/                   # @gyo-framework/bridge
+├── bridge/                   # Built-in bridge library
 │   ├── src/                  # TypeScript API
-│   ├── android/              # Kotlin 구현
-│   └── ios/                  # Swift 구현
-├── camera/                   # @gyo-framework/camera
-└── geolocation/              # @gyo-framework/geolocation
+│   ├── android/              # Kotlin implementation
+│   └── ios/                  # Swift implementation
+├── camera/                   # Camera plugin
+└── geolocation/              # Geolocation plugin
 ```
 
 ## 런타임 컴포넌트
@@ -124,10 +142,12 @@ class PluginBridge: BridgeInterface {
 }
 ```
 
-## 플러그인 구조
+## Built-in Bridge 구조
+
+Bridge는 이제 CLI에 내장되어 있으며, 별도의 플러그인 설치 없이 사용할 수 있습니다.
 
 ```
-@gyo-framework/plugin-name/
+plugins/bridge/
 ├── package.json             # npm 패키지 정보
 ├── src/
 │   └── index.ts             # TypeScript API
@@ -135,15 +155,11 @@ class PluginBridge: BridgeInterface {
 ├── android/
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/
-│       └── PluginBridge.kt
-├── ios/
-│   ├── Package.swift
-│   └── Sources/
-│       └── PluginBridge.swift
-└── examples/                # 사용 예제
-    └── demo/
-        ├── lib/             # React 앱
-        └── README.md
+│       └── BridgeInterface.kt
+└── ios/
+    ├── Package.swift
+    └── Sources/
+        └── BridgeInterface.swift
 ```
 
 ## 빌드 산출물

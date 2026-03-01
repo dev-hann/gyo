@@ -121,9 +121,3 @@ const available: boolean = await Geolocation.isAvailable()
 
 **Android**: Google Play Services Location 21.0.1
 **iOS**: CoreLocation (내장)
-
----
-
-## 플러그인 개발
-
-[CREATING_PLUGINS.md](./CREATING_PLUGINS.md) 참조.

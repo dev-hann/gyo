@@ -9,11 +9,9 @@ React + Vite + TypeScript로 Android 및 iOS 앱을 쉽게 빌드할 수 있는 
 ## ✨ 주요 기능
 
 - **🚀 간편한 CLI**: 프로젝트 생성, 실행, 빌드를 단순한 명령어로 관리
-- **🔥 Hot Reload**: 웹 코드 변경 시 앱 자동 새로고침 (WebSocket 기반)
 - **🌐 웹 기술 중심**: React와 Vite, TypeScript를 활용하여 친숙한 웹 기술로 앱 개발
 - **💻 단일 코드베이스로 멀티 플랫폼 지원**: `lib` 폴더의 웹 코드를 Android와 iOS에서 공유하여 생산성 극대화
-- **🔌 플러그인 시스템**: `gyo-` 접두사로 자동 플러그인 감지 및 통합 (제로 컨피그레이션)
-- **🌉 네이티브 통합**: 브릿지를 통한 웹과 네이티브 코드 간의 원활한 통신으로 카메라, GPS 등 기기 기능 사용
+- **🌉 Built-in Bridge**: 별도 설치 없이 브릿지를 통한 웹과 네이티브 코드 간의 원활한 통신으로 카메라, GPS 등 기기 기능 사용
 - **📦 템플릿 기반**: 검증된 프로젝트 템플릿으로 빠르게 시작
 - **🛠️ 개발 도구**: Chrome DevTools, Safari Web Inspector 지원
 
@@ -75,69 +73,36 @@ gyo build ios
 gyo/
 ├── cli/                    # CLI 도구 소스
 │   ├── src/
-│   │   ├── commands/       # 명령어 구현 (create, run, build, etc.)
-│   │   └── utils/          # 유틸리티 함수
+│   │   ├── core/           # Types, errors, constants
+│   │   ├── services/       # Business logic (config, device)
+│   │   ├── utils/          # 유틸리티 함수
+│   │   └── commands/       # 명령어 구현 (create, run, build, etc.)
+│   ├── templates/          # 프로젝트 생성용 템플릿
+│   │   ├── lib/            # React + Vite 웹 앱 템플릿
+│   │   ├── android/        # Android 네이티브 프로젝트 템플릿
+│   │   └── ios/            # iOS 네이티브 프로젝트 템플릿
 │   └── package.json
 ├── plugins/                # 플러그인 패키지
-│   └── bridge/             # 웹-네이티브 브릿지 라이브러리
-├── templates/              # 프로젝트 생성용 템플릿
-│   ├── lib/                # React + Vite 웹 앱 템플릿
-│   ├── android/            # Android 네이티브 프로젝트 템플릿
-│   └── ios/                # iOS 네이티브 프로젝트 템플릿
+│   └── bridge/             # 웹-네이티브 브릿지 라이브러리 (built-in)
 ├── docs/                   # 공식 문서
-├── examples/               # 예제 프로젝트
 └── README.md
 ```
-
-## 🎯 플러그인 시스템
-
-Gyo는 자동 플러그인 통합 시스템을 제공합니다. `gyo-` 접두사로 시작하는 패키지는 자동으로 감지되어 설정됩니다.
-
-### 플러그인 설치
-
-```bash
-# package.json에 gyo-camera 추가
-# {
-#   "dependencies": {
-#     "gyo-camera": "^1.0.0"
-#   }
-# }
-
-# 플러그인 설치 및 자동 설정
-gyo install
-```
-
-### 플러그인 관리
-
-```bash
-# 설치된 플러그인 목록
-gyo plugin list
-
-# 플러그인 캐시 정리
-gyo plugin clean
-
-# 플러그인 구성 검증
-gyo plugin validate
-```
-
-플러그인 시스템에 대한 자세한 내용은 [docs/PLUGIN_SYSTEM_README.md](./docs/PLUGIN_SYSTEM_README.md)를 참조하세요.
 
 ## 📖 CLI 명령어
 
 | 명령어 | 설명 |
 |--------|------|
 | `gyo create <name>` | 새 프로젝트 생성 |
-| `gyo run android` | Android 앱 실행 (Hot Reload 자동 활성화) |
-| `gyo run ios` | iOS 앱 실행 (Hot Reload 자동 활성화) |
+| `gyo run android` | Android 앱 실행 |
+| `gyo run ios` | iOS 앱 실행 |
 | `gyo build android` | Android APK 빌드 |
 | `gyo build ios` | iOS IPA 빌드 |
-| `gyo install` | 의존성 설치 및 플러그인 설정 |
-| `gyo plugin list` | 설치된 플러그인 목록 |
-| `gyo plugin clean` | 플러그인 캐시 정리 |
+| `gyo config` | 설정 관리 |
 | `gyo doctor` | 개발 환경 진단 |
 | `gyo devices` | 연결된 기기 목록 |
 | `gyo upgrade` | CLI 업그레이드 |
 | `gyo debug <platform>` | 디버거 실행 (Chrome DevTools/Safari) |
+| `gyo clean` | 빌드 캐시 정리 |
 
 ## 🔧 개발 가이드
 
@@ -160,6 +125,8 @@ npm run dev    # Vite 개발 서버 시작 (http://localhost:5173)
 
 ### 브릿지 사용
 
+Gyo는 built-in bridge를 제공하여 웹과 네이티브 코드 간의 통신을 지원합니다.
+
 ```typescript
 import { Bridge } from 'gyo-bridge';
 
@@ -179,26 +146,10 @@ const unsubscribe = bridge.listen((data) => {
 });
 ```
 
-### 플러그인 사용
-
-```typescript
-// 카메라 플러그인
-import { Camera } from 'gyo-camera';
-
-// 사진 촬영
-const photo = await Camera.takePicture({ quality: 0.8 });
-console.log('Base64:', photo.base64);
-
-// 갤러리에서 선택
-const image = await Camera.pickFromGallery();
-```
-
 ## 📚 문서
 
-- [플러그인 시스템 가이드](./docs/PLUGIN_SYSTEM_README.md)
-- [플러그인 사용법](./docs/plugin-system-usage.md)
-- [플러그인 퀵 스타트](./docs/plugin-quick-start.md)
-- [커스텀 브릿지 가이드](./docs/CUSTOM_BRIDGE_GUIDE.md)
+- [아키텍처 가이드](./docs/ARCHITECTURE.md)
+- [플러그인 API 참조](./docs/PLUGINS.md)
 
 ## 🤝 기여
 
@@ -215,10 +166,10 @@ Gyo는 [MIT 라이선스](https://opensource.org/licenses/MIT) 하에 라이선�
 - [x] 런타임 브릿지 기본 기능 구현
 - [x] CLI `run` 및 `build` 명령어 완성
 - [x] BridgeRegistry 시스템 구축
-- [x] Hot Reload 인프라
 - [x] 카메라 플러그인 (`gyo-camera`)
 - [x] CLI 업그레이드 도구 (`gyo upgrade`)
 - [x] 디버깅 도구 (`gyo debug`)
+- [x] Clean architecture 리팩토링
 - [ ] GPS 플러그인 완성 (`gyo-geolocation`)
 - [ ] 추가 네이티브 API 모듈 (파일시스템, 알림 등)
 - [ ] 공식 문서 작성
@@ -228,20 +179,18 @@ Gyo는 [MIT 라이선스](https://opensource.org/licenses/MIT) 하에 라이선�
 
 | 플러그인 | 상태 | 설명 |
 |---------|------|------|
-| `gyo-bridge` | ✅ 완료 | 웹-네이티브 통신 코어 |
+| `gyo-bridge` | ✅ 완료 | 웹-네이티브 통신 코어 (built-in) |
 | `gyo-camera` | ✅ 완료 | 카메라 촬영 및 갤러리 접근 |
 | `gyo-geolocation` | 🚧 개발중 | GPS 위치 추적 |
 
 ## 🆕 최신 업데이트
 
-### v0.2.0 (개발중)
-- ✅ Hot Reload 시스템 (WebSocket 기반)
-- ✅ BridgeRegistry 아키텍처
-- ✅ Camera 플러그인
-- ✅ `gyo upgrade` 명령어
-- ✅ `gyo debug` 명령어
-- ✅ 설정 가능한 Bridge 타임아웃
-- ✅ 통일된 플러그인 네이밍 (`gyo-` 접두사)
+### v0.3.0 (최신)
+- ✅ Clean architecture 리팩토링
+- ✅ 플러그인 시스템 제거 (bridge는 built-in)
+- ✅ Hot reload 제거 (WebSocket 기반)
+- ✅ Layered architecture (core, services, utils, commands)
+- ✅ 불필요한 의존성 제거 (chokidar, ws)
 
 자세한 변경 사항은 [CHANGELOG.md](./CHANGELOG.md)를 참조하세요.
 
