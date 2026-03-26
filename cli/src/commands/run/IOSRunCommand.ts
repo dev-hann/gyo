@@ -1,11 +1,11 @@
 import * as path from "path";
 import { spawn } from "child_process";
 import fs from "fs-extra";
-import { AbstractRunCommand } from "./AbstractRunCommand.js";
-import { logger } from "../../utils/logger.js";
-import { executeCommand } from "../../utils/exec.js";
-import { pathExists, readFile } from "../../utils/fs.js";
-import { CommandNotFoundError, BuildFailedError } from "../../core/errors.js";
+import { AbstractRunCommand } from "./AbstractRunCommand";
+import { logger } from "../../utils/logger";
+import { executeCommand } from "../../utils/exec";
+import { pathExists, readFile } from "../../utils/fs";
+import { CommandNotFoundError, BuildFailedError } from "../../core/errors";
 
 export class IOSRunCommand extends AbstractRunCommand {
   getMeta() {

@@ -1,9 +1,9 @@
 import * as path from 'path';
-import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
-import { executeCommand, getGradlew } from '../utils/exec.js';
-import { pathExists, removeDir } from '../utils/fs.js';
-import { GyoError } from '../core/index.js';
+import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
+import { executeCommand, getGradlew } from '../utils/exec';
+import { pathExists, removeDir } from '../utils/fs';
+import { GyoError } from '../core/index';
 
 export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptions> {
   getMeta(): CommandMeta {

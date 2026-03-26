@@ -1,5 +1,5 @@
-import { PlatformCommand, CommandMeta, Platform, PlatformCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
+import { PlatformCommand, CommandMeta, Platform, PlatformCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
 
 export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
   getMeta(): CommandMeta {

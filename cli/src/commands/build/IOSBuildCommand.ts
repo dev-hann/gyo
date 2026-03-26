@@ -1,7 +1,7 @@
 import * as path from "path";
-import { AbstractBuildCommand } from "./AbstractBuildCommand.js";
-import { logger } from "../../utils/logger.js";
-import { executeCommand, checkCommandExists } from "../../utils/exec.js";
+import { AbstractBuildCommand } from "./AbstractBuildCommand";
+import { logger } from "../../utils/logger";
+import { executeCommand, checkCommandExists } from "../../utils/exec";
 
 export class IOSBuildCommand extends AbstractBuildCommand {
   getMeta() {

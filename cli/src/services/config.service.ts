@@ -1,9 +1,9 @@
 import * as path from 'path';
-import { readJson, writeJson, pathExists } from '../utils/fs.js';
-import { logger } from '../utils/logger.js';
-import { GyoConfig } from '../core/index.js';
+import { readJson, writeJson, pathExists } from '../utils/fs';
+import { logger } from '../utils/logger';
+import { GyoConfig } from '../core/index';
 
-export { GyoConfig } from '../core/index.js';
+export { GyoConfig } from '../core/index';
 
 export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig | null> {
   const configPath = path.join(projectPath, 'gyo.config.json');

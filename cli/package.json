@@ -14,12 +14,12 @@
     "README.md"
   ],
   "scripts": {
-    "dev": "tsc && tsc --watch",
-    "build": "tsc",
+    "dev": "tsup --watch",
+    "build": "tsup",
     "start": "node dist/index.js",
-    "watch": "tsc --watch",
+    "watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
-    "postbuild": "chmod +x dist/index.js && echo '✓ CLI built successfully. Run: npm link (if not linked yet)'",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -66,6 +66,7 @@
     "lint-staged": "^16.3.0",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.1",
+    "tsup": "^8.5.1",
     "typescript": "^5.0.0"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 import * as path from 'path';
 import fs from 'fs-extra';
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
 import {
   ensureDir,
   copyDir,
@@ -9,8 +9,8 @@ import {
   writeFile,
   readFile,
   getTemplatesPath,
-} from '../utils/fs.js';
-import { GyoError, DirectoryExistsError } from '../core/index.js';
+} from '../utils/fs';
+import { GyoError, DirectoryExistsError } from '../core/index';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName: string;

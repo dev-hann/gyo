@@ -1,13 +1,13 @@
 import * as path from "path";
-import { BaseCommand, BaseCommandOptions } from "./BaseCommand.js";
-import { logger } from "../../utils/logger.js";
-import { pathExists } from "../../utils/fs.js";
+import { BaseCommand, BaseCommandOptions } from "./BaseCommand";
+import { logger } from "../../utils/logger";
+import { pathExists } from "../../utils/fs";
 import {
   PlatformNotFoundError,
   PlatformDisabledError,
   GyoError,
   Platform,
-} from "../../core/index.js";
+} from "../../core/index";
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;

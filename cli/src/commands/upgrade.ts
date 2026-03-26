@@ -1,9 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
-import { executeCommand } from '../utils/exec.js';
-import { GyoError } from '../core/index.js';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
+import { executeCommand } from '../utils/exec';
+import { GyoError } from '../core/index';
 
 interface UpgradeCommandOptions extends BaseCommandOptions {
   check?: boolean;

@@ -1,9 +1,9 @@
 import * as path from "path";
 import ora from "ora";
-import { loadConfig, GyoConfig } from "../../services/config.service.js";
-import { logger } from "../../utils/logger.js";
-import { pathExists } from "../../utils/fs.js";
-import { GyoError } from "../../core/index.js";
+import { loadConfig, GyoConfig } from "../../services/config.service";
+import { logger } from "../../utils/logger";
+import { pathExists } from "../../utils/fs";
+import { GyoError } from "../../core/index";
 
 export interface CommandOption {
   flags: string;

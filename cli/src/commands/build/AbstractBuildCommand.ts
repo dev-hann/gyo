@@ -1,10 +1,10 @@
 import * as path from "path";
 import fs from "fs-extra";
-import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index.js";
-import { logger } from "../../utils/logger.js";
-import { executeCommand } from "../../utils/exec.js";
-import { pathExists, writeFile } from "../../utils/fs.js";
-import { getProfileUrl } from "../../services/config.service.js";
+import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index";
+import { logger } from "../../utils/logger";
+import { executeCommand } from "../../utils/exec";
+import { pathExists, writeFile } from "../../utils/fs";
+import { getProfileUrl } from "../../services/config.service";
 
 export interface BuildCommandOptions extends PlatformCommandOptions {
   profile: string;

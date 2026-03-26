@@ -1,7 +1,7 @@
-import { BaseCommand, CommandMeta, Platform } from './base/index.js';
-import { AndroidBuildCommand } from './build/AndroidBuildCommand.js';
-import { IOSBuildCommand } from './build/IOSBuildCommand.js';
-import { InvalidPlatformError } from '../core/index.js';
+import { BaseCommand, CommandMeta, Platform } from './base/index';
+import { AndroidBuildCommand } from './build/AndroidBuildCommand';
+import { IOSBuildCommand } from './build/IOSBuildCommand';
+import { InvalidPlatformError } from '../core/index';
 
 interface BuildCommandOptions {
   profile: string;

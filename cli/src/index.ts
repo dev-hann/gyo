@@ -1,16 +1,14 @@
-#!/usr/bin/env node
-
 import { Command } from "commander";
-import { BaseCommand, Platform } from "./commands/base/index.js";
-import { BuildCommand } from "./commands/build.js";
-import { RunCommand } from "./commands/run.js";
-import { CleanCommand } from "./commands/clean.js";
-import { ConfigCommand } from "./commands/config.js";
-import { CreateCommand } from "./commands/create.js";
-import { DoctorCommand } from "./commands/doctor.js";
-import { DevicesCommand } from "./commands/devices.js";
-import { UpgradeCommand } from "./commands/upgrade.js";
-import { DebugCommand } from "./commands/debug.js";
+import { BaseCommand, Platform } from "./commands/base/index";
+import { BuildCommand } from "./commands/build";
+import { RunCommand } from "./commands/run";
+import { CleanCommand } from "./commands/clean";
+import { ConfigCommand } from "./commands/config";
+import { CreateCommand } from "./commands/create";
+import { DoctorCommand } from "./commands/doctor";
+import { DevicesCommand } from "./commands/devices";
+import { UpgradeCommand } from "./commands/upgrade";
+import { DebugCommand } from "./commands/debug";
 
 const program = new Command();
 

@@ -1,5 +1,5 @@
-import { BaseCommand, BaseCommandOptions } from "./BaseCommand.js";
-import { InvalidPlatformError, GyoError } from "../../core/index.js";
+import { BaseCommand, BaseCommandOptions } from "./BaseCommand";
+import { InvalidPlatformError, GyoError } from "../../core/index";
 
 export type MultiPlatform = string;
 

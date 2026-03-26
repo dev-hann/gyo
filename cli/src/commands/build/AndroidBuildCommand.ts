@@ -1,7 +1,7 @@
 import * as path from "path";
-import { AbstractBuildCommand, BuildCommandOptions } from "./AbstractBuildCommand.js";
-import { logger } from "../../utils/logger.js";
-import { executeCommand } from "../../utils/exec.js";
+import { AbstractBuildCommand, BuildCommandOptions } from "./AbstractBuildCommand";
+import { logger } from "../../utils/logger";
+import { executeCommand } from "../../utils/exec";
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta() {

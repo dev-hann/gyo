@@ -1,7 +1,7 @@
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
-import { getAllDevices, Device } from '../services/device.service.js';
-import { GyoError } from '../core/index.js';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
+import { getAllDevices, Device } from '../services/device.service';
+import { GyoError } from '../core/index';
 
 interface DevicesCommandOptions extends BaseCommandOptions {
   json?: boolean;

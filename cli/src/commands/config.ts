@@ -1,7 +1,7 @@
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index.js';
-import { logger } from '../utils/logger.js';
-import { loadConfig, saveConfig } from '../services/config.service.js';
-import { GyoError } from '../core/index.js';
+import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import { logger } from '../utils/logger';
+import { loadConfig, saveConfig } from '../services/config.service';
+import { GyoError } from '../core/index';
 
 interface ConfigCommandOptions extends BaseCommandOptions {
   action: 'show' | 'set' | 'get';

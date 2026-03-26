@@ -1,5 +1,5 @@
-import { executeCommand, checkCommandExists } from '../utils/exec.js';
-import { logger } from '../utils/logger.js';
+import { executeCommand, checkCommandExists } from '../utils/exec';
+import { logger } from '../utils/logger';
 
 export interface Device {
   platform: 'android' | 'ios';

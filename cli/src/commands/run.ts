@@ -1,10 +1,10 @@
 import inquirer from 'inquirer';
-import { BaseCommand, CommandMeta, Platform } from './base/index.js';
-import { AndroidRunCommand } from './run/AndroidRunCommand.js';
-import { IOSRunCommand } from './run/IOSRunCommand.js';
-import { getAllDevices, Device } from '../services/device.service.js';
-import { logger } from '../utils/logger.js';
-import { GyoError, InvalidPlatformError } from '../core/index.js';
+import { BaseCommand, CommandMeta, Platform } from './base/index';
+import { AndroidRunCommand } from './run/AndroidRunCommand';
+import { IOSRunCommand } from './run/IOSRunCommand';
+import { getAllDevices, Device } from '../services/device.service';
+import { logger } from '../utils/logger';
+import { GyoError, InvalidPlatformError } from '../core/index';
 
 interface RunCommandOptions {
   device?: string;

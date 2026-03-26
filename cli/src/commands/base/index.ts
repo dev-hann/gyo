@@ -3,6 +3,6 @@ export {
   BaseCommandOptions, 
   CommandMeta, 
   CommandOption 
-} from "./BaseCommand.js";
-export { PlatformCommand, PlatformCommandOptions, Platform } from "./PlatformCommand.js";
-export { MultiPlatformCommand, MultiPlatformCommandOptions, MultiPlatform } from "./MultiPlatformCommand.js";
+} from "./BaseCommand";
+export { PlatformCommand, PlatformCommandOptions, Platform } from "./PlatformCommand";
+export { MultiPlatformCommand, MultiPlatformCommandOptions, MultiPlatform } from "./MultiPlatformCommand";

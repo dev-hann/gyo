@@ -1,7 +1,7 @@
-import { BaseCommand, CommandMeta } from './base/index.js';
-import { logger } from '../utils/logger.js';
-import { checkCommandExists, executeCommand } from '../utils/exec.js';
-import { GyoError } from '../core/index.js';
+import { BaseCommand, CommandMeta } from './base/index';
+import { logger } from '../utils/logger';
+import { checkCommandExists, executeCommand } from '../utils/exec';
+import { GyoError } from '../core/index';
 
 interface CheckResult {
   name: string;

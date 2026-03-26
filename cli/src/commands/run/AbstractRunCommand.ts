@@ -1,12 +1,12 @@
 import * as path from "path";
 import os from "os";
 import { ChildProcess, spawn } from "child_process";
-import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index.js";
-import { logger } from "../../utils/logger.js";
-import { executeCommand, checkCommandExists } from "../../utils/exec.js";
-import { pathExists } from "../../utils/fs.js";
-import { saveConfig, shouldStartLocalServer } from "../../services/config.service.js";
-import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS, LOCALHOST } from "../../core/index.js";
+import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index";
+import { logger } from "../../utils/logger";
+import { executeCommand, checkCommandExists } from "../../utils/exec";
+import { pathExists } from "../../utils/fs";
+import { saveConfig, shouldStartLocalServer } from "../../services/config.service";
+import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS, LOCALHOST } from "../../core/index";
 
 export interface RunCommandOptions extends PlatformCommandOptions {
   profile: string;
