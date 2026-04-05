@@ -2,14 +2,7 @@ import * as path from 'path';
 import fs from 'fs-extra';
 import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
-import {
-  ensureDir,
-  copyDir,
-  pathExists,
-  writeFile,
-  readFile,
-  getTemplatesPath,
-} from '../utils/fs';
+import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from '../utils/fs';
 import { GyoError, DirectoryExistsError } from '../core/index';
 
 interface CreateCommandOptions extends BaseCommandOptions {
