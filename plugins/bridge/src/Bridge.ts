@@ -11,6 +11,7 @@ import type {
 export class Bridge {
   private name: string;
   private timeout: number;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   private pendingCallbacks: Map<string, { resolve: Function; reject: Function }> = new Map();
   private callbackCounter: number = 0;
   private eventListeners: Set<EventCallback> = new Set();
@@ -29,7 +30,7 @@ export class Bridge {
   private setupGlobalBridge(): void {
     if (!window.gyoBridge) {
       window.gyoBridge = {
-        resolve: (callbackId: string, data: any) => {
+        resolve: (callbackId: string, data: unknown) => {
           const pending = this.pendingCallbacks.get(callbackId);
           if (pending) {
             pending.resolve(data);
@@ -43,7 +44,7 @@ export class Bridge {
             this.pendingCallbacks.delete(callbackId);
           }
         },
-        publish: (bridgeName: string, data: any) => {
+        publish: (bridgeName: string, data: unknown) => {
           if (bridgeName === this.name) {
             this.eventListeners.forEach(listener => listener(data));
           }
@@ -51,7 +52,7 @@ export class Bridge {
       };
     } else {
       const originalPublish = window.gyoBridge.publish;
-      window.gyoBridge.publish = (bridgeName: string, data: any) => {
+      window.gyoBridge.publish = (bridgeName: string, data: unknown) => {
         if (bridgeName === this.name) {
           this.eventListeners.forEach(listener => listener(data));
         }
@@ -97,7 +98,7 @@ export class Bridge {
    * @param data - Optional data to send
    * @returns Promise that resolves with the native response
    */
-  public invoke<T = any>(method: string, data?: any): Promise<T> {
+  public invoke<T = unknown>(method: string, data?: unknown): Promise<T> {
     if (this.destroyed) {
       return Promise.reject(new Error('Bridge has been destroyed'));
     }
