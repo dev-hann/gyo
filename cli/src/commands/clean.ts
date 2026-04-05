@@ -81,7 +81,12 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     const buildPath = path.join(androidPath, 'app/build');
     if (await pathExists(buildPath)) {
-      await removeDir(buildPath);
+      try {
+        await removeDir(buildPath);
+      } catch {
+        this.hadWarnings = true;
+        logger.warn('Failed to remove build directory');
+      }
     }
   }
 

@@ -160,4 +160,40 @@ describe('CleanCommand', () => {
       expect(logger.warn).toHaveBeenCalled();
     });
   });
+
+  describe('cleanAndroid removeDir failure', () => {
+    it('should warn when removeDir fails after successful gradle clean', async () => {
+      mockedPathExists.mockImplementation((p: string) => {
+        if (typeof p === 'string' && p.includes('android')) return Promise.resolve(true);
+        return Promise.resolve(false);
+      });
+      mockedExec.mockResolvedValue({
+        success: true,
+        stdout: '',
+        stderr: '',
+        code: 0,
+      });
+      mockedRemoveDir.mockRejectedValue(new Error('permission denied'));
+      command.setPlatform('android');
+
+      await command['run']();
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove'));
+    });
+  });
+
+  describe('run error handling', () => {
+    it('should wrap non-GyoError in GyoError when clean throws', async () => {
+      mockedPathExists.mockImplementation((p: string) => {
+        if (typeof p === 'string' && p.includes('ios')) return Promise.resolve(true);
+        return Promise.resolve(false);
+      });
+      mockedRemoveDir.mockRejectedValue(new Error('disk error'));
+      command.setPlatform('ios');
+
+      const GyoError = jest.requireActual('../core/errors').GyoError;
+      await expect(command['run']()).rejects.toThrow(GyoError);
+      await expect(command['run']()).rejects.toThrow('disk error');
+    });
+  });
 });

@@ -32,8 +32,8 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
   });
 
   c.action(async (...args) => {
-    const options = args.pop();
-    const positionalArgs = args;
+    const options = args.length >= 2 ? args[args.length - 2] : args.pop();
+    const positionalArgs = args.slice(0, -2);
 
     cmd.setOptions(options);
 
@@ -89,11 +89,17 @@ registerCommand(new UpgradeCommand());
 registerCommand(new DebugCommand());
 registerConfigCommand();
 
-program.exitOverride();
-
 process.on('unhandledRejection', (error: unknown) => {
   if (error instanceof GyoError) {
     process.exit(error.exitCode);
+  }
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code: string }).code === 'commander.help'
+  ) {
+    process.exit(0);
   }
   console.error(error);
   process.exit(1);

@@ -209,8 +209,25 @@ export class IOSRunCommand extends AbstractRunCommand {
         }
       });
 
+      syslogCapture.on('error', () => {
+        if (!found) {
+          found = true;
+          clearTimeout(timeout);
+          resolve(safeBundleId);
+        }
+      });
+
+      syslogCapture.on('exit', () => {
+        if (!found) {
+          found = true;
+          clearTimeout(timeout);
+          resolve(safeBundleId);
+        }
+      });
+
       timeout = setTimeout(() => {
         if (!found) {
+          found = true;
           cleanup();
           resolve(safeBundleId);
         }

@@ -39,11 +39,17 @@ export function getTemplatesPath(): string {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
 
-  const devPath = path.join(__dirname, '../../../templates');
-  const prodPath = path.join(__dirname, '../../templates');
+  const candidates = [
+    path.join(__dirname, '../templates'),
+    path.join(__dirname, '../../templates'),
+    path.join(__dirname, '../../../templates'),
+  ];
 
-  if (fs.existsSync(devPath)) {
-    return devPath;
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
   }
-  return prodPath;
+
+  return path.join(__dirname, '../templates');
 }

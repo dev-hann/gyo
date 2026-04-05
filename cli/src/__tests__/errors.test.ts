@@ -2,6 +2,7 @@ import {
   GyoError,
   PlatformNotFoundError,
   CommandNotFoundError,
+  ToolRequiredError,
   ConfigNotFoundError,
   PlatformDisabledError,
   BuildFailedError,
@@ -85,11 +86,26 @@ describe('errors', () => {
     });
   });
 
+  describe('ToolRequiredError', () => {
+    it('should create with tool name and install hint', () => {
+      const error = new ToolRequiredError('adb', 'Install Android SDK');
+      expect(error.message).toBe("Required tool 'adb' not found. Install Android SDK");
+      expect(error).toBeInstanceOf(GyoError);
+    });
+  });
+
   describe('DirectoryExistsError', () => {
     it('should create with directory path', () => {
       const error = new DirectoryExistsError('/path/to/dir');
       expect(error.message).toBe('Directory "/path/to/dir" already exists');
       expect(error).toBeInstanceOf(GyoError);
+    });
+
+    it('should include hint when fullPath is provided', () => {
+      const error = new DirectoryExistsError('my-app', '/full/path/to/my-app');
+      expect(error.message).toBe(
+        'Directory "my-app" already exists. Remove it or use a different project name.'
+      );
     });
   });
 

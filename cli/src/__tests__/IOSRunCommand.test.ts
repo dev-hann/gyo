@@ -53,7 +53,7 @@ import fs from 'fs-extra';
 import { IOSRunCommand } from '../commands/run/IOSRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { pathExists, readFile } from '../utils/fs';
-import { CommandNotFoundError, BuildFailedError } from '../core/errors';
+import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
 import { logger } from '../utils/logger';
 
@@ -87,10 +87,10 @@ describe('IOSRunCommand', () => {
       await expect(command['checkXtoolAvailable']()).resolves.toBeUndefined();
     });
 
-    it('should throw CommandNotFoundError when xtool not found', async () => {
+    it('should throw ToolRequiredError when xtool not found', async () => {
       mockedCheck.mockResolvedValue(false);
 
-      await expect(command['checkXtoolAvailable']()).rejects.toThrow(CommandNotFoundError);
+      await expect(command['checkXtoolAvailable']()).rejects.toThrow('Required tool');
     });
   });
 
@@ -288,6 +288,56 @@ describe('IOSRunCommand', () => {
 
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('log line 1'));
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('log line 2'));
+    });
+  });
+
+  describe('findBundleIdFromSyslog', () => {
+    function createSyslogMockProc() {
+      const proc = new EventEmitter() as any;
+      proc.stdout = new EventEmitter();
+      proc.stderr = new EventEmitter();
+      proc.kill = jest.fn();
+      proc.killed = false;
+      return proc;
+    }
+
+    it('should return original bundleId when syslog process exits early', async () => {
+      const mockProc = createSyslogMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['findBundleIdFromSyslog']('com.example.app');
+
+      await new Promise((r) => setImmediate(r));
+      mockProc.emit('exit', 1);
+
+      const result = await promise;
+      expect(result).toBe('com.example.app');
+    });
+
+    it('should return original bundleId when syslog process errors', async () => {
+      const mockProc = createSyslogMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['findBundleIdFromSyslog']('com.example.app');
+
+      await new Promise((r) => setImmediate(r));
+      mockProc.emit('error', new Error('spawn error'));
+
+      const result = await promise;
+      expect(result).toBe('com.example.app');
+    });
+
+    it('should extract bundleId from syslog output', async () => {
+      const mockProc = createSyslogMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['findBundleIdFromSyslog']('com.example.app');
+
+      await new Promise((r) => setImmediate(r));
+      mockProc.stdout.emit('data', Buffer.from('some log XTL-ABC123.com.example.app more log\n'));
+
+      const result = await promise;
+      expect(result).toBe('XTL-ABC123.com.example.app');
     });
   });
 });

@@ -53,7 +53,7 @@ import fs from 'fs-extra';
 import { AndroidRunCommand } from '../commands/run/AndroidRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { pathExists } from '../utils/fs';
-import { CommandNotFoundError, BuildFailedError } from '../core/errors';
+import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
@@ -83,10 +83,10 @@ describe('AndroidRunCommand', () => {
       await expect(command['checkAdbAvailable']()).resolves.toBeUndefined();
     });
 
-    it('should throw CommandNotFoundError when adb not found', async () => {
+    it('should throw ToolRequiredError when adb not found', async () => {
       mockedCheck.mockResolvedValue(false);
 
-      await expect(command['checkAdbAvailable']()).rejects.toThrow(CommandNotFoundError);
+      await expect(command['checkAdbAvailable']()).rejects.toThrow('Required tool');
     });
   });
 
