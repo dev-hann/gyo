@@ -1,19 +1,20 @@
-import * as path from "path";
-import { spawn } from "child_process";
-import fs from "fs-extra";
-import { AbstractRunCommand } from "./AbstractRunCommand";
-import { logger } from "../../utils/logger";
-import { executeCommand } from "../../utils/exec";
-import { pathExists } from "../../utils/fs";
-import { CommandNotFoundError, BuildFailedError } from "../../core/errors";
+import * as path from 'path';
+import { spawn } from 'child_process';
+import fs from 'fs-extra';
+import { AbstractRunCommand } from './AbstractRunCommand';
+import { CommandMeta } from '../base/BaseCommand';
+import { logger } from '../../utils/logger';
+import { executeCommand } from '../../utils/exec';
+import { pathExists } from '../../utils/fs';
+import { CommandNotFoundError, BuildFailedError } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
-  getMeta() {
-    return { name: "run-android", description: "" };
+  getMeta(): CommandMeta {
+    return { name: 'run-android', description: '' };
   }
 
   protected async runPlatform(serverUrl: string): Promise<void> {
-    const androidPath = path.join(this.projectPath, "android");
+    const androidPath = path.join(this.projectPath, 'android');
 
     await this.checkPlatformDirectoryExists();
     await this.checkAdbAvailable();
@@ -28,21 +29,18 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async checkAdbAvailable(): Promise<void> {
-    if (!(await this.checkCommandExists("adb"))) {
-      this.failSpinner("adb not found");
-      logger.error("Please install Android SDK and add adb to your PATH");
-      throw new CommandNotFoundError("adb");
+    if (!(await this.checkCommandExists('adb'))) {
+      this.failSpinner('adb not found');
+      logger.error('Please install Android SDK and add adb to your PATH');
+      throw new CommandNotFoundError('adb');
     }
   }
 
-  private async updateServerUrl(
-    androidPath: string,
-    serverUrl: string
-  ): Promise<void> {
+  private async updateServerUrl(androidPath: string, serverUrl: string): Promise<void> {
     this.updateSpinner(`Updating server URL to ${serverUrl}...`);
 
-    const assetsPath = path.join(androidPath, "app/src/main/assets");
-    const configPath = path.join(assetsPath, "gyo-config.json");
+    const assetsPath = path.join(androidPath, 'app/src/main/assets');
+    const configPath = path.join(assetsPath, 'gyo-config.json');
 
     await fs.ensureDir(assetsPath);
 
@@ -54,102 +52,97 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async getConnectedDevice(): Promise<string> {
-    return this.options.device || "";
+    return this.options.device || '';
   }
 
   private async buildApp(androidPath: string): Promise<void> {
-    const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
+    const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 
-    this.updateSpinner("Building Android app...");
-    const buildResult = await executeCommand(gradlew, ["assembleDebug"], {
+    this.updateSpinner('Building Android app...');
+    const buildResult = await executeCommand(gradlew, ['assembleDebug'], {
       cwd: androidPath,
-      stdio: "pipe",
+      stdio: 'pipe',
     });
 
     if (!buildResult.success) {
-      this.failSpinner("Build failed");
-      throw new BuildFailedError("Android build failed");
+      this.failSpinner('Build failed');
+      throw new BuildFailedError('Android build failed');
     }
   }
 
   private async installApp(androidPath: string): Promise<void> {
-    const gradlew = process.platform === "win32" ? "gradlew.bat" : "./gradlew";
+    const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 
-    this.updateSpinner("Installing app on device...");
-    const installResult = await executeCommand(gradlew, ["installDebug"], {
+    this.updateSpinner('Installing app on device...');
+    const installResult = await executeCommand(gradlew, ['installDebug'], {
       cwd: androidPath,
-      stdio: "pipe",
+      stdio: 'pipe',
     });
 
     if (!installResult.success) {
-      this.failSpinner("Failed to install app");
+      this.failSpinner('Failed to install app');
       logger.error(installResult.stderr || installResult.stdout);
-      throw new BuildFailedError("Failed to install app");
+      throw new BuildFailedError('Failed to install app');
     }
   }
 
   private async getPackageName(androidPath: string): Promise<string | null> {
     try {
-      const buildGradlePath = path.join(androidPath, "app/build.gradle");
+      const buildGradlePath = path.join(androidPath, 'app/build.gradle');
       if (!(await pathExists(buildGradlePath))) {
         return null;
       }
 
-      const content = await fs.readFile(buildGradlePath, "utf-8");
+      const content = await fs.readFile(buildGradlePath, 'utf-8');
       const match = content.match(/applicationId\s+"([^"]+)"/);
       return match ? match[1] : null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
 
-  private async launchApp(
-    packageName: string | null,
-    selectedDevice: string
-  ): Promise<void> {
-    this.updateSpinner("Launching app...");
+  private async launchApp(packageName: string | null, selectedDevice: string): Promise<void> {
+    this.updateSpinner('Launching app...');
     if (packageName && selectedDevice) {
       const launchArgs = [
-        "-s",
+        '-s',
         selectedDevice,
-        "shell",
-        "am",
-        "start",
-        "-n",
+        'shell',
+        'am',
+        'start',
+        '-n',
         `${packageName}/.MainActivity`,
       ];
-      const launchResult = await executeCommand("adb", launchArgs, {
-        stdio: "pipe",
+      const launchResult = await executeCommand('adb', launchArgs, {
+        stdio: 'pipe',
       });
 
       if (launchResult.success) {
-        this.succeedSpinner("App installed and launched on Android device!");
+        this.succeedSpinner('App installed and launched on Android device!');
       } else {
-        this.succeedSpinner("App installed on Android device!");
-        logger.warn("Could not auto-launch app. Please launch manually.");
+        this.succeedSpinner('App installed on Android device!');
+        logger.warn('Could not auto-launch app. Please launch manually.');
       }
     } else {
-      this.succeedSpinner("App installed on Android device!");
+      this.succeedSpinner('App installed on Android device!');
     }
   }
 
   protected async monitorLogs(identifier: string): Promise<void> {
-    const logcatArgs = ["logcat", "-v", "brief", "-s", "WebView-Console:*"];
+    const logcatArgs = ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
     if (identifier) {
-      logcatArgs.unshift("-s", identifier);
+      logcatArgs.unshift('-s', identifier);
     }
 
-    this.platformProcess = spawn("adb", logcatArgs, {
-      stdio: ["ignore", "pipe", "pipe"],
+    this.platformProcess = spawn('adb', logcatArgs, {
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-    this.platformProcess.stdout?.on("data", (data: Buffer) => {
-      const lines = data.toString().split("\n");
+    this.platformProcess.stdout?.on('data', (data: Buffer) => {
+      const lines = data.toString().split('\n');
       for (const line of lines) {
-        if (line.trim() && line.includes("WebView-Console")) {
-          const match = line.match(
-            /WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/
-          );
+        if (line.trim() && line.includes('WebView-Console')) {
+          const match = line.match(/WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/);
           if (match) {
             console.log(`📱 ${match[1]}`);
           } else {
@@ -159,18 +152,17 @@ export class AndroidRunCommand extends AbstractRunCommand {
       }
     });
 
-    this.platformProcess.stderr?.on("data", (data: Buffer) => {
-    });
+    this.platformProcess.stderr?.on('data', () => {});
 
-    this.platformProcess.on("error", (error) => {
+    this.platformProcess.on('error', (error) => {
       if (!this.isCleaningUp) {
         logger.error(`Log monitoring error: ${error.message}`);
       }
     });
 
-    this.platformProcess.on("exit", (code, signal) => {
+    this.platformProcess.on('exit', (code) => {
       if (!this.isCleaningUp && code !== 0) {
-        logger.warn("Log monitoring stopped");
+        logger.warn('Log monitoring stopped');
       }
     });
 
@@ -180,14 +172,14 @@ export class AndroidRunCommand extends AbstractRunCommand {
         return;
       }
 
-      this.platformProcess.on("exit", () => {
+      this.platformProcess.on('exit', () => {
         if (!this.isCleaningUp) {
-          logger.warn("Log monitoring stopped");
+          logger.warn('Log monitoring stopped');
         }
         resolve();
       });
 
-      this.platformProcess.on("error", (error) => {
+      this.platformProcess.on('error', (error) => {
         if (!this.isCleaningUp) {
           reject(error);
         }

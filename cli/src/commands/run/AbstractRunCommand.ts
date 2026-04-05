@@ -1,12 +1,19 @@
-import * as path from "path";
-import os from "os";
-import { ChildProcess, spawn } from "child_process";
-import { PlatformCommand, Platform, PlatformCommandOptions } from "../base/index";
-import { logger } from "../../utils/logger";
-import { executeCommand, checkCommandExists } from "../../utils/exec";
-import { pathExists } from "../../utils/fs";
-import { saveConfig, shouldStartLocalServer } from "../../services/config.service";
-import { ServerStartError, GyoError, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, PROCESS_KILL_TIMEOUT_MS, LOCALHOST } from "../../core/index";
+import * as path from 'path';
+import os from 'os';
+import { ChildProcess, spawn } from 'child_process';
+import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
+import { logger } from '../../utils/logger';
+import { executeCommand, checkCommandExists } from '../../utils/exec';
+import { pathExists } from '../../utils/fs';
+import { saveConfig, shouldStartLocalServer } from '../../services/config.service';
+import {
+  ServerStartError,
+  GyoError,
+  DEFAULT_PORT,
+  WEB_SERVER_TIMEOUT_MS,
+  PROCESS_KILL_TIMEOUT_MS,
+  LOCALHOST,
+} from '../../core/index';
 
 export interface RunCommandOptions extends PlatformCommandOptions {
   profile: string;
@@ -16,11 +23,11 @@ export interface RunCommandOptions extends PlatformCommandOptions {
 export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
   protected platformProcess: ChildProcess | null = null;
-  protected serverUrl: string = "";
+  protected serverUrl: string = '';
   protected isCleaningUp: boolean = false;
 
   protected getValidPlatforms(): Platform[] {
-    return ["android", "ios"];
+    return ['android', 'ios'];
   }
 
   protected cleanupPlatformOnly(): void {
@@ -28,9 +35,9 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       try {
         const pid = this.platformProcess.pid;
         if (pid) {
-          this.platformProcess.kill("SIGTERM");
+          this.platformProcess.kill('SIGTERM');
         }
-      } catch (error) {
+      } catch {
         // Ignore errors during cleanup
       }
     }
@@ -38,22 +45,19 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
   protected async run(): Promise<void> {
     if (!this.config) {
-      throw new Error("Config not loaded");
+      throw new Error('Config not loaded');
     }
 
     this.setupSignalHandlers();
 
-    const startLocalServer = shouldStartLocalServer(
-      this.config,
-      this.options.profile
-    );
+    const startLocalServer = shouldStartLocalServer(this.config, this.options.profile);
 
     if (startLocalServer) {
       try {
         const port = this.getPortFromProfile(this.options.profile);
 
-        this.updateSpinner("Starting local web server...");
-        const libPath = path.join(this.projectPath, "lib");
+        this.updateSpinner('Starting local web server...');
+        const libPath = path.join(this.projectPath, 'lib');
 
         this.serverUrl = await this.startWebServer(libPath, port);
 
@@ -70,15 +74,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       }
     } else {
       if (!this.config.profiles?.[this.options.profile]) {
-        throw new Error(
-          `Profile '${this.options.profile}' not found in gyo.config.json`
-        );
+        throw new Error(`Profile '${this.options.profile}' not found in gyo.config.json`);
       }
 
       this.serverUrl = this.config.profiles[this.options.profile].serverUrl;
-      this.succeedSpinner(
-        `Using ${this.options.profile} profile: ${this.serverUrl}`
-      );
+      this.succeedSpinner(`Using ${this.options.profile} profile: ${this.serverUrl}`);
     }
 
     this.startSpinner(`Running ${this.platform} app...`);
@@ -93,7 +93,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   protected getStartCommand(): string {
     const command = this.config?.script?.start;
 
-    if (!command || command.trim() === "") {
+    if (!command || command.trim() === '') {
       throw new Error(
         "Start command is not configured. Please set 'script.start' in gyo.config.json (e.g., 'npm run dev' for Vite/Next.js)"
       );
@@ -112,7 +112,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       const urlObj = new URL(url);
       const port = urlObj.port;
       return port ? parseInt(port, 10) : DEFAULT_PORT;
-    } catch (error) {
+    } catch {
       logger.warn(
         `Failed to parse URL from profile '${profile}', using default port ${DEFAULT_PORT}`
       );
@@ -120,10 +120,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
   }
 
-  protected async updateProfileUrl(
-    profile: string,
-    serverUrl: string
-  ): Promise<void> {
+  protected async updateProfileUrl(profile: string, serverUrl: string): Promise<void> {
     if (!this.config) {
       return;
     }
@@ -141,27 +138,24 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     await saveConfig(this.config, this.projectPath);
   }
 
-  protected async startWebServer(
-    webPath: string,
-    port: number
-  ): Promise<string> {
-    const nodeModulesPath = path.join(webPath, "node_modules");
+  protected async startWebServer(webPath: string, port: number): Promise<string> {
+    const nodeModulesPath = path.join(webPath, 'node_modules');
     if (!(await pathExists(nodeModulesPath))) {
-      this.updateSpinner("Installing web dependencies...");
-      const installResult = await executeCommand("npm", ["install"], {
+      this.updateSpinner('Installing web dependencies...');
+      const installResult = await executeCommand('npm', ['install'], {
         cwd: webPath,
-        stdio: "inherit",
+        stdio: 'inherit',
       });
 
       if (!installResult.success) {
-        throw new ServerStartError("Failed to install web dependencies");
+        throw new ServerStartError('Failed to install web dependencies');
       }
     }
 
-    const lockFile = path.join(webPath, ".next/dev/lock");
+    const lockFile = path.join(webPath, '.next/dev/lock');
     if (await pathExists(lockFile)) {
       try {
-        const fs = await import("fs-extra");
+        const fs = await import('fs-extra');
         await fs.remove(lockFile);
       } catch (error) {
         logger.warn(`Could not remove lock file: ${error}`);
@@ -171,7 +165,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     const startCommand = this.getStartCommand();
     this.webServerProcess = spawn(startCommand, [], {
       cwd: webPath,
-      stdio: "pipe",
+      stdio: 'pipe',
       shell: true,
       detached: true,
     });
@@ -183,12 +177,14 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   protected async waitForServerReady(expectedPort: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`));
+        reject(
+          new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`)
+        );
       }, WEB_SERVER_TIMEOUT_MS);
 
       let serverReady = false;
 
-      this.webServerProcess?.stdout?.on("data", (data: Buffer) => {
+      this.webServerProcess?.stdout?.on('data', (data: Buffer) => {
         const output = data.toString();
 
         if (serverReady) return;
@@ -208,9 +204,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
 
         if (!detectedUrl) {
-          const genericMatch = output.match(
-            /https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i
-          );
+          const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
           if (genericMatch) {
             detectedUrl = `http://${LOCALHOST}:${genericMatch[1]}`;
           }
@@ -229,7 +223,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       });
 
-      this.webServerProcess?.stderr?.on("data", (data: Buffer) => {
+      this.webServerProcess?.stderr?.on('data', (data: Buffer) => {
         const output = data.toString();
 
         if (!serverReady && output.match(/ready|listening|started/i)) {
@@ -242,19 +236,23 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       });
 
-      this.webServerProcess?.on("error", (error) => {
+      this.webServerProcess?.on('error', (error) => {
         clearTimeout(timeout);
         reject(new Error(`Failed to start web server: ${error.message}`));
       });
 
-      this.webServerProcess?.on("exit", (code, signal) => {
+      this.webServerProcess?.on('exit', (code) => {
         if (!serverReady) {
           clearTimeout(timeout);
           reject(new Error(`Web server exited with code ${code}`));
         } else if (code !== 0 && !this.isCleaningUp) {
           logger.error(`\n⚠️  Web server unexpectedly stopped with code ${code}`);
-          logger.error("Check if another development server is running or if there are any errors above.");
-          logger.info("The app will continue running but may not be able to connect to the server.");
+          logger.error(
+            'Check if another development server is running or if there are any errors above.'
+          );
+          logger.info(
+            'The app will continue running but may not be able to connect to the server.'
+          );
         }
       });
     });
@@ -266,7 +264,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       const iface = interfaces[name];
       if (iface) {
         for (const alias of iface) {
-          if (alias.family === "IPv4" && !alias.internal) {
+          if (alias.family === 'IPv4' && !alias.internal) {
             return alias.address;
           }
         }
@@ -276,7 +274,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected setupSignalHandlers(): void {
-    const interruptCleanup = () => {
+    const interruptCleanup = (): void => {
       if (this.isCleaningUp) {
         return;
       }
@@ -287,8 +285,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       process.exit(0);
     };
 
-    process.on("SIGINT", interruptCleanup);
-    process.on("SIGTERM", interruptCleanup);
+    process.on('SIGINT', interruptCleanup);
+    process.on('SIGTERM', interruptCleanup);
   }
 
   protected async cleanup(): Promise<void> {
@@ -297,12 +295,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (this.webServerProcess && !this.webServerProcess.killed) {
       promises.push(
         new Promise<void>((resolve) => {
-          this.webServerProcess!.once("exit", () => resolve());
-          this.webServerProcess!.kill("SIGTERM");
+          this.webServerProcess!.once('exit', () => resolve());
+          this.webServerProcess!.kill('SIGTERM');
 
           setTimeout(() => {
             if (this.webServerProcess && !this.webServerProcess.killed) {
-              this.webServerProcess.kill("SIGKILL");
+              this.webServerProcess.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
@@ -313,12 +311,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (this.platformProcess && !this.platformProcess.killed) {
       promises.push(
         new Promise<void>((resolve) => {
-          this.platformProcess!.once("exit", () => resolve());
-          this.platformProcess!.kill("SIGTERM");
+          this.platformProcess!.once('exit', () => resolve());
+          this.platformProcess!.kill('SIGTERM');
 
           setTimeout(() => {
             if (this.platformProcess && !this.platformProcess.killed) {
-              this.platformProcess.kill("SIGKILL");
+              this.platformProcess.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
@@ -335,16 +333,16 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         const pid = this.webServerProcess.pid;
         if (pid) {
           try {
-            process.kill(-pid, "SIGKILL");
-          } catch (e) {
+            process.kill(-pid, 'SIGKILL');
+          } catch {
             try {
-              this.webServerProcess.kill("SIGKILL");
-            } catch (innerError) {
+              this.webServerProcess.kill('SIGKILL');
+            } catch {
               // Ignore
             }
           }
         }
-      } catch (error) {
+      } catch {
         // Ignore errors during cleanup
       }
     }
@@ -354,16 +352,16 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         const pid = this.platformProcess.pid;
         if (pid) {
           try {
-            process.kill(-pid, "SIGKILL");
-          } catch (e) {
+            process.kill(-pid, 'SIGKILL');
+          } catch {
             try {
-              this.platformProcess.kill("SIGKILL");
-            } catch (innerError) {
+              this.platformProcess.kill('SIGKILL');
+            } catch {
               // Ignore
             }
           }
         }
-      } catch (error) {
+      } catch {
         // Ignore errors during cleanup
       }
     }
@@ -376,21 +374,21 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   protected abstract runPlatform(serverUrl: string): Promise<void>;
 
   protected showSuccessMessage(serverUrl: string): void {
-    logger.log("");
+    logger.log('');
     logger.success(`App is connected to: ${serverUrl}`);
-    logger.info("Monitoring console logs (Press Ctrl+C to stop)...");
-    logger.log("");
+    logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
+    logger.log('');
   }
 
-  protected async monitorLogs(identifier: string): Promise<void> {
+  protected async monitorLogs(_identifier: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (!this.platformProcess) {
         resolve();
         return;
       }
 
-      this.platformProcess.stdout?.on("data", (data: Buffer) => {
-        const lines = data.toString().split("\n");
+      this.platformProcess.stdout?.on('data', (data: Buffer) => {
+        const lines = data.toString().split('\n');
         for (const line of lines) {
           if (line.trim()) {
             console.log(`📱 ${line.trim()}`);
@@ -398,17 +396,16 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       });
 
-      this.platformProcess.stderr?.on("data", (data: Buffer) => {
-      });
+      this.platformProcess.stderr?.on('data', () => {});
 
-      this.platformProcess.on("exit", (code) => {
+      this.platformProcess.on('exit', (code) => {
         if (!this.isCleaningUp && code !== 0) {
-          logger.warn("Log monitoring stopped");
+          logger.warn('Log monitoring stopped');
         }
         resolve();
       });
 
-      this.platformProcess.on("error", (error) => {
+      this.platformProcess.on('error', (error) => {
         if (!this.isCleaningUp) {
           reject(error);
         }
@@ -417,7 +414,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected async handleError(error: unknown): Promise<void> {
-    this.failSpinner("Run failed");
+    this.failSpinner('Run failed');
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
