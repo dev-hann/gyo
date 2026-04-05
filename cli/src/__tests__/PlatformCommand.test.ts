@@ -61,6 +61,9 @@ describe('PlatformCommand', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockedPathExists.mockImplementation((p: string) =>
+      Promise.resolve(typeof p === 'string' && p.includes('gyo.config.json'))
+    );
     command = new TestablePlatformCommand();
   });
 
