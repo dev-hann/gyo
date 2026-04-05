@@ -107,6 +107,33 @@ describe('MultiPlatformCommand', () => {
     });
   });
 
+  describe('processAllPlatforms failure', () => {
+    it('should throw aggregated error when some platforms fail', async () => {
+      command.setPlatform('all');
+      const processor = jest.fn().mockImplementation((p: string) => {
+        if (p === 'ios') {
+          return Promise.reject(new Error('ios cleanup failed'));
+        }
+        return Promise.resolve(undefined);
+      });
+
+      await expect(command['processAllPlatforms'](processor)).rejects.toThrow(
+        'Platform cleanup failed: ios cleanup failed'
+      );
+    });
+
+    it('should throw aggregated error with all failure messages', async () => {
+      command.setPlatform('all');
+      const processor = jest.fn().mockImplementation((p: string) => {
+        return Promise.reject(new Error(`${p} failed`));
+      });
+
+      await expect(command['processAllPlatforms'](processor)).rejects.toThrow(
+        'Platform cleanup failed'
+      );
+    });
+  });
+
   describe('processPlatformsSequentially', () => {
     it('should call processor for each platform in order', async () => {
       command.setPlatform('all');

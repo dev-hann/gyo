@@ -134,6 +134,33 @@ describe('UpgradeCommand', () => {
     expect(logger.error).not.toHaveBeenCalled();
   });
 
+  it('should upgrade to specified version when --version flag is set', async () => {
+    mockedExec
+      .mockResolvedValueOnce(makeExecSuccess('0.3.0\n'))
+      .mockResolvedValueOnce(makeExecSuccess(''));
+
+    command.setOptions({ version: '0.2.0' });
+    await command['run']();
+
+    expect(mockedExec).toHaveBeenNthCalledWith(
+      2,
+      'npm',
+      ['install', '-g', '@gyo-framework/cli@0.2.0'],
+      { stdio: 'inherit' }
+    );
+    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('0.2.0'));
+  });
+
+  it('should say already up to date when --version matches current', async () => {
+    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.3.0\n'));
+
+    command.setOptions({ version: '0.1.0' });
+    await command['run']();
+
+    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Already up to date'));
+    expect(mockedExec).toHaveBeenCalledTimes(1);
+  });
+
   it('should re-throw GyoError without rewrapping', async () => {
     mockedExec.mockResolvedValueOnce({
       success: false,

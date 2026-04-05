@@ -32,6 +32,7 @@ jest.mock('../utils/fs', () => ({
 }));
 
 import { loadConfig, saveConfig } from '../services/config.service';
+import { logger } from '../utils/logger';
 
 const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
 const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
@@ -45,6 +46,10 @@ const sampleConfig = {
     ios: { enabled: true, bundleId: 'com.example.myapp' },
   },
 };
+
+function freshConfig() {
+  return structuredClone(sampleConfig);
+}
 
 describe('ConfigCommand', () => {
   let command: ConfigCommand;
@@ -66,7 +71,7 @@ describe('ConfigCommand', () => {
 
     it('should display config as JSON when found', async () => {
       command.setAction('show');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       const logSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -82,7 +87,7 @@ describe('ConfigCommand', () => {
     it('should set a top-level value', async () => {
       command.setAction('set');
       command.setKeyValue('name', 'new-name');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -95,7 +100,7 @@ describe('ConfigCommand', () => {
     it('should set a nested value', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.android.packageName', 'com.new.pkg');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -108,7 +113,7 @@ describe('ConfigCommand', () => {
     it('should parse "true" as boolean true', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'true');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -121,7 +126,7 @@ describe('ConfigCommand', () => {
     it('should parse "false" as boolean false', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'false');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -134,7 +139,7 @@ describe('ConfigCommand', () => {
     it('should parse numeric strings as numbers', async () => {
       command.setAction('set');
       command.setKeyValue('version', '2');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -145,7 +150,7 @@ describe('ConfigCommand', () => {
     it('should throw for invalid intermediate key', async () => {
       command.setAction('set');
       command.setKeyValue('nonexistent.key', 'value');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await expect(command['run']()).rejects.toThrow('Invalid configuration key');
     });
@@ -160,7 +165,7 @@ describe('ConfigCommand', () => {
       command.setAction('set');
       command.setKeyValue('name');
 
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await expect(command['run']()).rejects.toThrow('Key and value are required');
     });
@@ -176,7 +181,7 @@ describe('ConfigCommand', () => {
     it('should keep empty string as string not convert to 0', async () => {
       command.setAction('set');
       command.setKeyValue('version', '');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -187,7 +192,7 @@ describe('ConfigCommand', () => {
     it('should parse "yes" as boolean true', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'yes');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -200,7 +205,7 @@ describe('ConfigCommand', () => {
     it('should parse "on" as boolean true', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'on');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -213,7 +218,7 @@ describe('ConfigCommand', () => {
     it('should parse "1" as boolean true', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', '1');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -226,7 +231,7 @@ describe('ConfigCommand', () => {
     it('should parse "no" as boolean false', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'no');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -239,7 +244,7 @@ describe('ConfigCommand', () => {
     it('should parse "0" as boolean false', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', '0');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -252,7 +257,7 @@ describe('ConfigCommand', () => {
     it('should parse "off" as boolean false', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'off');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
@@ -266,7 +271,7 @@ describe('ConfigCommand', () => {
   describe('getConfig', () => {
     it('should throw when key is not provided', async () => {
       command.setAction('get');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await expect(command['run']()).rejects.toThrow('Key is required');
     });
@@ -274,29 +279,27 @@ describe('ConfigCommand', () => {
     it('should get a top-level value', async () => {
       command.setAction('get');
       command.setKeyValue('name');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
-      const { logger } = jest.requireMock('../utils/logger');
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('my-app'));
     });
 
     it('should get a nested value', async () => {
       command.setAction('get');
       command.setKeyValue('platforms.android.packageName');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await command['run']();
 
-      const { logger } = jest.requireMock('../utils/logger');
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('com.new.pkg'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('com.example.myapp'));
     });
 
     it('should throw for missing key path', async () => {
       command.setAction('get');
       command.setKeyValue('nonexistent.key');
-      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+      mockedLoadConfig.mockResolvedValue(freshConfig());
 
       await expect(command['run']()).rejects.toThrow('Configuration key not found');
     });
