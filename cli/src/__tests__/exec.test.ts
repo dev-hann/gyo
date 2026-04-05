@@ -133,6 +133,50 @@ describe('exec utils', () => {
       mockProcess.emit('close', 0);
       await promise;
     });
+
+    it('should write stdout to process.stdout when stdio is inherit', async () => {
+      const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+
+      const promise = executeCommand('echo', ['hello'], { stdio: 'inherit' });
+
+      mockProcess.stdout.emit('data', Buffer.from('hello\n'));
+      mockProcess.emit('close', 0);
+
+      const result = await promise;
+      expect(writeSpy).toHaveBeenCalledWith('hello\n');
+      expect(result.stdout).toBe('hello');
+
+      writeSpy.mockRestore();
+    });
+
+    it('should write stderr to process.stderr when stdio is inherit', async () => {
+      const writeSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
+
+      const promise = executeCommand('cmd', [], { stdio: 'inherit' });
+
+      mockProcess.stderr.emit('data', Buffer.from('err\n'));
+      mockProcess.emit('close', 1);
+
+      const result = await promise;
+      expect(writeSpy).toHaveBeenCalledWith('err\n');
+      expect(result.stderr).toBe('err');
+
+      writeSpy.mockRestore();
+    });
+
+    it('should not write stdout to process.stdout when stdio is pipe', async () => {
+      const writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+
+      const promise = executeCommand('echo', ['hello'], { stdio: 'pipe' });
+
+      mockProcess.stdout.emit('data', Buffer.from('hello\n'));
+      mockProcess.emit('close', 0);
+
+      await promise;
+      expect(writeSpy).not.toHaveBeenCalled();
+
+      writeSpy.mockRestore();
+    });
   });
 
   describe('checkCommandExists', () => {

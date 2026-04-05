@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
+import { executeCommand, getGradlew } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
@@ -60,9 +60,9 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async buildApp(androidPath: string): Promise<void> {
-    const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+    const gradlew = getGradlew();
 
-    this.updateSpinner('Building Android app...');
+    this.updateSpinner('Building Android app (this may take a few minutes)...');
     const buildResult = await executeCommand(gradlew, ['assembleDebug'], {
       cwd: androidPath,
       stdio: 'pipe',
@@ -83,7 +83,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async installApp(androidPath: string): Promise<void> {
-    const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+    const gradlew = getGradlew();
 
     this.updateSpinner('Installing app on device...');
     const installResult = await executeCommand(gradlew, ['installDebug'], {

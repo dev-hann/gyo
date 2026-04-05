@@ -5,41 +5,79 @@ import { GyoConfig } from '../core/index';
 
 export { GyoConfig } from '../core/index';
 
-export function validateConfig(raw: unknown): raw is GyoConfig {
-  if (typeof raw !== 'object' || raw === null) return false;
+function collectConfigErrors(raw: unknown): string[] {
+  const errors: string[] = [];
+  if (typeof raw !== 'object' || raw === null) {
+    errors.push('config must be a non-null object');
+    return errors;
+  }
   const obj = raw as Record<string, unknown>;
 
-  if (typeof obj.name !== 'string' || obj.name.trim() === '') return false;
-  if (typeof obj.version !== 'string' || obj.version.trim() === '') return false;
-
-  if (typeof obj.platforms !== 'object' || obj.platforms === null) return false;
-
-  const platforms = obj.platforms as Record<string, unknown>;
-  if (platforms.android !== undefined) {
-    if (typeof platforms.android !== 'object' || platforms.android === null) return false;
-    const android = platforms.android as Record<string, unknown>;
-    if (typeof android.enabled !== 'boolean') return false;
-    if (android.packageName !== undefined && typeof android.packageName !== 'string') return false;
+  if (typeof obj.name !== 'string' || obj.name.trim() === '') {
+    errors.push("'name' must be a non-empty string");
   }
-  if (platforms.ios !== undefined) {
-    if (typeof platforms.ios !== 'object' || platforms.ios === null) return false;
-    const ios = platforms.ios as Record<string, unknown>;
-    if (typeof ios.enabled !== 'boolean') return false;
-    if (ios.bundleId !== undefined && typeof ios.bundleId !== 'string') return false;
+  if (typeof obj.version !== 'string' || obj.version.trim() === '') {
+    errors.push("'version' must be a non-empty string");
   }
 
-  if (obj.serverUrl !== undefined && typeof obj.serverUrl !== 'string') return false;
-
-  if (obj.profiles !== undefined) {
-    if (typeof obj.profiles !== 'object' || obj.profiles === null) return false;
-    for (const value of Object.values(obj.profiles as Record<string, unknown>)) {
-      if (typeof value !== 'object' || value === null) return false;
-      const profile = value as Record<string, unknown>;
-      if (typeof profile.serverUrl !== 'string') return false;
+  if (typeof obj.platforms !== 'object' || obj.platforms === null) {
+    errors.push("'platforms' must be an object");
+  } else {
+    const platforms = obj.platforms as Record<string, unknown>;
+    if (platforms.android !== undefined) {
+      if (typeof platforms.android !== 'object' || platforms.android === null) {
+        errors.push("'platforms.android' must be an object");
+      } else {
+        const android = platforms.android as Record<string, unknown>;
+        if (typeof android.enabled !== 'boolean') {
+          errors.push("'platforms.android.enabled' must be a boolean");
+        }
+        if (android.packageName !== undefined && typeof android.packageName !== 'string') {
+          errors.push("'platforms.android.packageName' must be a string");
+        }
+      }
+    }
+    if (platforms.ios !== undefined) {
+      if (typeof platforms.ios !== 'object' || platforms.ios === null) {
+        errors.push("'platforms.ios' must be an object");
+      } else {
+        const ios = platforms.ios as Record<string, unknown>;
+        if (typeof ios.enabled !== 'boolean') {
+          errors.push("'platforms.ios.enabled' must be a boolean");
+        }
+        if (ios.bundleId !== undefined && typeof ios.bundleId !== 'string') {
+          errors.push("'platforms.ios.bundleId' must be a string");
+        }
+      }
     }
   }
 
-  return true;
+  if (obj.serverUrl !== undefined && typeof obj.serverUrl !== 'string') {
+    errors.push("'serverUrl' must be a string");
+  }
+
+  if (obj.profiles !== undefined) {
+    if (typeof obj.profiles !== 'object' || obj.profiles === null) {
+      errors.push("'profiles' must be an object");
+    } else {
+      for (const [key, value] of Object.entries(obj.profiles as Record<string, unknown>)) {
+        if (typeof value !== 'object' || value === null) {
+          errors.push(`'profiles.${key}' must be an object`);
+        } else {
+          const profile = value as Record<string, unknown>;
+          if (typeof profile.serverUrl !== 'string') {
+            errors.push(`'profiles.${key}.serverUrl' must be a string`);
+          }
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+export function validateConfig(raw: unknown): raw is GyoConfig {
+  return collectConfigErrors(raw).length === 0;
 }
 
 export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig | null> {
@@ -53,9 +91,11 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
   try {
     const raw = await readJson(configPath);
     if (!validateConfig(raw)) {
-      logger.error(
-        'Invalid gyo.config.json: missing or invalid required fields (name, version, platforms)'
-      );
+      const errors = collectConfigErrors(raw);
+      logger.error('Invalid gyo.config.json:');
+      for (const err of errors) {
+        logger.error(`  - ${err}`);
+      }
       return null;
     }
     return raw;

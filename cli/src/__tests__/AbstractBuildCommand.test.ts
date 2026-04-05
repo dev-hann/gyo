@@ -41,13 +41,14 @@ jest.mock('../services/config.service', () => ({
 import { AbstractBuildCommand } from '../commands/build/AbstractBuildCommand';
 import { CommandMeta } from '../commands/base/BaseCommand';
 import { executeCommand } from '../utils/exec';
-import { pathExists, writeFile } from '../utils/fs';
+import { pathExists, writeFile, ensureDir } from '../utils/fs';
 import { getProfileUrl } from '../services/config.service';
 import { BuildFailedError } from '../core/index';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
+const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
 
 class TestableBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -145,6 +146,12 @@ describe('AbstractBuildCommand', () => {
         '/tmp/gyo-config.json',
         expect.stringContaining('192.168.1.1')
       );
+    });
+
+    it('should ensure directory exists before writing', async () => {
+      await command.testWriteConfigFile('/tmp/sub/gyo-config.json', 'http://localhost:3000');
+
+      expect(mockedEnsureDir).toHaveBeenCalledWith('/tmp/sub');
     });
   });
 });

@@ -143,7 +143,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   protected async startWebServer(webPath: string, port: number): Promise<string> {
     const nodeModulesPath = path.join(webPath, 'node_modules');
     if (!(await pathExists(nodeModulesPath))) {
-      this.updateSpinner('Installing web dependencies...');
+      this.stopSpinner();
+      logger.info('node_modules not found. Installing dependencies (this may take a minute)...');
       const installResult = await executeCommand('npm', ['install'], {
         cwd: webPath,
         stdio: 'inherit',
@@ -152,6 +153,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       if (!installResult.success) {
         throw new ServerStartError('Failed to install web dependencies');
       }
+      this.startSpinner('Starting web server...');
     }
 
     const lockFile = path.join(webPath, '.next/dev/lock');

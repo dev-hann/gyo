@@ -44,18 +44,16 @@ jest.mock('fs-extra', () => ({
   remove: jest.fn().mockResolvedValue(undefined),
 }));
 
-import fs from 'fs-extra';
 import { IOSBuildCommand } from '../commands/build/IOSBuildCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
-import { pathExists, writeFile } from '../utils/fs';
+import { pathExists, writeFile, ensureDir } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
-const mockedFsEnsureDir = fs.ensureDir as unknown as jest.Mock;
-const _mockedFsWriteFile = fs.writeFile as unknown as jest.Mock;
+const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
   return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
@@ -176,7 +174,7 @@ describe('IOSBuildCommand', () => {
 
       await expect(command['buildPlatform']()).resolves.toBeUndefined();
 
-      expect(mockedFsEnsureDir).toHaveBeenCalled();
+      expect(mockedEnsureDir).toHaveBeenCalled();
       expect(mockedWriteFile).toHaveBeenCalled();
     });
 

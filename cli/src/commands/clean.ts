@@ -36,7 +36,6 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      this.failSpinner(`Clean failed: ${message}`);
       throw new GyoError(message);
     }
   }

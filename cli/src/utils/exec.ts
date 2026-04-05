@@ -73,6 +73,7 @@ export function executeCommand(
 }
 
 export async function checkCommandExists(command: string): Promise<boolean> {
-  const result = await executeCommand('which', [command], { stdio: 'pipe' });
+  const checker = process.platform === 'win32' ? 'where' : 'which';
+  const result = await executeCommand(`${checker} ${command}`, [], { stdio: 'pipe' });
   return result.success;
 }

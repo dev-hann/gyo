@@ -91,6 +91,7 @@ registerConfigCommand();
 
 process.on('unhandledRejection', (error: unknown) => {
   if (error instanceof GyoError) {
+    console.error(`\x1b[31m✗\x1b[0m ${error.message}`);
     process.exit(error.exitCode);
   }
   if (

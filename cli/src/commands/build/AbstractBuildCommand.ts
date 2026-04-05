@@ -1,9 +1,8 @@
 import * as path from 'path';
-import fs from 'fs-extra';
 import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
-import { pathExists, writeFile } from '../../utils/fs';
+import { pathExists, writeFile, ensureDir } from '../../utils/fs';
 import { getProfileUrl } from '../../services/config.service';
 import { BuildFailedError } from '../../core/errors';
 
@@ -61,7 +60,7 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
 
   protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
     this.updateSpinner(`Configuring server URL: ${serverUrl}`);
-    await fs.ensureDir(path.dirname(configPath));
+    await ensureDir(path.dirname(configPath));
     await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
   }
 

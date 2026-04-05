@@ -90,7 +90,7 @@ describe('config.service', () => {
       const result = await loadConfig('/project');
 
       expect(result).toBeNull();
-      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Invalid gyo.config.json'));
+      expect(logger.error).toHaveBeenCalledWith('Invalid gyo.config.json:');
     });
   });
 

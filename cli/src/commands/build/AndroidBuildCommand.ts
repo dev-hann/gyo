@@ -2,7 +2,7 @@ import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
+import { executeCommand, getGradlew } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
@@ -24,7 +24,7 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
 
   private async buildApp(androidPath: string): Promise<void> {
     const task = this.options.release ? 'assembleRelease' : 'assembleDebug';
-    const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+    const gradlew = getGradlew();
 
     this.updateSpinner(`Running ${task}...`);
 

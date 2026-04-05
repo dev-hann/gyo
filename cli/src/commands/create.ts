@@ -108,7 +108,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      this.failSpinner(`Failed to create project: ${message}`);
       throw new GyoError(message, 1, { cause: error });
     }
   }
@@ -160,7 +159,12 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     });
 
     if (!result.success) {
-      logger.warn('Framework scaffolding exited with a non-zero code.');
+      logger.error('Framework scaffolding failed.');
+      logger.error('Your project structure was created but lib/ may be incomplete.');
+      logger.info(
+        `Try scaffolding manually: cd ${this.validatedName}/lib && ${this.scaffoldCommand}`
+      );
+      throw new GyoError('Framework scaffolding failed');
     }
 
     await this.detectStartScript(libPath);

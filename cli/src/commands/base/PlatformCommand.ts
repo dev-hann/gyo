@@ -2,7 +2,12 @@ import * as path from 'path';
 import { BaseCommand, BaseCommandOptions } from './BaseCommand';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
-import { PlatformNotFoundError, PlatformDisabledError, Platform } from '../../core/index';
+import {
+  GyoError,
+  PlatformNotFoundError,
+  PlatformDisabledError,
+  Platform,
+} from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -20,6 +25,7 @@ export abstract class PlatformCommand<
   async execute(): Promise<void> {
     try {
       this.validatePlatform();
+      await this.requireGyoProject();
       await this.loadConfiguration();
       this.validatePlatformEnabled();
       await this.run();
@@ -30,6 +36,7 @@ export abstract class PlatformCommand<
 
   async runDirectly(): Promise<void> {
     this.validatePlatform();
+    await this.requireGyoProject();
     await this.loadConfiguration();
     this.validatePlatformEnabled();
     await this.run();
@@ -45,6 +52,15 @@ export abstract class PlatformCommand<
   }
 
   protected abstract getValidPlatforms(): Platform[];
+
+  protected async requireGyoProject(): Promise<void> {
+    const configPath = path.join(this.projectPath, 'gyo.config.json');
+    if (!(await pathExists(configPath))) {
+      throw new GyoError(
+        `Not a gyo project (gyo.config.json not found in ${this.projectPath}).\n  Run 'gyo create <project-name>' to create a new project.`
+      );
+    }
+  }
 
   protected validatePlatformEnabled(): void {
     if (!this.config || !this.config.platforms) {
