@@ -1,8 +1,18 @@
 import * as path from 'path';
+import inquirer from 'inquirer';
 import fs from 'fs-extra';
 import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
-import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from '../utils/fs';
+import {
+  ensureDir,
+  copyDir,
+  pathExists,
+  writeFile,
+  readFile,
+  readJson,
+  getTemplatesPath,
+} from '../utils/fs';
+import { executeCommand } from '../utils/exec';
 import { GyoError, DirectoryExistsError } from '../core/index';
 
 interface CreateCommandOptions extends BaseCommandOptions {
@@ -21,16 +31,76 @@ interface PlatformConfig {
   extraSteps?: (platformPath: string, context: PlaceholderContext) => Promise<void>;
 }
 
+interface FrameworkOption {
+  name: string;
+  value: string;
+  scaffoldCommand: string;
+  defaultStartScript: string;
+}
+
+const FRAMEWORK_OPTIONS: FrameworkOption[] = [
+  {
+    name: 'React (Vite)',
+    value: 'react',
+    scaffoldCommand: 'npx create-vite@latest . --template react',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'Next.js',
+    value: 'next',
+    scaffoldCommand: 'npx create-next-app@latest .',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'Vue (Vite)',
+    value: 'vue',
+    scaffoldCommand: 'npx create-vue@latest .',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'Nuxt',
+    value: 'nuxt',
+    scaffoldCommand: 'npx nuxi@latest init .',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'SvelteKit',
+    value: 'svelte',
+    scaffoldCommand: 'npx sv create .',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'Vanilla (Vite)',
+    value: 'vanilla',
+    scaffoldCommand: 'npx create-vite@latest . --template vanilla',
+    defaultStartScript: 'npm run dev',
+  },
+  {
+    name: 'Other (enter custom command)',
+    value: 'other',
+    scaffoldCommand: '',
+    defaultStartScript: 'npm run dev',
+  },
+];
+
 export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   private context!: PlaceholderContext;
   private targetPath!: string;
+  private selectedFramework: string = 'react';
+  private scaffoldCommand: string = '';
+  private detectedStartScript: string = 'npm run dev';
 
   getMeta(): CommandMeta {
     return {
       name: 'create <project-name>',
       description: 'Create a new gyo project',
       options: [
-        { flags: '-t, --template <template>', description: 'Project template', default: 'react' },
+        {
+          flags: '-t, --template <template>',
+          description:
+            'Web framework (react, next, vue, nuxt, svelte, vanilla, other). Skips framework prompt.',
+          default: 'react',
+        },
       ],
     };
   }
@@ -49,6 +119,8 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
       this.context = this.createPlaceholderContext();
 
+      const framework = await this.resolveFramework();
+
       await this.createProjectDirectory();
 
       const platforms = this.getPlatforms();
@@ -56,6 +128,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
         await this.setupPlatform(platform);
       }
 
+      await this.scaffoldLib(framework);
       await this.setupConfig();
       await this.createProjectFiles();
 
@@ -71,6 +144,111 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     }
   }
 
+  private async resolveFramework(): Promise<FrameworkOption> {
+    const templateFlag = this.options.template?.toLowerCase()?.trim();
+    const matched = FRAMEWORK_OPTIONS.find((f) => f.value === templateFlag);
+
+    if (matched) {
+      this.selectedFramework = matched.value;
+      if (matched.value === 'other') {
+        const answer = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'customCommand',
+            message: 'Enter scaffolding command (e.g., npx create-react-app@latest .):',
+            validate: (input: string): boolean | string =>
+              input.trim() ? true : 'Command cannot be empty',
+          },
+        ]);
+        this.scaffoldCommand = answer.customCommand.trim();
+      } else {
+        this.scaffoldCommand = matched.scaffoldCommand;
+      }
+      this.detectedStartScript = matched.defaultStartScript;
+      return matched;
+    }
+
+    this.stopSpinner();
+
+    const answer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'framework',
+        message: 'Select a web framework:',
+        choices: FRAMEWORK_OPTIONS.map((f) => ({ name: f.name, value: f.value })),
+        default: 'react',
+      },
+    ]);
+
+    const selected = FRAMEWORK_OPTIONS.find((f) => f.value === answer.framework);
+    if (!selected) {
+      throw new GyoError(`Unknown framework: ${answer.framework}`);
+    }
+    this.selectedFramework = selected.value;
+
+    if (selected.value === 'other') {
+      const customAnswer = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'customCommand',
+          message: 'Enter scaffolding command (e.g., npx create-react-app@latest .):',
+          validate: (input: string): boolean | string =>
+            input.trim() ? true : 'Command cannot be empty',
+        },
+      ]);
+      this.scaffoldCommand = customAnswer.customCommand.trim();
+    } else {
+      this.scaffoldCommand = selected.scaffoldCommand;
+    }
+
+    this.detectedStartScript = selected.defaultStartScript;
+    this.startSpinner('Creating gyo project...');
+    return selected;
+  }
+
+  private async scaffoldLib(framework: FrameworkOption): Promise<void> {
+    const libPath = path.join(this.targetPath, 'lib');
+
+    this.updateSpinner(`Scaffolding ${framework.name} in lib/...`);
+    this.stopSpinner();
+
+    logger.info(`Running: ${this.scaffoldCommand}`);
+    logger.info('(Follow the prompts from the scaffolding tool)\n');
+
+    const result = await executeCommand(this.scaffoldCommand, [], {
+      cwd: libPath,
+      stdio: 'inherit',
+    });
+
+    this.startSpinner('Creating gyo project...');
+
+    if (!result.success) {
+      logger.warn('Framework scaffolding exited with a non-zero code. Continuing setup...');
+    }
+
+    await this.detectStartScript(libPath);
+  }
+
+  private async detectStartScript(libPath: string): Promise<void> {
+    const pkgPath = path.join(libPath, 'package.json');
+
+    if (!(await pathExists(pkgPath))) {
+      logger.warn('package.json not found in lib/. Using default start script.');
+      return;
+    }
+
+    try {
+      const pkg = (await readJson(pkgPath)) as { scripts?: Record<string, string> };
+      if (pkg.scripts?.dev) {
+        this.detectedStartScript = 'npm run dev';
+      } else if (pkg.scripts?.start) {
+        this.detectedStartScript = 'npm run start';
+      }
+    } catch {
+      logger.warn('Could not read lib/package.json. Using default start script.');
+    }
+  }
+
   private validateProjectName(): void {
     const name = this.options.projectName;
     if (!name || name.trim() === '') {
@@ -83,8 +261,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
   private async validateProjectDirectory(): Promise<void> {
     if (await pathExists(this.targetPath)) {
-      this.failSpinner('Directory already exists');
-      throw new DirectoryExistsError(path.basename(this.targetPath));
+      throw new DirectoryExistsError(path.basename(this.targetPath), this.targetPath);
     }
   }
 
@@ -143,13 +320,48 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     const configSrcPath = path.join(templatesPath, 'gyo.config.json');
     const configDestPath = path.join(this.targetPath, 'gyo.config.json');
 
+    let configContent: string;
+
     if (await pathExists(configSrcPath)) {
-      let configContent = await readFile(configSrcPath);
+      configContent = await readFile(configSrcPath);
       configContent = this.replaceContent(configContent, this.context);
-      await writeFile(configDestPath, configContent);
     } else {
-      await this.createDefaultConfig(configDestPath);
+      configContent = JSON.stringify(this.createDefaultConfigObject(), null, 2);
     }
+
+    configContent = configContent.replace(
+      /"start"\s*:\s*"[^"]*"/,
+      `"start": "${this.detectedStartScript}"`
+    );
+
+    await writeFile(configDestPath, configContent);
+  }
+
+  private createDefaultConfigObject(): Record<string, unknown> {
+    return {
+      name: this.context.projectName,
+      version: '1.0.0',
+      profiles: {
+        development: {
+          serverUrl: 'http://localhost:3000',
+        },
+        production: {
+          serverUrl: 'https://your-production-url.com',
+        },
+      },
+      platforms: {
+        android: { enabled: true, packageName: this.context.packageName },
+        ios: { enabled: true, bundleId: this.context.packageName },
+      },
+      webview: {
+        allowFileAccess: false,
+        allowUniversalAccessFromFileURLs: false,
+        userAgent: 'gyo-webview/1.0',
+      },
+      script: {
+        start: this.detectedStartScript,
+      },
+    };
   }
 
   private async createProjectFiles(): Promise<void> {
@@ -223,20 +435,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     await writeFile(path.join(androidPath, 'local.properties'), content);
   }
 
-  private async createDefaultConfig(configPath: string): Promise<void> {
-    const defaultConfig = {
-      name: this.context.projectName,
-      version: '1.0.0',
-      serverUrl: 'http://localhost:3000',
-      platforms: {
-        android: { enabled: true, packageName: this.context.packageName },
-        ios: { enabled: true, bundleId: this.context.packageName },
-        desktop: { enabled: false },
-      },
-    };
-    await writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
-  }
-
   private generateReadme(projectName: string): string {
     return `# ${projectName}
 
@@ -253,15 +451,15 @@ A cross-platform application built with gyo.
 ### Installation
 
 \`\`\`bash
-cd lib
+cd ${projectName}/lib
 npm install
 \`\`\`
 
 ## Development
 
 \`\`\`bash
-gyo run android
-gyo run ios
+cd ${projectName}
+gyo run
 \`\`\`
 
 ## Build
@@ -282,11 +480,8 @@ gyo clean all
 
 \`\`\`
 ${projectName}/
-├── lib/                # React application
+├── lib/                # Web application (${this.selectedFramework})
 │   ├── src/
-│   │   ├── App.tsx
-│   │   ├── main.tsx
-│   │   └── styles.css
 │   ├── index.html
 │   └── package.json
 ├── android/            # Android native shell
@@ -322,8 +517,8 @@ ios/*.xcworkspace
     logger.log('');
     logger.suggestNextSteps([
       `cd ${this.options.projectName}`,
-      'gyo run android  # Run on Android',
-      'gyo run ios      # Run on iOS',
+      'gyo run          # Run on connected device',
+      'gyo build android # Build APK',
     ]);
   }
 }

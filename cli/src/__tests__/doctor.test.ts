@@ -110,5 +110,31 @@ describe('DoctorCommand', () => {
         delete process.env.ANDROID_HOME;
       }
     });
+
+    it('should report failure when version command exits non-zero', async () => {
+      mockedCheck.mockImplementation(async () => true);
+
+      mockedExec.mockImplementation((cmd: string) => {
+        if (cmd === 'node') {
+          return Promise.resolve({
+            success: false,
+            stdout: '',
+            stderr: 'error',
+            code: 1,
+          });
+        }
+        if (cmd === 'npm') return Promise.resolve(execResult({ stdout: '10.0.0' }));
+        if (cmd === 'git') return Promise.resolve(execResult({ stdout: 'git version 2.40' }));
+        if (cmd === 'swift') return Promise.resolve(execResult({ stdout: 'Swift version 5.9' }));
+        return Promise.resolve(execResult({ stdout: '' }));
+      });
+
+      await command.testRun();
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Some checks failed'));
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Not installed. Visit https://nodejs.org')
+      );
+    });
   });
 });

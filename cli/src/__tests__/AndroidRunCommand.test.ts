@@ -48,16 +48,19 @@ jest.mock('fs-extra', () => ({
   readFile: jest.fn(),
 }));
 
+import { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import { AndroidRunCommand } from '../commands/run/AndroidRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import { CommandNotFoundError, BuildFailedError } from '../core/errors';
+import { spawn } from 'child_process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedFsReadFile = fs.readFile as unknown as jest.Mock;
+const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
   return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
@@ -173,6 +176,61 @@ describe('AndroidRunCommand', () => {
       await command['launchApp'](null, 'emulator-5554');
 
       expect(mockedExec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('monitorLogs', () => {
+    function createMockProc() {
+      const proc = new EventEmitter() as any;
+      proc.stdout = new EventEmitter();
+      proc.stderr = new EventEmitter();
+      proc.kill = jest.fn();
+      proc.killed = false;
+      return proc;
+    }
+
+    async function waitForSpawn(): Promise<void> {
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setImmediate(r));
+        if (mockedSpawn.mock.calls.length > 0) return;
+      }
+      throw new Error('spawn was never called');
+    }
+
+    it('should resolve on process exit', async () => {
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('emulator-5554');
+      await waitForSpawn();
+
+      mockProc.emit('exit', 0);
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should reject on error when not cleaning up', async () => {
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('emulator-5554');
+      await waitForSpawn();
+
+      mockProc.emit('error', new Error('adb crashed'));
+
+      await expect(promise).rejects.toThrow('adb crashed');
+    });
+
+    it('should resolve on error when cleaning up', async () => {
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+      (command as any).isCleaningUp = true;
+
+      const promise = command['monitorLogs']('emulator-5554');
+      await waitForSpawn();
+
+      mockProc.emit('error', new Error('adb crashed'));
+
+      await expect(promise).resolves.toBeUndefined();
     });
   });
 });

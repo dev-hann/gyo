@@ -93,6 +93,10 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
   }
 
   logger.error(`Profile '${profile}' not found in gyo.config.json`);
+  const availableProfiles = config.profiles ? Object.keys(config.profiles) : [];
+  if (availableProfiles.length > 0) {
+    logger.error(`Available profiles: ${availableProfiles.join(', ')}`);
+  }
   throw new Error(`Profile '${profile}' not found`);
 }
 

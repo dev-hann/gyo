@@ -47,7 +47,7 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
       ...this.options,
       device: selectedDevice.id,
     });
-    await command.execute();
+    await command.runDirectly();
   }
 
   private showNoDevicesError(): void {

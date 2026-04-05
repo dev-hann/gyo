@@ -29,24 +29,27 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
   protected async buildLibAssets(): Promise<void> {
     this.updateSpinner('Building lib assets...');
     const libPath = path.join(this.projectPath, 'lib');
+    const pkgPath = path.join(libPath, 'package.json');
 
-    if (await pathExists(libPath)) {
-      const libBuildResult = await executeCommand('npm', ['run', 'build'], {
-        cwd: libPath,
-        stdio: 'pipe',
-      });
-
-      if (!libBuildResult.success) {
-        this.failSpinner('Lib build failed');
-        logger.error(libBuildResult.stderr || libBuildResult.stdout);
-        throw new BuildFailedError('Lib build failed');
-      }
-
-      this.succeedSpinner('Lib assets built successfully');
-      logger.verbose(libBuildResult.stdout);
-    } else {
-      logger.warn('Lib directory not found, skipping lib build');
+    if (!(await pathExists(libPath)) || !(await pathExists(pkgPath))) {
+      logger.warn('lib/ directory or package.json not found, skipping lib build');
+      logger.warn("Run 'gyo create' to scaffold a project with a web application.");
+      return;
     }
+
+    const libBuildResult = await executeCommand('npm', ['run', 'build'], {
+      cwd: libPath,
+      stdio: 'pipe',
+    });
+
+    if (!libBuildResult.success) {
+      this.failSpinner('Lib build failed');
+      logger.error(libBuildResult.stderr || libBuildResult.stdout);
+      throw new BuildFailedError('Lib build failed');
+    }
+
+    this.succeedSpinner('Lib assets built successfully');
+    logger.verbose(libBuildResult.stdout);
   }
 
   protected getServerUrl(): string {

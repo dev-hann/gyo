@@ -28,6 +28,13 @@ export abstract class PlatformCommand<
     }
   }
 
+  async runDirectly(): Promise<void> {
+    this.validatePlatform();
+    await this.loadConfiguration();
+    this.validatePlatformEnabled();
+    await this.run();
+  }
+
   protected validatePlatform(): void {
     const validPlatforms = this.getValidPlatforms();
     if (!validPlatforms.includes(this.platform)) {
@@ -55,8 +62,10 @@ export abstract class PlatformCommand<
   protected async checkPlatformDirectoryExists(): Promise<void> {
     const platformPath = path.join(this.projectPath, this.platform);
     if (!(await pathExists(platformPath))) {
-      this.spinner.fail(`${this.platform}/ directory not found`);
-      logger.error(`Run 'gyo create' first to initialize the ${this.platform} platform`);
+      this.spinner.fail(`'${this.platform}/' directory not found`);
+      logger.error(
+        `Run 'gyo create' first to initialize the project, or check you're in the correct directory.`
+      );
       throw new PlatformNotFoundError(this.platform);
     }
   }

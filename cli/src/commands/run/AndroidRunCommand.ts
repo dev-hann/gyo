@@ -6,7 +6,7 @@ import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
-import { CommandNotFoundError, BuildFailedError } from '../../core/errors';
+import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -32,7 +32,11 @@ export class AndroidRunCommand extends AbstractRunCommand {
     if (!(await this.checkCommandExists('adb'))) {
       this.failSpinner('adb not found');
       logger.error('Please install Android SDK and add adb to your PATH');
-      throw new CommandNotFoundError('adb');
+      logger.info("Run 'gyo doctor' to check your environment.");
+      throw new ToolRequiredError(
+        'adb',
+        'Install the Android SDK and add adb to your PATH. Run: gyo doctor'
+      );
     }
   }
 
@@ -171,6 +175,8 @@ export class AndroidRunCommand extends AbstractRunCommand {
         if (!this.isCleaningUp) {
           logger.error(`Log monitoring error: ${error.message}`);
           reject(error);
+        } else {
+          resolve();
         }
       });
     });

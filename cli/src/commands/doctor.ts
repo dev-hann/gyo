@@ -156,6 +156,16 @@ export class DoctorCommand extends BaseCommand {
     }
 
     const result = await executeCommand(config.command, config.versionArgs, { stdio: 'pipe' });
+
+    if (!result.success) {
+      return {
+        name: config.name,
+        passed: false,
+        message: config.notInstalledMessage || `Failed to get version (exit code ${result.code})`,
+        optional: config.optional,
+      };
+    }
+
     const versionOutput = config.versionParser
       ? config.versionParser(result.stdout)
       : result.stdout.trim();

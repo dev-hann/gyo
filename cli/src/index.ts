@@ -9,6 +9,7 @@ import { DoctorCommand } from './commands/doctor';
 import { DevicesCommand } from './commands/devices';
 import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
+import { GyoError } from './core/index';
 
 const program = new Command();
 
@@ -87,6 +88,16 @@ registerCommand(new DevicesCommand());
 registerCommand(new UpgradeCommand());
 registerCommand(new DebugCommand());
 registerConfigCommand();
+
+program.exitOverride();
+
+process.on('unhandledRejection', (error: unknown) => {
+  if (error instanceof GyoError) {
+    process.exit(error.exitCode);
+  }
+  console.error(error);
+  process.exit(1);
+});
 
 program.parse(process.argv);
 

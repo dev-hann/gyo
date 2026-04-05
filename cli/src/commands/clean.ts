@@ -6,6 +6,8 @@ import { pathExists, removeDir } from '../utils/fs';
 import { GyoError } from '../core/index';
 
 export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptions> {
+  private hadWarnings = false;
+
   getMeta(): CommandMeta {
     return {
       name: 'clean',
@@ -20,10 +22,15 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
   protected async run(): Promise<void> {
     this.startSpinner('Cleaning build artifacts...');
+    this.hadWarnings = false;
 
     try {
       await this.processAllPlatforms((p) => this.cleanPlatform(p));
-      this.succeedSpinner('Clean complete!');
+      if (this.hadWarnings) {
+        this.warnSpinner('Clean completed with warnings');
+      } else {
+        this.succeedSpinner('Clean complete!');
+      }
     } catch (error) {
       if (error instanceof GyoError) {
         throw error;
@@ -65,6 +72,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     });
 
     if (!cleanResult.success) {
+      this.hadWarnings = true;
       logger.warn('Android clean failed');
       logger.error(cleanResult.stderr);
     } else {
@@ -121,6 +129,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     const nodeModulesPath = path.join(libPath, 'node_modules');
     if (await pathExists(nodeModulesPath)) {
+      logger.warn('Deleting node_modules — you will need to run npm install before the next run');
       cleanupTasks.push(removeDir(nodeModulesPath));
     }
 

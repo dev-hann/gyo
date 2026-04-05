@@ -23,6 +23,12 @@ export class CommandNotFoundError extends GyoError {
   }
 }
 
+export class ToolRequiredError extends GyoError {
+  constructor(tool: string, installHint: string) {
+    super(`Required tool '${tool}' not found. ${installHint}`);
+  }
+}
+
 export class ConfigNotFoundError extends GyoError {
   constructor() {
     super('gyo.config.json not found');
@@ -40,8 +46,9 @@ export class BuildFailedError extends GyoError {}
 export class ServerStartError extends GyoError {}
 
 export class DirectoryExistsError extends GyoError {
-  constructor(directory: string) {
-    super(`Directory "${directory}" already exists`);
+  constructor(directory: string, fullPath?: string) {
+    const hint = fullPath ? `. Remove it or use a different project name.` : '';
+    super(`Directory "${directory}" already exists${hint}`);
   }
 }
 

@@ -6,7 +6,7 @@ import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
-import { CommandNotFoundError, BuildFailedError } from '../../core/errors';
+import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
 export class IOSRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -31,7 +31,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     if (!(await this.checkCommandExists('xtool'))) {
       this.failSpinner('xtool not found');
       logger.error('Install xtool: https://xtool.sh');
-      throw new CommandNotFoundError('xtool');
+      throw new ToolRequiredError('xtool', 'Install xtool: https://xtool.sh');
     }
   }
 

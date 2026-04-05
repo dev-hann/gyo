@@ -51,13 +51,15 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     this.setupSignalHandlers();
 
     const startLocalServer = shouldStartLocalServer(this.config, this.options.profile);
+    const libPath = path.join(this.projectPath, 'lib');
 
     if (startLocalServer) {
+      await this.validateLibDirectory(libPath);
+
       try {
         const port = this.getPortFromProfile(this.options.profile);
 
         this.updateSpinner('Starting local web server...');
-        const libPath = path.join(this.projectPath, 'lib');
 
         this.serverUrl = await this.startWebServer(libPath, port);
 
@@ -371,6 +373,21 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
   protected async checkCommandExists(command: string): Promise<boolean> {
     return checkCommandExists(command);
+  }
+
+  private async validateLibDirectory(libPath: string): Promise<void> {
+    if (!(await pathExists(libPath))) {
+      throw new ServerStartError(
+        `'lib/' directory not found in ${this.projectPath}.\n  Run 'gyo create <project-name>' to scaffold a project, or check you're in the correct directory.`
+      );
+    }
+
+    const pkgPath = path.join(libPath, 'package.json');
+    if (!(await pathExists(pkgPath))) {
+      throw new ServerStartError(
+        `'lib/package.json' not found.\n  Run 'gyo create <project-name>' to scaffold a project, or set up a web application in the lib/ directory.`
+      );
+    }
   }
 
   protected abstract runPlatform(serverUrl: string): Promise<void>;

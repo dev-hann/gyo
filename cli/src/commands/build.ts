@@ -35,7 +35,7 @@ export class BuildCommand extends BaseCommand<BuildCommandOptions> {
   protected async run(): Promise<void> {
     const command = this.createCommand(this.platform);
     command.setOptions(this.options);
-    await command.execute();
+    await command.runDirectly();
   }
 
   private createCommand(platform: Platform): AndroidBuildCommand | IOSBuildCommand {
