@@ -48,6 +48,27 @@ export default [
     },
   },
   {
+    files: ['src/**/__tests__/**/*.test.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        jest: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+    },
+  },
+  {
     ignores: ['dist/', 'node_modules/', 'templates/', '**/*.js'],
   },
   eslintConfigPrettier,
