@@ -18,6 +18,7 @@ import {
 export interface RunCommandOptions extends PlatformCommandOptions {
   profile: string;
   device?: string;
+  port?: number;
 }
 
 export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptions> {
@@ -57,7 +58,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       await this.validateLibDirectory(libPath);
 
       try {
-        const port = this.getPortFromProfile(this.options.profile);
+        const port = this.options.port ?? this.getPortFromProfile(this.options.profile);
 
         this.updateSpinner('Starting local web server...');
 

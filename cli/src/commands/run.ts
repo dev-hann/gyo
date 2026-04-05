@@ -10,6 +10,7 @@ interface RunCommandOptions {
   device?: string;
   profile: string;
   verbose?: boolean;
+  port?: number;
 }
 
 export class RunCommand extends BaseCommand<RunCommandOptions> {
@@ -27,6 +28,10 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
           default: 'development',
         },
         { flags: '-v, --verbose', description: 'Show detailed logs' },
+        {
+          flags: '--port <number>',
+          description: 'Override the development server port',
+        },
       ],
     };
   }
