@@ -102,6 +102,16 @@ describe('AndroidRunCommand', () => {
 
       await expect(command['buildApp']('/android')).rejects.toThrow(BuildFailedError);
     });
+
+    it('should log SDK hint when build fails with SDK location not found', async () => {
+      mockedExec.mockResolvedValue(await makeExecResult(false, '', 'SDK location not found'));
+
+      await expect(command['buildApp']('/android')).rejects.toThrow(BuildFailedError);
+
+      const { logger } = jest.requireMock('../utils/logger');
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('ANDROID_HOME'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('gyo doctor'));
+    });
   });
 
   describe('installApp', () => {

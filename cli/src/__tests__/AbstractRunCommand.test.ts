@@ -264,4 +264,102 @@ describe('AbstractRunCommand', () => {
       expect(ip.length).toBeGreaterThan(0);
     });
   });
+
+  describe('validateLibDirectory', () => {
+    it('should throw ServerStartError when lib/ directory not found', async () => {
+      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+
+      const { pathExists } = jest.requireMock('../utils/fs');
+      pathExists.mockResolvedValue(false);
+
+      await expect((command as any)['validateLibDirectory']('/project/lib')).rejects.toThrow(
+        "'lib/' directory not found"
+      );
+    });
+
+    it('should throw ServerStartError when lib/package.json not found', async () => {
+      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+
+      const { pathExists } = jest.requireMock('../utils/fs');
+      pathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await expect((command as any)['validateLibDirectory']('/project/lib')).rejects.toThrow(
+        "'lib/package.json' not found"
+      );
+    });
+
+    it('should not throw when lib/ and package.json exist', async () => {
+      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+
+      const { pathExists } = jest.requireMock('../utils/fs');
+      pathExists.mockResolvedValue(true);
+
+      await expect(
+        (command as any)['validateLibDirectory']('/project/lib')
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('cleanupPlatformOnly', () => {
+    it('should kill platform process when it exists and is not killed', () => {
+      const mockKill = jest.fn();
+      const mockProcess = {
+        killed: false,
+        pid: 12345,
+        kill: mockKill,
+      };
+      (command as any).platformProcess = mockProcess;
+
+      (command as any)['cleanupPlatformOnly']();
+
+      expect(mockKill).toHaveBeenCalledWith('SIGTERM');
+    });
+
+    it('should not attempt kill when platform process is null', () => {
+      (command as any).platformProcess = null;
+
+      expect(() => (command as any)['cleanupPlatformOnly']()).not.toThrow();
+    });
+
+    it('should not attempt kill when platform process is already killed', () => {
+      const mockKill = jest.fn();
+      const mockProcess = {
+        killed: true,
+        pid: 12345,
+        kill: mockKill,
+      };
+      (command as any).platformProcess = mockProcess;
+
+      (command as any)['cleanupPlatformOnly']();
+
+      expect(mockKill).not.toHaveBeenCalled();
+    });
+
+    it('should ignore errors during kill', () => {
+      const mockKill = jest.fn(() => {
+        throw new Error('EPERM');
+      });
+      const mockProcess = {
+        killed: false,
+        pid: 12345,
+        kill: mockKill,
+      };
+      (command as any).platformProcess = mockProcess;
+
+      expect(() => (command as any)['cleanupPlatformOnly']()).not.toThrow();
+    });
+  });
+
+  describe('showSuccessMessage', () => {
+    it('should log success message with server URL', () => {
+      const { logger } = jest.requireMock('../utils/logger');
+
+      (command as any)['showSuccessMessage']('http://192.168.1.5:3000');
+
+      expect(logger.success).toHaveBeenCalledWith(
+        expect.stringContaining('http://192.168.1.5:3000')
+      );
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Ctrl+C'));
+    });
+  });
 });

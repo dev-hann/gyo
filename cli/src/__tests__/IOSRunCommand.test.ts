@@ -163,6 +163,40 @@ describe('IOSRunCommand', () => {
       const result = await command['buildAndInstallApp']('/ios', 'com.example.app');
       expect(result).toBe('XTL-ABC123.com.example.app');
     });
+
+    it('should show YAML parsing hints on typeMismatch build failure', async () => {
+      mockedExec.mockResolvedValue(
+        await makeExecResult(false, '', 'error: typeMismatch in xtool.yml')
+      );
+
+      await expect(command['buildAndInstallApp']('/ios', 'com.example.app')).rejects.toThrow(
+        BuildFailedError
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('YAML parsing error'));
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('bundleID'));
+    });
+
+    it('should show YAML parsing hints on Expected to decode Scalar failure', async () => {
+      mockedExec.mockResolvedValue(
+        await makeExecResult(false, '', 'fatal error: Expected to decode Scalar')
+      );
+
+      await expect(command['buildAndInstallApp']('/ios', 'com.example.app')).rejects.toThrow(
+        BuildFailedError
+      );
+
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('YAML parsing error'));
+    });
+
+    it('should discover bundle ID from XTL pattern in stderr', async () => {
+      mockedExec.mockResolvedValue(
+        await makeExecResult(true, '', 'Installed XTL-XYZ789.com.example.app successfully')
+      );
+
+      const result = await command['buildAndInstallApp']('/ios', 'com.example.app');
+      expect(result).toBe('XTL-XYZ789.com.example.app');
+    });
   });
 
   describe('updateServerUrl', () => {
@@ -271,6 +305,20 @@ describe('IOSRunCommand', () => {
       mockProc.emit('error', new Error('spawn failed'));
 
       await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should warn when process exits with non-zero code', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      mockProc.emit('exit', 1);
+
+      await expect(promise).resolves.toBeUndefined();
+      expect(logger.warn).toHaveBeenCalledWith('Log monitoring stopped');
     });
 
     it('should log stdout lines as info', async () => {
