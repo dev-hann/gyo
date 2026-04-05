@@ -4,7 +4,7 @@
 export interface BridgeRequest {
   bridgeName: string;
   methodName: string;
-  data?: any;
+  data?: unknown;
   callbackId: string;
 }
 
@@ -14,7 +14,7 @@ export interface BridgeRequest {
 export interface BridgeResponse {
   callbackId: string;
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
@@ -23,13 +23,13 @@ export interface BridgeResponse {
  */
 export interface BridgeEvent {
   bridgeName: string;
-  data: any;
+  data: unknown;
 }
 
 /**
  * Callback for event listeners
  */
-export type EventCallback = (data: any) => void;
+export type EventCallback = (data: unknown) => void;
 
 /**
  * Unsubscribe function
@@ -58,7 +58,7 @@ export interface AndroidBridge {
  * iOS bridge interface
  */
 export interface IOSMessageHandler {
-  postMessage(message: any): void;
+  postMessage(message: unknown): void;
 }
 
 /**
@@ -73,9 +73,9 @@ declare global {
       };
     };
     gyoBridge?: {
-      resolve: (callbackId: string, data: any) => void;
+      resolve: (callbackId: string, data: unknown) => void;
       reject: (callbackId: string, error: string) => void;
-      publish: (bridgeName: string, data: any) => void;
+      publish: (bridgeName: string, data: unknown) => void;
     };
   }
 }

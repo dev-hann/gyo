@@ -92,6 +92,7 @@ export class Geolocation {
   private static watchCallbacks: Map<number, (pos: Position) => void> = new Map();
   private static errorCallbacks: Map<number, (error: PositionError) => void> = new Map();
   private static unsubscribe: (() => void) | null = null;
+  private static nextWatchId: number = 1;
 
   /**
    * Get current device position (one-time)
@@ -122,7 +123,7 @@ export class Geolocation {
     successCallback: (position: Position) => void,
     errorCallback?: (error: PositionError) => void
   ): number {
-    const watchId = Math.floor(Math.random() * 1000000);
+    const watchId = this.nextWatchId++;
     
     this.watchCallbacks.set(watchId, successCallback);
     if (errorCallback) {

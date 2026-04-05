@@ -5,6 +5,7 @@ import { logger } from "../../utils/logger";
 import { executeCommand } from "../../utils/exec";
 import { pathExists, writeFile } from "../../utils/fs";
 import { getProfileUrl } from "../../services/config.service";
+import { BuildFailedError } from "../../core/errors";
 
 export interface BuildCommandOptions extends PlatformCommandOptions {
   profile: string;
@@ -38,7 +39,7 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
       if (!libBuildResult.success) {
         this.failSpinner("Lib build failed");
         logger.error(libBuildResult.stderr || libBuildResult.stdout);
-        process.exit(1);
+        throw new BuildFailedError("Lib build failed");
       }
 
       this.succeedSpinner("Lib assets built successfully");
