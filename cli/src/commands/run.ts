@@ -51,7 +51,6 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
   }
 
   private showNoDevicesError(): void {
-    logger.error('No devices found');
     logger.error('Please connect a device or start an emulator');
     logger.info('');
     logger.info('Troubleshooting:');

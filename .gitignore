@@ -8,14 +8,19 @@
 /cli/node_modules
 /cli/dist
 /node_modules
+/plugins/*/node_modules
 /package-lock.json
 
 # Build caches
 .build/
 **/.build/
+**/dist/
 
 # Plugin system
 .gyo/cache/
+
+# Coverage
+coverage/
 
 # Archives
 *.tgz

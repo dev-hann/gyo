@@ -43,9 +43,10 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
 
       await this.performUpgrade(targetVersion);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Upgrade failed: ${message}`);
-      throw new GyoError(message);
+      if (error instanceof GyoError) {
+        throw error;
+      }
+      throw new GyoError(error instanceof Error ? error.message : String(error));
     }
   }
 

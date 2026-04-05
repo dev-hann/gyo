@@ -188,6 +188,74 @@ describe('AbstractRunCommand', () => {
     });
   });
 
+  describe('monitorLogs', () => {
+    it('should resolve immediately when platformProcess is null', async () => {
+      (command as any).platformProcess = null;
+
+      await expect(command['monitorLogs']('test')).resolves.toBeUndefined();
+    });
+
+    it('should resolve when error occurs during cleanup', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = true;
+
+      const promise = command['monitorLogs']('test');
+
+      mockProcess.emit('error', new Error('process error'));
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should reject on error when not cleaning up', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = false;
+
+      const promise = command['monitorLogs']('test');
+
+      mockProcess.emit('error', new Error('process error'));
+
+      await expect(promise).rejects.toThrow('process error');
+    });
+
+    it('should resolve on exit with code 0', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = false;
+
+      const promise = command['monitorLogs']('test');
+
+      mockProcess.emit('exit', 0);
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should resolve on non-zero exit when cleaning up', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = true;
+
+      const promise = command['monitorLogs']('test');
+
+      mockProcess.emit('exit', 1);
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+  });
+
   describe('getLocalIP', () => {
     it('should return localhost when no external interface found', async () => {
       const ip = await command.testGetLocalIP();

@@ -427,6 +427,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       this.platformProcess.on('error', (error) => {
         if (!this.isCleaningUp) {
           reject(error);
+        } else {
+          resolve();
         }
       });
     });

@@ -369,10 +369,29 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async createLocalProperties(androidPath: string): Promise<void> {
-    const androidHome =
-      process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || `${process.env.HOME}/Android/Sdk`;
+    const candidates = [
+      process.env.ANDROID_HOME,
+      process.env.ANDROID_SDK_ROOT,
+      `${process.env.HOME}/Android/Sdk`,
+      `${process.env.HOME}/android-sdk`,
+      '/opt/android-sdk',
+    ].filter(Boolean) as string[];
 
-    const content = `sdk.dir=${androidHome}\n`;
+    let sdkPath: string | null = null;
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        sdkPath = candidate;
+        break;
+      }
+    }
+
+    if (!sdkPath) {
+      logger.warn('Android SDK not found. Set ANDROID_HOME or install Android Studio.');
+      logger.warn('You can set the SDK path later in android/local.properties');
+      return;
+    }
+
+    const content = `sdk.dir=${sdkPath}\n`;
     await writeFile(path.join(androidPath, 'local.properties'), content);
   }
 

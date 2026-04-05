@@ -36,6 +36,7 @@ jest.mock('fs-extra', () => ({
 import { UpgradeCommand } from '../commands/upgrade';
 import { executeCommand } from '../utils/exec';
 import { logger } from '../utils/logger';
+import { GyoError } from '../core/index';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 
@@ -117,5 +118,38 @@ describe('UpgradeCommand', () => {
     command.setOptions({});
 
     await expect(command['run']()).rejects.toThrow();
+  });
+
+  it('should not double-log errors', async () => {
+    mockedExec.mockResolvedValueOnce({
+      success: false,
+      stdout: '',
+      stderr: 'network error',
+      code: 1,
+    });
+
+    command.setOptions({});
+
+    await expect(command['run']()).rejects.toThrow();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('should re-throw GyoError without rewrapping', async () => {
+    mockedExec.mockResolvedValueOnce({
+      success: false,
+      stdout: '',
+      stderr: 'fail',
+      code: 1,
+    });
+
+    command.setOptions({});
+
+    try {
+      await command['run']();
+      fail('Expected error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(GyoError);
+      expect((error as GyoError).message).toBe('Could not fetch latest version from npm');
+    }
   });
 });

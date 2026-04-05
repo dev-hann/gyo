@@ -68,8 +68,8 @@ describe('RunCommand', () => {
     it('should log troubleshooting info', () => {
       command['showNoDevicesError']();
 
-      expect(logger.error).toHaveBeenCalledWith('No devices found');
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('ADB'));
+      expect(logger.error).toHaveBeenCalledWith('Please connect a device or start an emulator');
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Troubleshooting'));
     });
   });
 
