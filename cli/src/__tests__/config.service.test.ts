@@ -5,6 +5,7 @@ import {
   shouldStartLocalServer,
   validateConfig,
 } from '../services/config.service';
+import type { GyoConfig } from '../core/index';
 
 jest.mock('../utils/fs', () => ({
   readJson: jest.fn(),
@@ -97,7 +98,7 @@ describe('config.service', () => {
     it('should write config to gyo.config.json', async () => {
       mockedWriteJson.mockResolvedValue(undefined);
 
-      await saveConfig(validConfig as any, '/project');
+      await saveConfig(validConfig as GyoConfig, '/project');
 
       expect(mockedWriteJson).toHaveBeenCalledWith('/project/gyo.config.json', validConfig);
     });
@@ -105,7 +106,7 @@ describe('config.service', () => {
     it('should use process.cwd() as default project path', async () => {
       mockedWriteJson.mockResolvedValue(undefined);
 
-      await saveConfig(validConfig as any);
+      await saveConfig(validConfig as GyoConfig);
 
       expect(mockedWriteJson).toHaveBeenCalledWith(
         expect.stringContaining('gyo.config.json'),
@@ -122,7 +123,7 @@ describe('config.service', () => {
           development: { serverUrl: 'http://dev.local' },
           production: { serverUrl: 'https://prod.example.com' },
         },
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(getProfileUrl(config, 'development')).toBe('http://dev.local');
     });
@@ -134,7 +135,7 @@ describe('config.service', () => {
           development: { serverUrl: 'http://dev.local' },
           production: { serverUrl: 'https://prod.example.com' },
         },
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(getProfileUrl(config, 'production')).toBe('https://prod.example.com');
     });
@@ -143,7 +144,7 @@ describe('config.service', () => {
       const config = {
         ...validConfig,
         serverUrl: 'http://legacy.local',
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(getProfileUrl(config, 'staging')).toBe('http://legacy.local');
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('legacy serverUrl'));
@@ -155,7 +156,7 @@ describe('config.service', () => {
         profiles: {
           development: { serverUrl: '  ' },
         },
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(() => getProfileUrl(config, 'development')).toThrow(
         "Profile 'development' serverUrl cannot be empty"
@@ -166,13 +167,13 @@ describe('config.service', () => {
       const config = {
         ...validConfig,
         serverUrl: '  ',
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(() => getProfileUrl(config, 'staging')).toThrow('serverUrl cannot be empty');
     });
 
     it('should throw when profile not found and no legacy serverUrl', () => {
-      const config = { ...validConfig } as any;
+      const config = { ...validConfig } as unknown as GyoConfig;
 
       expect(() => getProfileUrl(config, 'staging')).toThrow("Profile 'staging' not found");
     });
@@ -183,7 +184,7 @@ describe('config.service', () => {
         profiles: {
           development: { serverUrl: 'http://dev.local' },
         },
-      } as any;
+      } as unknown as GyoConfig;
 
       expect(getProfileUrl(config)).toBe('http://dev.local');
     });
@@ -191,15 +192,15 @@ describe('config.service', () => {
 
   describe('shouldStartLocalServer', () => {
     it('should return true for development profile', () => {
-      expect(shouldStartLocalServer(validConfig as any, 'development')).toBe(true);
+      expect(shouldStartLocalServer(validConfig as GyoConfig, 'development')).toBe(true);
     });
 
     it('should return false for production profile', () => {
-      expect(shouldStartLocalServer(validConfig as any, 'production')).toBe(false);
+      expect(shouldStartLocalServer(validConfig as GyoConfig, 'production')).toBe(false);
     });
 
     it('should default to development profile', () => {
-      expect(shouldStartLocalServer(validConfig as any)).toBe(true);
+      expect(shouldStartLocalServer(validConfig as GyoConfig)).toBe(true);
     });
   });
 
