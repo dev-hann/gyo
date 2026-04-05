@@ -260,6 +260,8 @@ export class IOSRunCommand extends AbstractRunCommand {
         this.platformProcess.on('error', (error) => {
           if (!this.isCleaningUp) {
             reject(error);
+          } else {
+            resolve();
           }
         });
       } else {

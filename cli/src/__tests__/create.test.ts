@@ -64,6 +64,34 @@ describe('CreateCommand', () => {
     await expect(emptyCommand.testRun()).rejects.toThrow(GyoError);
   });
 
+  it('should throw GyoError for whitespace-only project name', async () => {
+    const wsCommand = new TestableCreateCommand();
+    wsCommand.setProjectName('   ');
+
+    await expect(wsCommand.testRun()).rejects.toThrow(GyoError);
+  });
+
+  it('should throw GyoError for project name with path separator /', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setProjectName('evil/path');
+
+    await expect(cmd.testRun()).rejects.toThrow('path separators');
+  });
+
+  it('should throw GyoError for project name with path separator \\', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setProjectName('evil\\path');
+
+    await expect(cmd.testRun()).rejects.toThrow('path separators');
+  });
+
+  it('should throw GyoError for project name with ..', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setProjectName('..');
+
+    await expect(cmd.testRun()).rejects.toThrow('path separators');
+  });
+
   it('should throw DirectoryExistsError when target exists', async () => {
     mockedPathExists.mockResolvedValue(true);
 

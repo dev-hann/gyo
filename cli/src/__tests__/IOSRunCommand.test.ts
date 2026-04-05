@@ -48,11 +48,14 @@ jest.mock('fs-extra', () => ({
   remove: jest.fn().mockResolvedValue(undefined),
 }));
 
+import { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import { IOSRunCommand } from '../commands/run/IOSRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { pathExists, readFile } from '../utils/fs';
 import { CommandNotFoundError, BuildFailedError } from '../core/errors';
+import { spawn } from 'child_process';
+import { logger } from '../utils/logger';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
@@ -61,6 +64,7 @@ const mockedReadFile = readFile as unknown as jest.Mock;
 const mockedFsEnsureDir = fs.ensureDir as unknown as jest.Mock;
 const mockedFsWriteFile = fs.writeFile as unknown as jest.Mock;
 const mockedFsRemove = fs.remove as unknown as jest.Mock;
+const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
   return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
@@ -170,6 +174,120 @@ describe('IOSRunCommand', () => {
       expect(mockedFsEnsureDir).toHaveBeenCalled();
       expect(mockedFsWriteFile).toHaveBeenCalled();
       expect(mockedFsRemove).toHaveBeenCalled();
+    });
+  });
+
+  describe('showSuccessMessage', () => {
+    it('should log success with server URL and tap hint', () => {
+      command['showSuccessMessage']('http://192.168.1.1:3000');
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('tap the app icon'));
+      expect(logger.success).toHaveBeenCalledWith(
+        expect.stringContaining('http://192.168.1.1:3000')
+      );
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Ctrl+C'));
+    });
+  });
+
+  describe('monitorLogs', () => {
+    function createMockProc() {
+      const proc = new EventEmitter() as any;
+      proc.stdout = new EventEmitter();
+      proc.stderr = new EventEmitter();
+      proc.kill = jest.fn();
+      proc.killed = false;
+      return proc;
+    }
+
+    async function waitForSpawn(): Promise<void> {
+      for (let i = 0; i < 50; i++) {
+        await new Promise((r) => setImmediate(r));
+        if (mockedSpawn.mock.calls.length > 0) return;
+      }
+      throw new Error('spawn was never called');
+    }
+
+    it('should warn and resolve when idevicesyslog not found', async () => {
+      mockedCheck.mockResolvedValue(false);
+
+      await command['monitorLogs']('com.example.app');
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('idevicesyslog not found'));
+    });
+
+    it('should spawn idevicesyslog with -m flag', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      expect(mockedSpawn).toHaveBeenCalledWith(
+        'idevicesyslog',
+        ['-m', 'com.example.app'],
+        expect.objectContaining({ detached: true })
+      );
+
+      mockProc.emit('exit', 0);
+      await promise;
+    });
+
+    it('should resolve on process exit', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      mockProc.emit('exit', 0);
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should reject on error when not cleaning up', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      mockProc.emit('error', new Error('spawn failed'));
+
+      await expect(promise).rejects.toThrow('spawn failed');
+    });
+
+    it('should resolve on error when cleaning up', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+      (command as any).isCleaningUp = true;
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      mockProc.emit('error', new Error('spawn failed'));
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should log stdout lines as info', async () => {
+      mockedCheck.mockResolvedValue(true);
+      const mockProc = createMockProc();
+      mockedSpawn.mockReturnValue(mockProc as any);
+
+      const promise = command['monitorLogs']('com.example.app');
+      await waitForSpawn();
+
+      mockProc.stdout.emit('data', Buffer.from('log line 1\nlog line 2\n'));
+
+      mockProc.emit('exit', 0);
+      await promise;
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('log line 1'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('log line 2'));
     });
   });
 });

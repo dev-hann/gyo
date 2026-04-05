@@ -34,6 +34,8 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
     const options = args.pop();
     const positionalArgs = args;
 
+    cmd.setOptions(options);
+
     if (cmd instanceof BuildCommand) {
       cmd.setPlatform(positionalArgs[0] as Platform);
     } else if (cmd instanceof CleanCommand) {
@@ -44,7 +46,6 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
       cmd.setPlatform(positionalArgs[0] as Platform);
     }
 
-    cmd.setOptions(options);
     await cmd.execute();
   });
 }

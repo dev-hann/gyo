@@ -139,10 +139,7 @@ describe('device.service', () => {
     });
 
     it('should parse connected iOS devices with name and model', async () => {
-      mockedCheck
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
+      mockedCheck.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
       mockedExec
         .mockResolvedValueOnce(mockExecResult({ stdout: 'abc123\ndef456\n' }))
         .mockResolvedValueOnce(mockExecResult({ stdout: 'iPhone\n' }))

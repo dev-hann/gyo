@@ -70,6 +70,8 @@ export async function getIOSDevices(): Promise<Device[]> {
     return devices;
   }
 
+  const hasIdeviceInfo = await checkCommandExists('ideviceinfo');
+
   try {
     const deviceResult = await executeCommand('idevice_id', ['-l'], { stdio: 'pipe' });
 
@@ -88,7 +90,7 @@ export async function getIOSDevices(): Promise<Device[]> {
         let deviceName = 'iOS Device';
         let deviceModel = '';
 
-        if (await checkCommandExists('ideviceinfo')) {
+        if (hasIdeviceInfo) {
           const nameResult = await executeCommand(
             'ideviceinfo',
             ['-u', deviceId, '-k', 'DeviceName'],

@@ -72,8 +72,12 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private validateProjectName(): void {
-    if (!this.options.projectName || this.options.projectName.trim() === '') {
+    const name = this.options.projectName;
+    if (!name || name.trim() === '') {
       throw new GyoError('Project name cannot be empty');
+    }
+    if (/[/\\]/.test(name) || name.includes('..')) {
+      throw new GyoError('Project name cannot contain path separators or ".."');
     }
   }
 
