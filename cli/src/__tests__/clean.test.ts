@@ -193,8 +193,14 @@ describe('CleanCommand', () => {
       command.setPlatform('ios');
 
       const GyoError = jest.requireActual('../core/errors').GyoError;
-      await expect(command['run']()).rejects.toThrow(GyoError);
-      await expect(command['run']()).rejects.toThrow('disk error');
+      let thrownError: unknown;
+      try {
+        await command['run']();
+      } catch (error) {
+        thrownError = error;
+      }
+      expect(thrownError).toBeInstanceOf(GyoError);
+      expect((thrownError as Error).message).toContain('disk error');
     });
   });
 });

@@ -369,5 +369,33 @@ describe('config.service', () => {
       };
       expect(validateConfig(config)).toBe(true);
     });
+
+    it('should reject profiles when it is null', () => {
+      expect(validateConfig({ ...validConfig, profiles: null })).toBe(false);
+    });
+
+    it('should reject profiles when it is a non-object string', () => {
+      expect(validateConfig({ ...validConfig, profiles: 'bad' })).toBe(false);
+    });
+
+    it('should reject profile entry when it is a string', () => {
+      const config = {
+        ...validConfig,
+        profiles: { development: 'not-an-object' },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should reject profile entry when it is null', () => {
+      const config = {
+        ...validConfig,
+        profiles: { development: null },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should reject platforms when it is a non-object string', () => {
+      expect(validateConfig({ ...validConfig, platforms: 'bad' as any })).toBe(false);
+    });
   });
 });

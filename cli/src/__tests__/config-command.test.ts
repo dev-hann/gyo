@@ -266,6 +266,37 @@ describe('ConfigCommand', () => {
         expect.objectContaining({ enabled: false })
       );
     });
+
+    it('should include previous value in success message when overwriting', async () => {
+      command.setAction('set');
+      command.setKeyValue('name', 'renamed-app');
+      mockedLoadConfig.mockResolvedValue(freshConfig());
+
+      await command['run']();
+
+      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('(was: "my-app")'));
+    });
+
+    it('should omit previous value in success message when key has no prior value', async () => {
+      const config = freshConfig();
+      (config as Record<string, unknown>).newKey = undefined;
+      command.setAction('set');
+      command.setKeyValue('newKey', 'fresh');
+      mockedLoadConfig.mockResolvedValue(config);
+
+      await command['run']();
+
+      expect(logger.success).toHaveBeenCalledWith(expect.not.stringContaining('(was:'));
+    });
+
+    it('should propagate error when saveConfig rejects', async () => {
+      command.setAction('set');
+      command.setKeyValue('name', 'new-name');
+      mockedLoadConfig.mockResolvedValue(freshConfig());
+      mockedSaveConfig.mockRejectedValue(new Error('disk full'));
+
+      await expect(command['run']()).rejects.toThrow('disk full');
+    });
   });
 
   describe('getConfig', () => {
