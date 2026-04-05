@@ -61,6 +61,19 @@ describe('ConfigCommand', () => {
 
       await expect(command['run']()).rejects.toThrow('Configuration not found');
     });
+
+    it('should display config as JSON when found', async () => {
+      command.setAction('show');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      const logSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      await command['run']();
+
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('my-app'));
+
+      logSpy.mockRestore();
+    });
   });
 
   describe('setConfig', () => {
@@ -134,6 +147,40 @@ describe('ConfigCommand', () => {
 
       await expect(command['run']()).rejects.toThrow('Invalid configuration key');
     });
+
+    it('should throw when key is missing', async () => {
+      command.setAction('set');
+
+      await expect(command['run']()).rejects.toThrow('Key and value are required');
+    });
+
+    it('should throw when value is undefined', async () => {
+      command.setAction('set');
+      command.setKeyValue('name');
+
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await expect(command['run']()).rejects.toThrow('Key and value are required');
+    });
+
+    it('should throw GyoError when config not found on set', async () => {
+      command.setAction('set');
+      command.setKeyValue('name', 'value');
+      mockedLoadConfig.mockResolvedValue(null);
+
+      await expect(command['run']()).rejects.toThrow('Configuration not found');
+    });
+
+    it('should keep empty string as string not convert to 0', async () => {
+      command.setAction('set');
+      command.setKeyValue('version', '');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect(saved.version).toBe('');
+    });
   });
 
   describe('getConfig', () => {
@@ -172,6 +219,14 @@ describe('ConfigCommand', () => {
       mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
 
       await expect(command['run']()).rejects.toThrow('Configuration key not found');
+    });
+
+    it('should throw GyoError when config not found on get', async () => {
+      command.setAction('get');
+      command.setKeyValue('name');
+      mockedLoadConfig.mockResolvedValue(null);
+
+      await expect(command['run']()).rejects.toThrow('Configuration not found');
     });
   });
 });

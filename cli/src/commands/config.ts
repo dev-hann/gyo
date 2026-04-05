@@ -93,7 +93,9 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     let parsedValue: string | number | boolean = this.options.value;
     if (this.options.value === 'true') parsedValue = true;
     else if (this.options.value === 'false') parsedValue = false;
-    else if (!isNaN(Number(this.options.value))) parsedValue = Number(this.options.value);
+    else if (this.options.value.trim() !== '' && !isNaN(Number(this.options.value))) {
+      parsedValue = Number(this.options.value);
+    }
 
     current[lastKey] = parsedValue;
 
