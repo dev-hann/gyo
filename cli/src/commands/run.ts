@@ -101,23 +101,21 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
 
     logger.log('');
 
+    const choices = devices.map((device: Device, index: number) => ({
+      name: `[${device.platform.toUpperCase()}] ${device.name} (${device.id})`,
+      value: index,
+    }));
+
     const answer = await inquirer.prompt([
       {
-        type: 'input',
+        type: 'select' as const,
         name: 'deviceIndex',
-        message: 'Select a device (enter number):',
-        validate: (input: string): boolean | string => {
-          const num = parseInt(input);
-          if (isNaN(num) || num < 1 || num > devices.length) {
-            return `Please enter a number between 1 and ${devices.length}`;
-          }
-          return true;
-        },
+        message: 'Select a device:',
+        choices,
       },
     ]);
 
-    const selectedIndex = parseInt(answer.deviceIndex) - 1;
-    return devices[selectedIndex];
+    return devices[answer.deviceIndex];
   }
 
   private createCommand(device: Device): AndroidRunCommand | IOSRunCommand {

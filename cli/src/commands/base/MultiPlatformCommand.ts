@@ -47,7 +47,14 @@ export abstract class MultiPlatformCommand<
     processor: (platform: string) => Promise<void>
   ): Promise<void> {
     const platforms = this.getPlatformsToProcess();
-    await Promise.all(platforms.map((p) => processor(p)));
+    const results = await Promise.allSettled(platforms.map((p) => processor(p)));
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length > 0) {
+      const messages = failures
+        .map((f) => (f as PromiseRejectedResult).reason)
+        .map((r) => (r instanceof Error ? r.message : String(r)));
+      throw new Error(`Platform cleanup failed: ${messages.join('; ')}`);
+    }
   }
 
   protected async processPlatformsSequentially(

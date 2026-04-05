@@ -46,6 +46,7 @@ jest.mock('fs-extra', () => ({
 
 import { pathExists, ensureDir, writeFile, copyDir, readFile, readJson } from '../utils/fs';
 import { DirectoryExistsError, GyoError } from '../core/index';
+import fs from 'fs-extra';
 
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
@@ -110,10 +111,85 @@ describe('CreateCommand', () => {
     await expect(cmd.testRun()).rejects.toThrow('path separators');
   });
 
+  it('should throw GyoError for project name with spaces', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setOptions({ template: 'react' });
+    cmd.setProjectName('my app');
+
+    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
+  });
+
+  it('should throw GyoError for project name with special characters', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setOptions({ template: 'react' });
+    cmd.setProjectName('my@app');
+
+    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
+  });
+
+  it('should throw GyoError for project name starting with hyphen', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setOptions({ template: 'react' });
+    cmd.setProjectName('-my-app');
+
+    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
+  });
+
+  it('should throw GyoError for uppercase project name', async () => {
+    const cmd = new TestableCreateCommand();
+    cmd.setOptions({ template: 'react' });
+    cmd.setProjectName('MyApp');
+
+    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
+  });
+
+  it('should accept valid project name with hyphens', async () => {
+    mockedPathExists.mockResolvedValue(false);
+    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+    command.setProjectName('my-valid-app');
+
+    try {
+      await command.testRun();
+    } catch {
+      // may fail on later steps
+    }
+
+    expect(mockedEnsureDir).toHaveBeenCalled();
+  });
+
+  it('should accept valid project name with underscores', async () => {
+    mockedPathExists.mockResolvedValue(false);
+    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+    command.setProjectName('my_valid_app');
+
+    try {
+      await command.testRun();
+    } catch {
+      // may fail on later steps
+    }
+
+    expect(mockedEnsureDir).toHaveBeenCalled();
+  });
+
   it('should throw DirectoryExistsError when target exists', async () => {
     mockedPathExists.mockResolvedValue(true);
 
     await expect(command.testRun()).rejects.toThrow(DirectoryExistsError);
+  });
+
+  it('should remove existing directory and proceed when force is true', async () => {
+    mockedPathExists.mockResolvedValueOnce(true).mockResolvedValue(false);
+    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+    command.setOptions({ template: 'react', force: true });
+    command.setProjectName('my-app');
+
+    try {
+      await command.testRun();
+    } catch {
+      // may fail on later steps
+    }
+
+    expect(fs.remove).toHaveBeenCalledWith(expect.stringContaining('my-app'));
   });
 
   it('should create project directory and lib subdirectory', async () => {

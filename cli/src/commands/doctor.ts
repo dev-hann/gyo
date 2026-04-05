@@ -1,6 +1,7 @@
 import { BaseCommand, CommandMeta } from './base/index';
 import { logger } from '../utils/logger';
 import { checkCommandExists, executeCommand } from '../utils/exec';
+import { pathExists } from '../utils/fs';
 import { GyoError } from '../core/index';
 
 interface CheckResult {
@@ -42,13 +43,13 @@ export class DoctorCommand extends BaseCommand {
 
       logger.info('\nAndroid Development:');
       results.push(await this.checkAndroidSDK());
-      results.push(await this.runCheck(checks[4])); // ADB
-      results.push(await this.runCheck(checks[5])); // Gradle
+      results.push(await this.runCheck(checks[3])); // ADB
+      results.push(await this.runCheck(checks[4])); // Gradle
 
       logger.info('\niOS Development:');
-      results.push(await this.runCheck(checks[6])); // Swift
-      results.push(await this.runCheck(checks[7])); // xtool
-      results.push(await this.runCheck(checks[8])); // libimobiledevice
+      results.push(await this.runCheck(checks[5])); // Swift
+      results.push(await this.runCheck(checks[6])); // xtool
+      results.push(await this.runCheck(checks[7])); // libimobiledevice
 
       this.displaySummary(results);
     } catch (error) {
@@ -81,11 +82,6 @@ export class DoctorCommand extends BaseCommand {
         name: 'Git',
         command: 'git',
         versionArgs: ['--version'],
-        optional: true,
-      },
-      {
-        name: 'Android SDK',
-        command: '',
         optional: true,
       },
       {
@@ -194,10 +190,28 @@ export class DoctorCommand extends BaseCommand {
   private async checkAndroidSDK(): Promise<CheckResult> {
     const androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
 
+    if (!androidHome) {
+      return {
+        name: 'Android SDK',
+        passed: false,
+        message: 'ANDROID_HOME not set',
+        optional: true,
+      };
+    }
+
+    if (!(await pathExists(androidHome))) {
+      return {
+        name: 'Android SDK',
+        passed: false,
+        message: `ANDROID_HOME is set but path does not exist: ${androidHome}`,
+        optional: true,
+      };
+    }
+
     return {
       name: 'Android SDK',
-      passed: !!androidHome,
-      message: androidHome ? `Found at ${androidHome}` : 'ANDROID_HOME not set',
+      passed: true,
+      message: `Found at ${androidHome}`,
       optional: true,
     };
   }

@@ -4,6 +4,7 @@ import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
+import { readFile, pathExists } from '../../utils/fs';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -22,9 +23,32 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
     await this.buildApp(androidPath);
   }
 
+  private async checkSigningConfig(androidPath: string): Promise<void> {
+    const gradlePath = path.join(androidPath, 'app', 'build.gradle');
+    if (!(await pathExists(gradlePath))) return;
+
+    const content = await readFile(gradlePath);
+    if (!content.includes('storeFile')) {
+      logger.error('Release signing not configured.');
+      logger.error('Add a signing config to android/app/build.gradle:');
+      logger.error('  android { signingConfigs { release {');
+      logger.error('    storeFile file("keystore.jks")');
+      logger.error('    storePassword "..."');
+      logger.error('    keyAlias "..."');
+      logger.error('    keyPassword "..."');
+      logger.error('  } } }');
+      logger.error('See: https://developer.android.com/build/configure-apk-signing');
+      throw new BuildFailedError('Release signing config not found in build.gradle');
+    }
+  }
+
   private async buildApp(androidPath: string): Promise<void> {
     const task = this.options.release ? 'assembleRelease' : 'assembleDebug';
     const gradlew = getGradlew();
+
+    if (this.options.release) {
+      await this.checkSigningConfig(androidPath);
+    }
 
     this.updateSpinner(`Running ${task}...`);
 

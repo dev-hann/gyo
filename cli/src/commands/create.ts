@@ -18,6 +18,7 @@ import { GyoError, DirectoryExistsError } from '../core/index';
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName?: string;
   template: string;
+  force?: boolean;
 }
 
 interface PlaceholderContext {
@@ -69,6 +70,10 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
         {
           flags: '-t, --template <template>',
           description: 'Web framework (react, next). Skips framework prompt.',
+        },
+        {
+          flags: '-f, --force',
+          description: 'Overwrite existing project directory',
         },
       ],
     };
@@ -202,11 +207,21 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     if (/[/\\]/.test(name) || name.includes('..')) {
       throw new GyoError('Project name cannot contain path separators or ".."');
     }
+    if (!/^[a-z0-9]([a-z0-9\-_]*[a-z0-9])?$/.test(name)) {
+      throw new GyoError(
+        'Project name must contain only lowercase letters, numbers, hyphens, and underscores'
+      );
+    }
   }
 
   private async validateProjectDirectory(): Promise<void> {
     if (await pathExists(this.targetPath)) {
-      throw new DirectoryExistsError(path.basename(this.targetPath), this.targetPath);
+      if (this.options.force) {
+        logger.warn(`Removing existing directory: ${this.targetPath}`);
+        await fs.remove(this.targetPath);
+      } else {
+        throw new DirectoryExistsError(path.basename(this.targetPath), this.targetPath);
+      }
     }
   }
 

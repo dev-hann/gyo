@@ -101,7 +101,7 @@ describe('RunCommand', () => {
 
     it('should prompt when multiple devices and no device specified', async () => {
       command.setOptions({ profile: 'dev' });
-      mockedPrompt.mockResolvedValue({ deviceIndex: '2' });
+      mockedPrompt.mockResolvedValue({ deviceIndex: 1 });
 
       const result = await command['selectDevice']([androidDevice, iosDevice]);
 

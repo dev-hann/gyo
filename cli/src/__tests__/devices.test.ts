@@ -94,6 +94,27 @@ describe('DevicesCommand', () => {
     await expect(command['run']()).rejects.toThrow('ADB crashed');
   });
 
+  it('should throw GyoError with ADB permission message on EACCES', async () => {
+    const eaccErr = Object.assign(new Error('EACCES'), { code: 'EACCES' });
+    mockedGetAllDevices.mockRejectedValue(eaccErr);
+
+    await expect(command['run']()).rejects.toThrow('ADB permission denied');
+  });
+
+  it('should throw GyoError with adb not found message on ENOENT', async () => {
+    const enoentErr = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+    mockedGetAllDevices.mockRejectedValue(enoentErr);
+
+    await expect(command['run']()).rejects.toThrow('adb not found');
+  });
+
+  it('should throw GyoError with original message on unknown error code', async () => {
+    const unknownErr = Object.assign(new Error('some failure'), { code: 'EPERM' });
+    mockedGetAllDevices.mockRejectedValue(unknownErr);
+
+    await expect(command['run']()).rejects.toThrow('some failure');
+  });
+
   it('should handle calculateColumnWidths for long names', async () => {
     const longNameDevice: Device = {
       platform: 'android',

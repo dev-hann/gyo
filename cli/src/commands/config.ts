@@ -61,7 +61,7 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
   private async showConfig(): Promise<void> {
     const config = await loadConfig(this.projectPath);
     if (!config) {
-      throw new GyoError('Configuration not found');
+      throw new GyoError("Configuration not found. Run 'gyo create' to scaffold a project");
     }
 
     logger.info('Current gyo configuration:\n');
@@ -90,9 +90,12 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
 
     const lastKey = keys[keys.length - 1];
 
+    const oldValue = current[lastKey];
+
     let parsedValue: string | number | boolean = this.options.value;
-    if (this.options.value === 'true') parsedValue = true;
-    else if (this.options.value === 'false') parsedValue = false;
+    const lowerValue = this.options.value.toLowerCase();
+    if (['true', 'yes', '1', 'on'].includes(lowerValue)) parsedValue = true;
+    else if (['false', 'no', '0', 'off'].includes(lowerValue)) parsedValue = false;
     else if (this.options.value.trim() !== '' && !isNaN(Number(this.options.value))) {
       parsedValue = Number(this.options.value);
     }
@@ -100,7 +103,8 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     current[lastKey] = parsedValue;
 
     await saveConfig(config, this.projectPath);
-    logger.success(`Set ${this.options.key} = ${parsedValue}`);
+    const wasText = oldValue !== undefined ? ` (was: ${JSON.stringify(oldValue)})` : '';
+    logger.success(`Set ${this.options.key} = ${parsedValue}${wasText}`);
   }
 
   private async getConfig(): Promise<void> {

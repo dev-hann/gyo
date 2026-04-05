@@ -52,8 +52,12 @@ function collectConfigErrors(raw: unknown): string[] {
     }
   }
 
-  if (obj.serverUrl !== undefined && typeof obj.serverUrl !== 'string') {
-    errors.push("'serverUrl' must be a string");
+  if (obj.serverUrl !== undefined) {
+    if (typeof obj.serverUrl !== 'string') {
+      errors.push("'serverUrl' must be a string");
+    } else if (!obj.serverUrl.startsWith('http://') && !obj.serverUrl.startsWith('https://')) {
+      errors.push('serverUrl must start with http:// or https://');
+    }
   }
 
   if (obj.profiles !== undefined) {
@@ -67,6 +71,11 @@ function collectConfigErrors(raw: unknown): string[] {
           const profile = value as Record<string, unknown>;
           if (typeof profile.serverUrl !== 'string') {
             errors.push(`'profiles.${key}.serverUrl' must be a string`);
+          } else if (
+            !profile.serverUrl.startsWith('http://') &&
+            !profile.serverUrl.startsWith('https://')
+          ) {
+            errors.push(`'profiles.${key}.serverUrl' must start with http:// or https://`);
           }
         }
       }

@@ -77,7 +77,14 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       }
     } else {
       if (!this.config.profiles?.[this.options.profile]) {
-        throw new Error(`Profile '${this.options.profile}' not found in gyo.config.json`);
+        const available = this.config.profiles ? Object.keys(this.config.profiles) : [];
+        const availableText =
+          available.length > 0
+            ? `Available profiles: ${available.join(', ')}`
+            : 'No profiles configured';
+        throw new Error(
+          `Profile '${this.options.profile}' not found in gyo.config.json. ${availableText}`
+        );
       }
 
       this.serverUrl = this.config.profiles[this.options.profile].serverUrl;
@@ -233,6 +240,10 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
       this.webServerProcess?.stderr?.on('data', (data: Buffer) => {
         const output = data.toString();
+
+        if (output.match(/error|EADDRINUSE|EACCES/i)) {
+          logger.error(`[web server] ${output.trim()}`);
+        }
 
         if (!serverReady && output.match(/ready|listening|started/i)) {
           serverReady = true;

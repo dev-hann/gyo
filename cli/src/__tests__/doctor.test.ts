@@ -38,10 +38,12 @@ jest.mock('../utils/logger', () => ({
 }));
 
 import { executeCommand, checkCommandExists } from '../utils/exec';
+import { pathExists } from '../utils/fs';
 import { logger } from '../utils/logger';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
+const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 
 function execResult(overrides: Partial<{ success: boolean; stdout: string }> = {}) {
   return { success: true, stdout: '', stderr: '', code: 0, ...overrides };
@@ -99,10 +101,104 @@ describe('DoctorCommand', () => {
       const originalHome = process.env.ANDROID_HOME;
       process.env.ANDROID_HOME = '/opt/android-sdk';
       mockedCheck.mockResolvedValue(false);
+      mockedPathExists.mockResolvedValue(true);
 
       await command.testRun();
 
       expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('/opt/android-sdk'));
+
+      if (originalHome) {
+        process.env.ANDROID_HOME = originalHome;
+      } else {
+        delete process.env.ANDROID_HOME;
+      }
+    });
+
+    it('should warn when ANDROID_HOME path does not exist', async () => {
+      const originalHome = process.env.ANDROID_HOME;
+      process.env.ANDROID_HOME = '/nonexistent/sdk';
+      mockedCheck.mockResolvedValue(false);
+      mockedPathExists.mockResolvedValue(false);
+
+      await command.testRun();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('ANDROID_HOME is set but path does not exist')
+      );
+
+      if (originalHome) {
+        process.env.ANDROID_HOME = originalHome;
+      } else {
+        delete process.env.ANDROID_HOME;
+      }
+    });
+
+    it('should use ANDROID_SDK_ROOT as fallback when ANDROID_HOME not set', async () => {
+      const originalHome = process.env.ANDROID_HOME;
+      const originalRoot = process.env.ANDROID_SDK_ROOT;
+      delete process.env.ANDROID_HOME;
+      process.env.ANDROID_SDK_ROOT = '/opt/android-sdk-root';
+      mockedCheck.mockResolvedValue(false);
+      mockedPathExists.mockResolvedValue(true);
+
+      await command.testRun();
+
+      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('/opt/android-sdk-root'));
+
+      if (originalHome) {
+        process.env.ANDROID_HOME = originalHome;
+      } else {
+        delete process.env.ANDROID_HOME;
+      }
+      if (originalRoot) {
+        process.env.ANDROID_SDK_ROOT = originalRoot;
+      } else {
+        delete process.env.ANDROID_SDK_ROOT;
+      }
+    });
+
+    it('should warn when ANDROID_SDK_ROOT path does not exist', async () => {
+      const originalHome = process.env.ANDROID_HOME;
+      const originalRoot = process.env.ANDROID_SDK_ROOT;
+      delete process.env.ANDROID_HOME;
+      process.env.ANDROID_SDK_ROOT = '/missing/sdk-root';
+      mockedCheck.mockResolvedValue(false);
+      mockedPathExists.mockResolvedValue(false);
+
+      await command.testRun();
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('path does not exist'));
+
+      if (originalHome) {
+        process.env.ANDROID_HOME = originalHome;
+      } else {
+        delete process.env.ANDROID_HOME;
+      }
+      if (originalRoot) {
+        process.env.ANDROID_SDK_ROOT = originalRoot;
+      } else {
+        delete process.env.ANDROID_SDK_ROOT;
+      }
+    });
+
+    it('should show optional tools as warnings when not installed', async () => {
+      const originalHome = process.env.ANDROID_HOME;
+      delete process.env.ANDROID_HOME;
+      mockedCheck.mockResolvedValue(true);
+      mockedPathExists.mockResolvedValue(false);
+      mockedExec.mockImplementation((cmd: string) => {
+        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v20.0.0' }));
+        if (cmd === 'npm') return Promise.resolve(execResult({ stdout: '10.0.0' }));
+        if (cmd === 'git') return Promise.resolve(execResult({ stdout: 'git version 2.40' }));
+        return Promise.resolve(execResult({ stdout: '' }));
+      });
+
+      await command.testRun();
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('(optional)'));
+      expect(logger.success).toHaveBeenCalledWith(
+        expect.stringContaining('Your environment is ready')
+      );
 
       if (originalHome) {
         process.env.ANDROID_HOME = originalHome;

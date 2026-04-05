@@ -58,6 +58,17 @@ function makeExecResult(success: boolean, stdout = '', stderr = '') {
   return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
 }
 
+function setupReleaseSigningMock(hasSigning: boolean): void {
+  const { readFile } = jest.requireMock('../utils/fs');
+  readFile.mockResolvedValue(
+    hasSigning ? 'android { signingConfigs { release { storeFile file("ks") } } }' : 'android { }'
+  );
+  mockedPathExists.mockImplementation(async (p: string) => {
+    if (p.endsWith('build.gradle')) return true;
+    return false;
+  });
+}
+
 describe('AndroidBuildCommand', () => {
   let command: AndroidBuildCommand;
 
@@ -167,6 +178,33 @@ describe('AndroidBuildCommand', () => {
       mockedPathExists.mockResolvedValue(false);
 
       await expect(command['buildPlatform']()).rejects.toThrow();
+    });
+  });
+
+  describe('checkSigningConfig', () => {
+    it('should throw BuildFailedError when storeFile not in build.gradle', async () => {
+      (command as any).options = { profile: 'production', release: true };
+      setupReleaseSigningMock(false);
+
+      await expect(command['buildApp']('/project/android')).rejects.toThrow(BuildFailedError);
+      await expect(command['buildApp']('/project/android')).rejects.toThrow(
+        'Release signing config not found'
+      );
+    });
+
+    it('should pass when storeFile exists in build.gradle', async () => {
+      (command as any).options = { profile: 'production', release: true };
+      setupReleaseSigningMock(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+
+      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
+    });
+
+    it('should skip signing check for debug builds', async () => {
+      mockedPathExists.mockResolvedValue(false);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+
+      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
     });
   });
 });

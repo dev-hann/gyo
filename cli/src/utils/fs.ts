@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { GyoError } from '../core/index';
 
 export async function ensureDir(dirPath: string): Promise<void> {
   await fs.ensureDir(dirPath);
@@ -51,5 +52,5 @@ export function getTemplatesPath(): string {
     }
   }
 
-  return path.join(__dirname, '../templates');
+  throw new GyoError('Project templates not found. Reinstall gyo CLI.');
 }

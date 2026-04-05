@@ -333,5 +333,41 @@ describe('config.service', () => {
       };
       expect(validateConfig(config)).toBe(true);
     });
+
+    it('should reject legacy serverUrl without http:// or https://', () => {
+      expect(validateConfig({ ...validConfig, serverUrl: 'ftp://bad.local' })).toBe(false);
+    });
+
+    it('should accept legacy serverUrl with http://', () => {
+      expect(validateConfig({ ...validConfig, serverUrl: 'http://localhost:3000' })).toBe(true);
+    });
+
+    it('should accept legacy serverUrl with https://', () => {
+      expect(validateConfig({ ...validConfig, serverUrl: 'https://prod.example.com' })).toBe(true);
+    });
+
+    it('should reject profile serverUrl without http:// or https://', () => {
+      const config = {
+        ...validConfig,
+        profiles: { development: { serverUrl: 'bad-url' } },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should accept profile serverUrl with http://', () => {
+      const config = {
+        ...validConfig,
+        profiles: { development: { serverUrl: 'http://dev.local' } },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should accept profile serverUrl with https://', () => {
+      const config = {
+        ...validConfig,
+        profiles: { production: { serverUrl: 'https://prod.example.com' } },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
   });
 });

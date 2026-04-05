@@ -59,7 +59,9 @@ describe('ConfigCommand', () => {
       command.setAction('show');
       mockedLoadConfig.mockResolvedValue(null);
 
-      await expect(command['run']()).rejects.toThrow('Configuration not found');
+      await expect(command['run']()).rejects.toThrow(
+        "Configuration not found. Run 'gyo create' to scaffold a project"
+      );
     });
 
     it('should display config as JSON when found', async () => {
@@ -180,6 +182,84 @@ describe('ConfigCommand', () => {
 
       const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
       expect(saved.version).toBe('');
+    });
+
+    it('should parse "yes" as boolean true', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'yes');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: true })
+      );
+    });
+
+    it('should parse "on" as boolean true', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'on');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: true })
+      );
+    });
+
+    it('should parse "1" as boolean true', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', '1');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: true })
+      );
+    });
+
+    it('should parse "no" as boolean false', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'no');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: false })
+      );
+    });
+
+    it('should parse "0" as boolean false', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', '0');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: false })
+      );
+    });
+
+    it('should parse "off" as boolean false', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'off');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: false })
+      );
     });
   });
 

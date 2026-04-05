@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import { BaseCommand, Platform, BaseCommandOptions } from './commands/base/index';
 import { BuildCommand } from './commands/build';
@@ -11,12 +14,24 @@ import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
 import { GyoError } from './core/index';
 
+function getVersion(): string {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const pkgPath = path.join(__dirname, '..', 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    return pkg.version;
+  } catch {
+    return '0.0.0';
+  }
+}
+
 const program = new Command();
 
 program
   .name('gyo')
   .description('CLI tool for gyo framework - Bridge between web and native')
-  .version('0.1.0');
+  .version(getVersion());
 
 function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
   const meta = cmd.getMeta();
@@ -109,5 +124,8 @@ process.on('unhandledRejection', (error: unknown) => {
 program.parse(process.argv);
 
 if (!process.argv.slice(2).length) {
+  console.log('');
+  console.log('\x1b[36mWelcome to gyo!\x1b[0m Get started: \x1b[1mgyo create my-app\x1b[0m');
+  console.log('');
   program.outputHelp();
 }

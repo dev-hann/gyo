@@ -36,7 +36,18 @@ export class DevicesCommand extends BaseCommand<DevicesCommandOptions> {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.failSpinner('Failed to detect devices');
+      this.stopSpinner();
+
+      if (error instanceof Error && 'code' in error) {
+        const code = (error as unknown as { code: string }).code;
+        if (code === 'EACCES') {
+          throw new GyoError('ADB permission denied. Run with sudo or check USB debugging.');
+        }
+        if (code === 'ENOENT') {
+          throw new GyoError('adb not found. Install Android SDK.');
+        }
+      }
+
       throw new GyoError(message);
     }
   }

@@ -125,6 +125,43 @@ describe('PlatformCommand', () => {
     });
   });
 
+  describe('runDirectly', () => {
+    it('should run all lifecycle steps successfully', async () => {
+      command.setPlatform('android');
+      mockedLoadConfig.mockResolvedValue({
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+      });
+
+      await expect(command.runDirectly()).resolves.toBeUndefined();
+    });
+
+    it('should throw PlatformNotFoundError directly without handleError', async () => {
+      command.setPlatform('windows' as Platform);
+
+      await expect(command.runDirectly()).rejects.toThrow(PlatformNotFoundError);
+    });
+
+    it('should throw GyoError when gyo.config.json not found', async () => {
+      command.setPlatform('android');
+      mockedPathExists.mockResolvedValue(false);
+
+      await expect(command.runDirectly()).rejects.toThrow('Not a gyo project');
+    });
+
+    it('should throw PlatformDisabledError when platform disabled', async () => {
+      command.setPlatform('android');
+      mockedLoadConfig.mockResolvedValue({
+        name: 'test',
+        version: '1.0.0',
+        platforms: { android: { enabled: false } },
+      });
+
+      await expect(command.runDirectly()).rejects.toThrow(PlatformDisabledError);
+    });
+  });
+
   describe('checkPlatformDirectoryExists', () => {
     it('should throw PlatformNotFoundError when directory missing', async () => {
       command.setPlatform('android');
