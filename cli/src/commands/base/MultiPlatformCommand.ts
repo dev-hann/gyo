@@ -1,5 +1,5 @@
-import { BaseCommand, BaseCommandOptions } from "./BaseCommand";
-import { InvalidPlatformError, GyoError } from "../../core/index";
+import { BaseCommand, BaseCommandOptions } from './BaseCommand';
+import { InvalidPlatformError } from '../../core/index';
 
 export type MultiPlatform = string;
 
@@ -8,9 +8,9 @@ export interface MultiPlatformCommandOptions extends BaseCommandOptions {
 }
 
 export abstract class MultiPlatformCommand<
-  T extends MultiPlatformCommandOptions = MultiPlatformCommandOptions
+  T extends MultiPlatformCommandOptions = MultiPlatformCommandOptions,
 > extends BaseCommand<T> {
-  protected platform: MultiPlatform = "all";
+  protected platform: MultiPlatform = 'all';
 
   setPlatform(platform: MultiPlatform): void {
     this.platform = platform;
@@ -29,22 +29,25 @@ export abstract class MultiPlatformCommand<
     const validPlatforms = this.getValidPlatforms();
     if (!validPlatforms.includes(this.platform)) {
       this.spinner.fail(`Invalid platform: ${this.platform}`);
-      throw new InvalidPlatformError(this.platform, validPlatforms.filter(p => p !== "all"));
+      throw new InvalidPlatformError(
+        this.platform,
+        validPlatforms.filter((p) => p !== 'all')
+      );
     }
   }
 
   protected abstract getValidPlatforms(): MultiPlatform[];
 
   protected getPlatformsToProcess(): string[] {
-    const validPlatforms = this.getValidPlatforms().filter(p => p !== "all");
-    return this.platform === "all" ? validPlatforms : [this.platform];
+    const validPlatforms = this.getValidPlatforms().filter((p) => p !== 'all');
+    return this.platform === 'all' ? validPlatforms : [this.platform];
   }
 
   protected async processAllPlatforms(
     processor: (platform: string) => Promise<void>
   ): Promise<void> {
     const platforms = this.getPlatformsToProcess();
-    await Promise.all(platforms.map(p => processor(p)));
+    await Promise.all(platforms.map((p) => processor(p)));
   }
 
   protected async processPlatformsSequentially(
