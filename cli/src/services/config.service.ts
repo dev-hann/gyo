@@ -5,6 +5,29 @@ import { GyoConfig } from '../core/index';
 
 export { GyoConfig } from '../core/index';
 
+export function validateConfig(raw: unknown): raw is GyoConfig {
+  if (typeof raw !== 'object' || raw === null) return false;
+  const obj = raw as Record<string, unknown>;
+
+  if (typeof obj.name !== 'string' || obj.name.trim() === '') return false;
+  if (typeof obj.version !== 'string' || obj.version.trim() === '') return false;
+
+  if (typeof obj.platforms !== 'object' || obj.platforms === null) return false;
+
+  if (obj.serverUrl !== undefined && typeof obj.serverUrl !== 'string') return false;
+
+  if (obj.profiles !== undefined) {
+    if (typeof obj.profiles !== 'object' || obj.profiles === null) return false;
+    for (const value of Object.values(obj.profiles as Record<string, unknown>)) {
+      if (typeof value !== 'object' || value === null) return false;
+      const profile = value as Record<string, unknown>;
+      if (typeof profile.serverUrl !== 'string') return false;
+    }
+  }
+
+  return true;
+}
+
 export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig | null> {
   const configPath = path.join(projectPath, 'gyo.config.json');
 
@@ -14,8 +37,14 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
   }
 
   try {
-    const config = await readJson(configPath);
-    return config as GyoConfig;
+    const raw = await readJson(configPath);
+    if (!validateConfig(raw)) {
+      logger.error(
+        'Invalid gyo.config.json: missing or invalid required fields (name, version, platforms)'
+      );
+      return null;
+    }
+    return raw;
   } catch (error) {
     logger.error(`Failed to load config: ${error}`);
     return null;
