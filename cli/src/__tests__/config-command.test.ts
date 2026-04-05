@@ -1,0 +1,177 @@
+import { ConfigCommand } from '../commands/config';
+
+jest.mock('../services/config.service', () => ({
+  loadConfig: jest.fn(),
+  validateConfig: jest.fn(),
+  saveConfig: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    success: jest.fn(),
+    debug: jest.fn(),
+    log: jest.fn(),
+    setVerbose: jest.fn(),
+    isVerbose: jest.fn().mockReturnValue(false),
+  },
+}));
+
+jest.mock('../utils/fs', () => ({
+  readJson: jest.fn(),
+  writeJson: jest.fn(),
+  pathExists: jest.fn().mockResolvedValue(false),
+  ensureDir: jest.fn(),
+  copyDir: jest.fn(),
+  writeFile: jest.fn(),
+  readFile: jest.fn(),
+  removeDir: jest.fn(),
+  getTemplatesPath: jest.fn(),
+}));
+
+import { loadConfig, saveConfig } from '../services/config.service';
+
+const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
+const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
+
+const sampleConfig = {
+  name: 'my-app',
+  version: '1.0.0',
+  serverUrl: 'http://localhost:3000',
+  platforms: {
+    android: { enabled: true, packageName: 'com.example.myapp' },
+    ios: { enabled: true, bundleId: 'com.example.myapp' },
+  },
+};
+
+describe('ConfigCommand', () => {
+  let command: ConfigCommand;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    command = new ConfigCommand();
+  });
+
+  describe('showConfig', () => {
+    it('should throw GyoError when config not found', async () => {
+      command.setAction('show');
+      mockedLoadConfig.mockResolvedValue(null);
+
+      await expect(command['run']()).rejects.toThrow('Configuration not found');
+    });
+  });
+
+  describe('setConfig', () => {
+    it('should set a top-level value', async () => {
+      command.setAction('set');
+      command.setKeyValue('name', 'new-name');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      expect(mockedSaveConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'new-name' }),
+        expect.any(String)
+      );
+    });
+
+    it('should set a nested value', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.android.packageName', 'com.new.pkg');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).android).toEqual(
+        expect.objectContaining({ packageName: 'com.new.pkg' })
+      );
+    });
+
+    it('should parse "true" as boolean true', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'true');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: true })
+      );
+    });
+
+    it('should parse "false" as boolean false', async () => {
+      command.setAction('set');
+      command.setKeyValue('platforms.ios.enabled', 'false');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
+        expect.objectContaining({ enabled: false })
+      );
+    });
+
+    it('should parse numeric strings as numbers', async () => {
+      command.setAction('set');
+      command.setKeyValue('version', '2');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
+      expect(saved.version).toBe(2);
+    });
+
+    it('should throw for invalid intermediate key', async () => {
+      command.setAction('set');
+      command.setKeyValue('nonexistent.key', 'value');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await expect(command['run']()).rejects.toThrow('Invalid configuration key');
+    });
+  });
+
+  describe('getConfig', () => {
+    it('should throw when key is not provided', async () => {
+      command.setAction('get');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await expect(command['run']()).rejects.toThrow('Key is required');
+    });
+
+    it('should get a top-level value', async () => {
+      command.setAction('get');
+      command.setKeyValue('name');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const { logger } = jest.requireMock('../utils/logger');
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('my-app'));
+    });
+
+    it('should get a nested value', async () => {
+      command.setAction('get');
+      command.setKeyValue('platforms.android.packageName');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await command['run']();
+
+      const { logger } = jest.requireMock('../utils/logger');
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('com.new.pkg'));
+    });
+
+    it('should throw for missing key path', async () => {
+      command.setAction('get');
+      command.setKeyValue('nonexistent.key');
+      mockedLoadConfig.mockResolvedValue({ ...sampleConfig });
+
+      await expect(command['run']()).rejects.toThrow('Configuration key not found');
+    });
+  });
+});

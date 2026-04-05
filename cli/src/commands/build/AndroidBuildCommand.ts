@@ -2,6 +2,7 @@ import * as path from "path";
 import { AbstractBuildCommand, BuildCommandOptions } from "./AbstractBuildCommand";
 import { logger } from "../../utils/logger";
 import { executeCommand } from "../../utils/exec";
+import { BuildFailedError } from "../../core/errors";
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta() {
@@ -41,7 +42,7 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
     } else {
       this.failSpinner("Android build failed");
       logger.error(result.stderr || result.stdout);
-      process.exit(1);
+      throw new BuildFailedError("Android build failed");
     }
   }
 }

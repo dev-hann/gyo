@@ -2,6 +2,7 @@ import * as path from "path";
 import { AbstractBuildCommand } from "./AbstractBuildCommand";
 import { logger } from "../../utils/logger";
 import { executeCommand, checkCommandExists } from "../../utils/exec";
+import { BuildFailedError } from "../../core/errors";
 
 export class IOSBuildCommand extends AbstractBuildCommand {
   getMeta() {
@@ -26,7 +27,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
     if (!(await checkCommandExists("xtool"))) {
       this.failSpinner("xtool not found");
       logger.error("Install xtool: https://xtool.sh");
-      process.exit(1);
+      throw new BuildFailedError("xtool not found");
     }
   }
 
@@ -37,14 +38,14 @@ export class IOSBuildCommand extends AbstractBuildCommand {
     if (!(await checkCommandExists("idevice_id"))) {
       this.warnSpinner("idevice_id not found - cannot build iOS without connected device");
       logger.error("Install libimobiledevice or use a Mac with Xcode");
-      process.exit(1);
+      throw new BuildFailedError("idevice_id not found");
     }
 
     const deviceCheckResult = await executeCommand("idevice_id", ["-l"], { stdio: "pipe" });
     if (!deviceCheckResult.success || !deviceCheckResult.stdout.trim()) {
       this.failSpinner("No iOS device connected");
       logger.error("Connect an iOS device to build. xtool requires a device for building.");
-      process.exit(1);
+      throw new BuildFailedError("No iOS device connected");
     }
   }
 
@@ -73,7 +74,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
       } else {
         logger.error(errorOutput);
       }
-      process.exit(1);
+      throw new BuildFailedError("iOS build failed");
     }
   }
 }

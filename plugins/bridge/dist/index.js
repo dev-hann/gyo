@@ -1,10 +1,13 @@
 // src/Bridge.ts
 var Bridge = class {
-  constructor(name) {
+  constructor(name, options = {}) {
     this.pendingCallbacks = /* @__PURE__ */ new Map();
     this.callbackCounter = 0;
     this.eventListeners = /* @__PURE__ */ new Set();
+    this.activeTimers = /* @__PURE__ */ new Set();
+    this.destroyed = false;
     this.name = name;
+    this.timeout = options.timeout ?? 3e4;
     this.setupGlobalBridge();
   }
   /**
@@ -73,15 +76,20 @@ var Bridge = class {
    * @returns Promise that resolves with the native response
    */
   invoke(method, data) {
+    if (this.destroyed) {
+      return Promise.reject(new Error("Bridge has been destroyed"));
+    }
     return new Promise((resolve, reject) => {
       const callbackId = this.generateCallbackId();
       this.pendingCallbacks.set(callbackId, { resolve, reject });
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        this.activeTimers.delete(timer);
         if (this.pendingCallbacks.has(callbackId)) {
           this.pendingCallbacks.delete(callbackId);
-          reject(new Error(`Bridge method '${method}' timed out`));
+          reject(new Error(`Bridge method '${method}' timed out after ${this.timeout}ms`));
         }
-      }, 3e4);
+      }, this.timeout);
+      this.activeTimers.add(timer);
       const request = {
         bridgeName: this.name,
         methodName: method,
@@ -117,6 +125,11 @@ var Bridge = class {
    * Clean up all pending callbacks and listeners
    */
   destroy() {
+    this.destroyed = true;
+    for (const timer of this.activeTimers) {
+      clearTimeout(timer);
+    }
+    this.activeTimers.clear();
     this.pendingCallbacks.clear();
     this.eventListeners.clear();
   }

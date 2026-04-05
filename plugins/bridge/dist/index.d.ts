@@ -4,7 +4,7 @@
 interface BridgeRequest {
     bridgeName: string;
     methodName: string;
-    data?: any;
+    data?: unknown;
     callbackId: string;
 }
 /**
@@ -13,7 +13,7 @@ interface BridgeRequest {
 interface BridgeResponse {
     callbackId: string;
     success: boolean;
-    data?: any;
+    data?: unknown;
     error?: string;
 }
 /**
@@ -21,16 +21,26 @@ interface BridgeResponse {
  */
 interface BridgeEvent {
     bridgeName: string;
-    data: any;
+    data: unknown;
 }
 /**
  * Callback for event listeners
  */
-type EventCallback = (data: any) => void;
+type EventCallback = (data: unknown) => void;
 /**
  * Unsubscribe function
  */
 type Unsubscribe = () => void;
+/**
+ * Bridge configuration options
+ */
+interface BridgeOptions {
+    /**
+     * Timeout in milliseconds for method invocation
+     * @default 30000
+     */
+    timeout?: number;
+}
 /**
  * Android bridge interface
  */
@@ -41,7 +51,7 @@ interface AndroidBridge {
  * iOS bridge interface
  */
 interface IOSMessageHandler {
-    postMessage(message: any): void;
+    postMessage(message: unknown): void;
 }
 /**
  * Extended window interface
@@ -55,9 +65,9 @@ declare global {
             };
         };
         gyoBridge?: {
-            resolve: (callbackId: string, data: any) => void;
+            resolve: (callbackId: string, data: unknown) => void;
             reject: (callbackId: string, error: string) => void;
-            publish: (bridgeName: string, data: any) => void;
+            publish: (bridgeName: string, data: unknown) => void;
         };
     }
 }
@@ -67,10 +77,13 @@ declare global {
  */
 declare class Bridge {
     private name;
+    private timeout;
     private pendingCallbacks;
     private callbackCounter;
     private eventListeners;
-    constructor(name: string);
+    private activeTimers;
+    private destroyed;
+    constructor(name: string, options?: BridgeOptions);
     /**
      * Setup global bridge interface for native to call
      */
@@ -106,4 +119,4 @@ declare class Bridge {
     destroy(): void;
 }
 
-export { Bridge, type BridgeEvent, type BridgeRequest, type BridgeResponse, type EventCallback, type Unsubscribe };
+export { Bridge, type BridgeEvent, type BridgeOptions, type BridgeRequest, type BridgeResponse, type EventCallback, type Unsubscribe };
