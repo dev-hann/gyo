@@ -1,10 +1,13 @@
 export class GyoError extends Error {
+  public readonly cause?: unknown;
   constructor(
     message: string,
-    public exitCode: number = 1
+    public exitCode: number = 1,
+    errorOptions?: { cause: unknown }
   ) {
     super(message);
     this.name = 'GyoError';
+    this.cause = errorOptions?.cause;
   }
 }
 

@@ -428,6 +428,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (error instanceof GyoError) {
       throw error;
     }
-    throw new GyoError(error instanceof Error ? error.message : String(error));
+    throw new GyoError(error instanceof Error ? error.message : String(error), 1, {
+      cause: error,
+    });
   }
 }

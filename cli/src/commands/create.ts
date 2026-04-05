@@ -67,7 +67,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       }
       const message = error instanceof Error ? error.message : String(error);
       this.failSpinner(`Failed to create project: ${message}`);
-      throw new GyoError(message);
+      throw new GyoError(message, 1, { cause: error });
     }
   }
 
