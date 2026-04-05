@@ -1,21 +1,21 @@
-import { Command } from "commander";
-import { BaseCommand, Platform, BaseCommandOptions } from "./commands/base/index";
-import { BuildCommand } from "./commands/build";
-import { RunCommand } from "./commands/run";
-import { CleanCommand } from "./commands/clean";
-import { ConfigCommand } from "./commands/config";
-import { CreateCommand } from "./commands/create";
-import { DoctorCommand } from "./commands/doctor";
-import { DevicesCommand } from "./commands/devices";
-import { UpgradeCommand } from "./commands/upgrade";
-import { DebugCommand } from "./commands/debug";
+import { Command } from 'commander';
+import { BaseCommand, Platform, BaseCommandOptions } from './commands/base/index';
+import { BuildCommand } from './commands/build';
+import { RunCommand } from './commands/run';
+import { CleanCommand } from './commands/clean';
+import { ConfigCommand } from './commands/config';
+import { CreateCommand } from './commands/create';
+import { DoctorCommand } from './commands/doctor';
+import { DevicesCommand } from './commands/devices';
+import { UpgradeCommand } from './commands/upgrade';
+import { DebugCommand } from './commands/debug';
 
 const program = new Command();
 
 program
-  .name("gyo")
-  .description("CLI tool for gyo framework - Bridge between web and native")
-  .version("0.1.0");
+  .name('gyo')
+  .description('CLI tool for gyo framework - Bridge between web and native')
+  .version('0.1.0');
 
 function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
   const meta = cmd.getMeta();
@@ -37,7 +37,7 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
     if (cmd instanceof BuildCommand) {
       cmd.setPlatform(positionalArgs[0] as Platform);
     } else if (cmd instanceof CleanCommand) {
-      cmd.setPlatform(positionalArgs[0] || "all");
+      cmd.setPlatform(positionalArgs[0] || 'all');
     } else if (cmd instanceof CreateCommand) {
       cmd.setProjectName(positionalArgs[0]);
     } else if (cmd instanceof DebugCommand) {
@@ -63,11 +63,11 @@ function registerConfigCommand(): void {
       const positionalArgs = args;
 
       const cmd = new ConfigCommand();
-      cmd.setAction(sub.name as "show" | "set" | "get");
+      cmd.setAction(sub.name as 'show' | 'set' | 'get');
 
-      if (sub.name === "set") {
+      if (sub.name === 'set') {
         cmd.setKeyValue(positionalArgs[0], positionalArgs[1]);
-      } else if (sub.name === "get") {
+      } else if (sub.name === 'get') {
         cmd.setKeyValue(positionalArgs[0]);
       }
 

@@ -258,5 +258,80 @@ describe('config.service', () => {
       };
       expect(validateConfig(config)).toBe(false);
     });
+
+    it('should reject android platform with non-boolean enabled', () => {
+      const config = {
+        ...validConfig,
+        platforms: { android: { enabled: 'yes' } },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should reject android platform with non-string packageName', () => {
+      const config = {
+        ...validConfig,
+        platforms: { android: { enabled: true, packageName: 123 } },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should accept android platform without packageName', () => {
+      const config = {
+        ...validConfig,
+        platforms: { android: { enabled: true } },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should reject ios platform with non-boolean enabled', () => {
+      const config = {
+        ...validConfig,
+        platforms: { ios: { enabled: 1 } },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should reject ios platform with non-string bundleId', () => {
+      const config = {
+        ...validConfig,
+        platforms: { ios: { enabled: true, bundleId: false } },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should accept ios platform without bundleId', () => {
+      const config = {
+        ...validConfig,
+        platforms: { ios: { enabled: true } },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should reject android platform that is null', () => {
+      const config = {
+        ...validConfig,
+        platforms: { android: null },
+      };
+      expect(validateConfig(config)).toBe(false);
+    });
+
+    it('should accept config with both platforms valid', () => {
+      const config = {
+        ...validConfig,
+        platforms: {
+          android: { enabled: true, packageName: 'com.test.app' },
+          ios: { enabled: false, bundleId: 'com.test.app' },
+        },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should accept config with empty platforms object', () => {
+      const config = {
+        ...validConfig,
+        platforms: {},
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
   });
 });

@@ -154,26 +154,14 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
     this.platformProcess.stderr?.on('data', () => {});
 
-    this.platformProcess.on('error', (error) => {
-      if (!this.isCleaningUp) {
-        logger.error(`Log monitoring error: ${error.message}`);
-      }
-    });
-
-    this.platformProcess.on('exit', (code) => {
-      if (!this.isCleaningUp && code !== 0) {
-        logger.warn('Log monitoring stopped');
-      }
-    });
-
     return new Promise<void>((resolve, reject) => {
       if (!this.platformProcess) {
         resolve();
         return;
       }
 
-      this.platformProcess.on('exit', () => {
-        if (!this.isCleaningUp) {
+      this.platformProcess.on('exit', (code) => {
+        if (!this.isCleaningUp && code !== 0) {
           logger.warn('Log monitoring stopped');
         }
         resolve();
@@ -181,6 +169,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
       this.platformProcess.on('error', (error) => {
         if (!this.isCleaningUp) {
+          logger.error(`Log monitoring error: ${error.message}`);
           reject(error);
         }
       });

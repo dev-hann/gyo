@@ -14,6 +14,20 @@ export function validateConfig(raw: unknown): raw is GyoConfig {
 
   if (typeof obj.platforms !== 'object' || obj.platforms === null) return false;
 
+  const platforms = obj.platforms as Record<string, unknown>;
+  if (platforms.android !== undefined) {
+    if (typeof platforms.android !== 'object' || platforms.android === null) return false;
+    const android = platforms.android as Record<string, unknown>;
+    if (typeof android.enabled !== 'boolean') return false;
+    if (android.packageName !== undefined && typeof android.packageName !== 'string') return false;
+  }
+  if (platforms.ios !== undefined) {
+    if (typeof platforms.ios !== 'object' || platforms.ios === null) return false;
+    const ios = platforms.ios as Record<string, unknown>;
+    if (typeof ios.enabled !== 'boolean') return false;
+    if (ios.bundleId !== undefined && typeof ios.bundleId !== 'string') return false;
+  }
+
   if (obj.serverUrl !== undefined && typeof obj.serverUrl !== 'string') return false;
 
   if (obj.profiles !== undefined) {

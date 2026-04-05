@@ -1,9 +1,9 @@
-import * as path from "path";
-import ora from "ora";
-import { loadConfig, GyoConfig } from "../../services/config.service";
-import { logger } from "../../utils/logger";
-import { pathExists } from "../../utils/fs";
-import { GyoError } from "../../core/index";
+import * as path from 'path';
+import ora from 'ora';
+import { loadConfig, GyoConfig } from '../../services/config.service';
+import { logger } from '../../utils/logger';
+import { pathExists } from '../../utils/fs';
+import { GyoError } from '../../core/index';
 
 export interface CommandOption {
   flags: string;
@@ -58,23 +58,23 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     try {
       this.config = await loadConfig(this.projectPath);
     } catch (error) {
-      this.spinner.fail("Failed to load gyo.config.json");
+      this.spinner.fail('Failed to load gyo.config.json');
       logger.error(error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
 
   protected async requireGyoProject(): Promise<void> {
-    const configPath = path.join(this.projectPath, "gyo.config.json");
+    const configPath = path.join(this.projectPath, 'gyo.config.json');
     if (!(await pathExists(configPath))) {
-      this.spinner.fail("Not a gyo project (gyo.config.json not found)");
+      this.spinner.fail('Not a gyo project (gyo.config.json not found)');
       logger.error("Run 'gyo create <project-name>' to create a new project");
-      throw new GyoError("Not a gyo project");
+      throw new GyoError('Not a gyo project');
     }
   }
 
   protected handleError(error: unknown): void {
-    this.spinner.fail("Command failed");
+    this.spinner.fail('Command failed');
     logger.error(error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
