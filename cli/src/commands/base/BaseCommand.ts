@@ -8,7 +8,7 @@ import { GyoError } from "../../core/index";
 export interface CommandOption {
   flags: string;
   description: string;
-  default?: any;
+  default?: string | boolean | string[];
 }
 
 export interface CommandMeta {

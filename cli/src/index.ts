@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { BaseCommand, Platform } from "./commands/base/index";
+import { BaseCommand, Platform, BaseCommandOptions } from "./commands/base/index";
 import { BuildCommand } from "./commands/build";
 import { RunCommand } from "./commands/run";
 import { CleanCommand } from "./commands/clean";
@@ -17,7 +17,7 @@ program
   .description("CLI tool for gyo framework - Bridge between web and native")
   .version("0.1.0");
 
-function registerCommand(cmd: BaseCommand<any>): void {
+function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
   const meta = cmd.getMeta();
   let c = program.command(meta.name).description(meta.description);
 
