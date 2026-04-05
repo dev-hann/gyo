@@ -121,4 +121,35 @@ describe('MultiPlatformCommand', () => {
       expect(order).toEqual(['android', 'ios', 'lib']);
     });
   });
+
+  describe('execute', () => {
+    it('should call run when platform is valid', async () => {
+      command.setPlatform('android');
+      const runSpy = jest.spyOn(command as any, 'run');
+
+      await command.execute();
+
+      expect(runSpy).toHaveBeenCalled();
+    });
+
+    it('should call handleError when validatePlatform throws', async () => {
+      command.setPlatform('windows');
+      const handleErrorSpy = jest.spyOn(command as any, 'handleError');
+
+      await expect(command.execute()).rejects.toThrow();
+
+      expect(handleErrorSpy).toHaveBeenCalled();
+    });
+
+    it('should call handleError when run throws', async () => {
+      command.setPlatform('android');
+      const runSpy = jest.spyOn(command as any, 'run').mockRejectedValue(new Error('run failed'));
+      const handleErrorSpy = jest.spyOn(command as any, 'handleError');
+
+      await expect(command.execute()).rejects.toThrow('run failed');
+
+      expect(runSpy).toHaveBeenCalled();
+      expect(handleErrorSpy).toHaveBeenCalled();
+    });
+  });
 });

@@ -35,9 +35,11 @@ jest.mock('../utils/fs', () => ({
   getTemplatesPath: jest.fn(),
 }));
 
+import { loadConfig } from '../services/config.service';
 import { logger } from '../utils/logger';
 import { pathExists } from '../utils/fs';
 
+const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 
 class TestableBaseCommand extends BaseCommand {
@@ -126,6 +128,24 @@ describe('BaseCommand', () => {
       mockedPathExists.mockResolvedValue(true);
 
       await expect(command.testRequireGyoProject()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('loadConfiguration', () => {
+    it('should set config on success', async () => {
+      const mockConfig = { name: 'test', version: '1.0.0', platforms: {} };
+      mockedLoadConfig.mockResolvedValue(mockConfig);
+
+      await command.testLoadConfiguration();
+
+      expect(command['config']).toEqual(mockConfig);
+    });
+
+    it('should throw and log error when loadConfig rejects', async () => {
+      mockedLoadConfig.mockRejectedValue(new Error('config missing'));
+
+      await expect(command.testLoadConfiguration()).rejects.toThrow('config missing');
+      expect(logger.error).toHaveBeenCalledWith('config missing');
     });
   });
 

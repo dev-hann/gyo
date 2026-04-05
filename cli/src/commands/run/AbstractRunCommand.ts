@@ -165,7 +165,10 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
 
     const startCommand = this.getStartCommand();
-    this.webServerProcess = spawn(startCommand, [], {
+    const isVite = startCommand.includes('vite') || startCommand.includes('npm run dev');
+    const finalCommand = isVite ? `${startCommand} --host 0.0.0.0` : startCommand;
+
+    this.webServerProcess = spawn(finalCommand, [], {
       cwd: webPath,
       stdio: 'pipe',
       shell: true,

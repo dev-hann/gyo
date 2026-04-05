@@ -32,7 +32,11 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     this.options = {} as T;
     this.spinner = ora();
     this.config = null;
-    this.projectPath = process.cwd();
+    try {
+      this.projectPath = process.cwd();
+    } catch {
+      this.projectPath = process.env.HOME || '/';
+    }
   }
 
   abstract getMeta(): CommandMeta;
