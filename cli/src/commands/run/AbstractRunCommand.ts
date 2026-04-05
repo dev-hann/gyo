@@ -293,14 +293,15 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     const promises: Promise<void>[] = [];
 
     if (this.webServerProcess && !this.webServerProcess.killed) {
+      const webProc = this.webServerProcess;
       promises.push(
         new Promise<void>((resolve) => {
-          this.webServerProcess!.once('exit', () => resolve());
-          this.webServerProcess!.kill('SIGTERM');
+          webProc.once('exit', () => resolve());
+          webProc.kill('SIGTERM');
 
           setTimeout(() => {
-            if (this.webServerProcess && !this.webServerProcess.killed) {
-              this.webServerProcess.kill('SIGKILL');
+            if (!webProc.killed) {
+              webProc.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
@@ -309,14 +310,15 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
 
     if (this.platformProcess && !this.platformProcess.killed) {
+      const platProc = this.platformProcess;
       promises.push(
         new Promise<void>((resolve) => {
-          this.platformProcess!.once('exit', () => resolve());
-          this.platformProcess!.kill('SIGTERM');
+          platProc.once('exit', () => resolve());
+          platProc.kill('SIGTERM');
 
           setTimeout(() => {
-            if (this.platformProcess && !this.platformProcess.killed) {
-              this.platformProcess.kill('SIGKILL');
+            if (!platProc.killed) {
+              platProc.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
@@ -391,7 +393,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         const lines = data.toString().split('\n');
         for (const line of lines) {
           if (line.trim()) {
-            console.log(`📱 ${line.trim()}`);
+            logger.info(`📱 ${line.trim()}`);
           }
         }
       });

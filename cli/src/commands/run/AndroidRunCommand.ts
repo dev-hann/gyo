@@ -144,9 +144,9 @@ export class AndroidRunCommand extends AbstractRunCommand {
         if (line.trim() && line.includes('WebView-Console')) {
           const match = line.match(/WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/);
           if (match) {
-            console.log(`📱 ${match[1]}`);
+            logger.info(`📱 ${match[1]}`);
           } else {
-            console.log(`📱 ${line.trim()}`);
+            logger.info(`📱 ${line.trim()}`);
           }
         }
       }
