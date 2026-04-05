@@ -111,6 +111,16 @@ describe('RunCommand', () => {
   });
 
   describe('createCommand', () => {
+    it('should create AndroidRunCommand for android device', () => {
+      const result = command['createCommand'](androidDevice);
+      expect(result.constructor.name).toBe('AndroidRunCommand');
+    });
+
+    it('should create IOSRunCommand for ios device', () => {
+      const result = command['createCommand'](iosDevice);
+      expect(result.constructor.name).toBe('IOSRunCommand');
+    });
+
     it('should throw InvalidPlatformError for unknown platform', () => {
       const unknownDevice = {
         platform: 'windows',

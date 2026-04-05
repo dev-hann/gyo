@@ -200,5 +200,22 @@ describe('exec utils', () => {
       const result = await promise;
       expect(result).toBe(false);
     });
+
+    it('should use where on win32', async () => {
+      const original = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+
+      const promise = checkCommandExists('node');
+
+      const spawnCall = mockSpawn.mock.calls[0];
+      expect(spawnCall[0]).toContain('where');
+
+      mockProcess.emit('close', 0);
+
+      const result = await promise;
+      expect(result).toBe(true);
+
+      Object.defineProperty(process, 'platform', { value: original });
+    });
   });
 });

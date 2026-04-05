@@ -49,6 +49,20 @@ describe('DebugCommand', () => {
     jest.clearAllMocks();
   });
 
+  it('should return correct meta with name and description', () => {
+    const command = new DebugCommand();
+    const meta = command.getMeta();
+
+    expect(meta.name).toBe('debug <platform>');
+    expect(meta.description).toBe('Launch debugger for the specified platform');
+  });
+
+  it('should return android and ios as valid platforms', () => {
+    const command = new DebugCommand();
+
+    expect(command['getValidPlatforms']()).toEqual(['android', 'ios']);
+  });
+
   it('should show android debug info when platform is android', async () => {
     const mockOpen = jest.fn().mockResolvedValue(undefined);
     jest.doMock('open', () => ({ default: mockOpen }));
