@@ -388,11 +388,12 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async createLocalProperties(androidPath: string): Promise<void> {
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
     const candidates: string[] = [
       process.env.ANDROID_HOME ?? '',
       process.env.ANDROID_SDK_ROOT ?? '',
-      `${process.env.HOME}/Android/Sdk`,
-      `${process.env.HOME}/android-sdk`,
+      homeDir ? `${homeDir}/Android/Sdk` : '',
+      homeDir ? `${homeDir}/android-sdk` : '',
       '/opt/android-sdk',
     ].filter((c) => c !== '');
 
