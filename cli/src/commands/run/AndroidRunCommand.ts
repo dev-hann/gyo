@@ -30,9 +30,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
   private async checkAdbAvailable(): Promise<void> {
     if (!(await checkCommandExists('adb'))) {
-      this.failSpinner('adb not found');
-      logger.error('Please install Android SDK and add adb to your PATH');
-      logger.info("Run 'gyo doctor' to check your environment.");
       throw new ToolRequiredError(
         'adb',
         'Install the Android SDK and add adb to your PATH. Run: gyo doctor'
