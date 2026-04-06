@@ -4,7 +4,7 @@ import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../../utils/fs';
 import { getProfileUrl } from '../../services/config.service';
-import { BuildFailedError } from '../../core/errors';
+import { BuildFailedError, GyoError } from '../../core/errors';
 
 export interface BuildCommandOptions extends PlatformCommandOptions {
   profile: string;
@@ -53,7 +53,7 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
 
   protected getServerUrl(): string {
     if (!this.config) {
-      throw new Error('Configuration not loaded');
+      throw new GyoError('Configuration not loaded');
     }
     return getProfileUrl(this.config, this.options.profile);
   }

@@ -8,7 +8,7 @@ import { readFile, pathExists } from '../../utils/fs';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
-    return { name: 'build-android', description: '' };
+    return { name: 'build-android', description: 'Build Android APK' };
   }
 
   protected async buildPlatform(): Promise<void> {
