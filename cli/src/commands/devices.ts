@@ -30,7 +30,7 @@ export class DevicesCommand extends BaseCommand<DevicesCommandOptions> {
       }
 
       if (this.options.json) {
-        console.log(JSON.stringify(devices, null, 2));
+        logger.log(JSON.stringify(devices, null, 2));
       } else {
         this.displayDevicesTable(devices);
       }

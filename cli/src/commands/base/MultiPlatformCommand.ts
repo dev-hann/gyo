@@ -1,5 +1,5 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand';
-import { InvalidPlatformError } from '../../core/index';
+import { InvalidPlatformError, GyoError } from '../../core/index';
 
 export type MultiPlatform = string;
 
@@ -53,7 +53,7 @@ export abstract class MultiPlatformCommand<
       const messages = failures
         .map((f) => (f as PromiseRejectedResult).reason)
         .map((r) => (r instanceof Error ? r.message : String(r)));
-      throw new Error(`Platform cleanup failed: ${messages.join('; ')}`);
+      throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`);
     }
   }
 

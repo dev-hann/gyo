@@ -79,13 +79,9 @@ describe('DevicesCommand', () => {
     mockedGetAllDevices.mockResolvedValue(sampleDevices);
     command.setOptions({ json: true });
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation();
-
     await command['run']();
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('emulator-5554'));
-
-    logSpy.mockRestore();
+    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('emulator-5554'));
   });
 
   it('should throw GyoError when getAllDevices rejects', async () => {

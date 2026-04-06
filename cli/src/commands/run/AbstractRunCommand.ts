@@ -38,8 +38,10 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         if (pid) {
           this.platformProcess.kill('SIGTERM');
         }
-      } catch {
-        // Ignore errors during cleanup
+      } catch (e) {
+        logger.debug(
+          `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
   }
