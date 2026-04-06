@@ -48,7 +48,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
   protected async run(): Promise<void> {
     if (!this.config) {
-      throw new Error('Config not loaded');
+      throw new GyoError('Config not loaded');
     }
 
     this.setupSignalHandlers();
@@ -84,7 +84,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           available.length > 0
             ? `Available profiles: ${available.join(', ')}`
             : 'No profiles configured';
-        throw new Error(
+        throw new GyoError(
           `Profile '${this.options.profile}' not found in gyo.config.json. ${availableText}`
         );
       }
@@ -106,7 +106,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     const command = this.config?.script?.start;
 
     if (!command || command.trim() === '') {
-      throw new Error(
+      throw new ServerStartError(
         "Start command is not configured. Please set 'script.start' in gyo.config.json (e.g., 'npm run dev' for Vite/Next.js)"
       );
     }
@@ -438,7 +438,14 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       });
 
-      this.platformProcess.stderr?.on('data', () => {});
+      this.platformProcess.stderr?.on('data', (data: Buffer) => {
+        const lines = data.toString().split('\n');
+        for (const line of lines) {
+          if (line.trim()) {
+            logger.warn(line.trim());
+          }
+        }
+      });
 
       this.platformProcess.on('exit', (code) => {
         if (!this.isCleaningUp && code !== 0) {
