@@ -7,6 +7,10 @@ export const logger = {
     verboseMode = verbose;
   },
 
+  resetVerbose: (): void => {
+    verboseMode = false;
+  },
+
   isVerbose: (): boolean => verboseMode,
 
   info: (message: string): void => {
@@ -44,9 +48,8 @@ export const logger = {
   suggestNextSteps: (steps: string[]): void => {
     console.log('');
     console.log(chalk.blue('ℹ'), "What's next:");
-    const icon = chalk.blue('ℹ');
     for (const step of steps) {
-      console.log(icon, `  • ${step}`);
+      console.log(chalk.blue('ℹ'), `  • ${step}`);
     }
     console.log('');
   },

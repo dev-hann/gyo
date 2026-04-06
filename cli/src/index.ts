@@ -70,7 +70,7 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
 }
 
 function registerConfigCommand(): void {
-  const meta = ConfigCommand.prototype.getMeta.call({});
+  const meta = new ConfigCommand().getMeta();
   const config = program.command(meta.name).description(meta.description);
 
   const subcommands = ConfigCommand.getSubcommands();

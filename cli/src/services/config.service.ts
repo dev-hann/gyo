@@ -12,6 +12,25 @@ function validateServerUrl(url: unknown): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
+function validatePlatform(
+  platform: unknown,
+  platformName: string,
+  idProperty: string,
+  errors: string[]
+): void {
+  if (typeof platform !== 'object' || platform === null) {
+    errors.push(`'platforms.${platformName}' must be an object`);
+  } else {
+    const platformObj = platform as Record<string, unknown>;
+    if (typeof platformObj.enabled !== 'boolean') {
+      errors.push(`'platforms.${platformName}.enabled' must be a boolean`);
+    }
+    if (platformObj[idProperty] !== undefined && typeof platformObj[idProperty] !== 'string') {
+      errors.push(`'platforms.${platformName}.${idProperty}' must be a string`);
+    }
+  }
+}
+
 function collectConfigErrors(raw: unknown): string[] {
   const errors: string[] = [];
   if (typeof raw !== 'object' || raw === null) {
@@ -32,30 +51,10 @@ function collectConfigErrors(raw: unknown): string[] {
   } else {
     const platforms = obj.platforms as Record<string, unknown>;
     if (platforms.android !== undefined) {
-      if (typeof platforms.android !== 'object' || platforms.android === null) {
-        errors.push("'platforms.android' must be an object");
-      } else {
-        const android = platforms.android as Record<string, unknown>;
-        if (typeof android.enabled !== 'boolean') {
-          errors.push("'platforms.android.enabled' must be a boolean");
-        }
-        if (android.packageName !== undefined && typeof android.packageName !== 'string') {
-          errors.push("'platforms.android.packageName' must be a string");
-        }
-      }
+      validatePlatform(platforms.android, 'android', 'packageName', errors);
     }
     if (platforms.ios !== undefined) {
-      if (typeof platforms.ios !== 'object' || platforms.ios === null) {
-        errors.push("'platforms.ios' must be an object");
-      } else {
-        const ios = platforms.ios as Record<string, unknown>;
-        if (typeof ios.enabled !== 'boolean') {
-          errors.push("'platforms.ios.enabled' must be a boolean");
-        }
-        if (ios.bundleId !== undefined && typeof ios.bundleId !== 'string') {
-          errors.push("'platforms.ios.bundleId' must be a string");
-        }
-      }
+      validatePlatform(platforms.ios, 'ios', 'bundleId', errors);
     }
   }
 
