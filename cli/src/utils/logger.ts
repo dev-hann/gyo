@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 
 let verboseMode = false;
+let testMode = process.env.NODE_ENV === 'test';
 
 export const logger = {
   setVerbose: (verbose: boolean): void => {
@@ -12,6 +13,12 @@ export const logger = {
   },
 
   isVerbose: (): boolean => verboseMode,
+
+  setTestMode: (mode: boolean): void => {
+    testMode = mode;
+  },
+
+  isTestMode: (): boolean => testMode,
 
   info: (message: string): void => {
     console.log(chalk.blue('ℹ'), message);
@@ -26,7 +33,9 @@ export const logger = {
   },
 
   error: (message: string): void => {
-    console.log(chalk.red('✗'), message);
+    if (!testMode) {
+      console.log(chalk.red('✗'), message);
+    }
   },
 
   debug: (message: string): void => {
