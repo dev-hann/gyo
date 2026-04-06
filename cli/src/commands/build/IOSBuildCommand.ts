@@ -7,7 +7,7 @@ import { BuildFailedError } from '../../core/errors';
 
 export class IOSBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
-    return { name: 'build-ios', description: '' };
+    return { name: 'build-ios', description: 'Build iOS app' };
   }
 
   protected async buildPlatform(): Promise<void> {
