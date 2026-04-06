@@ -35,10 +35,8 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     try {
       this.projectPath = process.cwd();
     } catch (error) {
-      logger.warn(
-        `Could not determine current directory: ${error instanceof Error ? error.message : String(error)}`
-      );
-      this.projectPath = process.env.HOME || '/';
+      const message = error instanceof Error ? error.message : String(error);
+      throw new GyoError(`Could not determine current directory: ${message}`);
     }
   }
 
