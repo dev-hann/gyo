@@ -427,7 +427,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         const lines = data.toString().split('\n');
         for (const line of lines) {
           if (line.trim()) {
-            logger.info(`📱 ${line.trim()}`);
+            logger.info(line.trim());
           }
         }
       });

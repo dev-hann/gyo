@@ -13,6 +13,7 @@ import { DevicesCommand } from './commands/devices';
 import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
 import { GyoError } from './core/index';
+import { logger } from './utils/logger';
 
 function getVersion(): string {
   try {
@@ -21,7 +22,9 @@ function getVersion(): string {
     const pkgPath = path.join(__dirname, '..', 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     return pkg.version;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.debug(`Failed to read package.json for version: ${message}`);
     return '0.0.0';
   }
 }
