@@ -358,13 +358,17 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           } catch {
             try {
               this.webServerProcess.kill('SIGKILL');
-            } catch {
-              // Ignore
+            } catch (e) {
+              logger.debug(
+                `Failed to kill web server process: ${e instanceof Error ? e.message : String(e)}`
+              );
             }
           }
         }
-      } catch {
-        // Ignore errors during cleanup
+      } catch (e) {
+        logger.debug(
+          `Error during web server cleanup: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
 
@@ -377,13 +381,17 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           } catch {
             try {
               this.platformProcess.kill('SIGKILL');
-            } catch {
-              // Ignore
+            } catch (e) {
+              logger.debug(
+                `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
+              );
             }
           }
         }
-      } catch {
-        // Ignore errors during cleanup
+      } catch (e) {
+        logger.debug(
+          `Error during platform process cleanup: ${e instanceof Error ? e.message : String(e)}`
+        );
       }
     }
   }
