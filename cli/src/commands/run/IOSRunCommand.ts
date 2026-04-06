@@ -163,8 +163,8 @@ export class IOSRunCommand extends AbstractRunCommand {
       const finish = (result: string): void => {
         if (timeout) {
           clearTimeout(timeout);
+          timeout = null;
         }
-        timeout = null;
 
         syslogCapture.stdout?.removeAllListeners('data');
         syslogCapture.removeAllListeners('error');
@@ -173,11 +173,12 @@ export class IOSRunCommand extends AbstractRunCommand {
         if (!syslogCapture.killed) {
           try {
             syslogCapture.kill('SIGTERM');
-            setTimeout(() => {
+            const killTimeout = setTimeout(() => {
               if (!syslogCapture.killed) {
                 syslogCapture.kill('SIGKILL');
               }
             }, 1000);
+            killTimeout.unref();
           } catch {
             // Ignore cleanup errors
           }
