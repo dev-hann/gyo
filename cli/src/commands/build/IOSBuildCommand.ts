@@ -2,7 +2,7 @@ import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand, checkCommandExists } from '../../utils/exec';
+import { executeCommand, checkCommandExists, showYAMLParsingError } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
 
 export class IOSBuildCommand extends AbstractBuildCommand {
@@ -65,21 +65,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
       this.failSpinner('iOS build failed');
       const errorOutput = result.stderr || result.stdout || 'Unknown error';
 
-      if (
-        errorOutput.includes('typeMismatch') ||
-        errorOutput.includes('Expected to decode Scalar')
-      ) {
-        logger.error('YAML parsing error in xtool.yml or project.yml');
-        logger.error('Common issues:');
-        logger.error('  1. bundleID should be a simple string value, not a mapping');
-        logger.error('     ✓ Correct:   bundleID: com.example.app');
-        logger.error('     ✗ Wrong:     bundleID:');
-        logger.error('                    key: value');
-        logger.error('  2. Check for unintended indentation or special characters');
-        logger.error(`\nFull error:\n${errorOutput}`);
-      } else {
-        logger.error(errorOutput);
-      }
+      showYAMLParsingError(errorOutput);
       throw new BuildFailedError('iOS build failed');
     }
   }

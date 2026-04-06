@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
+import { executeCommand, showYAMLParsingError } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
@@ -112,21 +112,7 @@ export class IOSRunCommand extends AbstractRunCommand {
       this.failSpinner('Build failed');
       const errorOutput = buildResult.stderr || buildResult.stdout || 'Unknown error';
 
-      if (
-        errorOutput.includes('typeMismatch') ||
-        errorOutput.includes('Expected to decode Scalar')
-      ) {
-        logger.error('YAML parsing error in xtool.yml or project.yml');
-        logger.error('Common issues:');
-        logger.error('  1. bundleID should be a simple string value, not a mapping');
-        logger.error('     ✓ Correct:   bundleID: com.example.app');
-        logger.error('     ✗ Wrong:     bundleID:');
-        logger.error('                    key: value');
-        logger.error('  2. Check for unintended indentation or special characters');
-        logger.error(`\nFull error:\n${errorOutput}`);
-      } else {
-        logger.error(errorOutput);
-      }
+      showYAMLParsingError(errorOutput);
       throw new BuildFailedError('iOS build failed');
     }
 

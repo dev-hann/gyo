@@ -2,6 +2,7 @@ jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
   getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
+  showYAMLParsingError: jest.requireActual('../utils/exec').showYAMLParsingError,
 }));
 
 jest.mock('../utils/logger', () => ({
