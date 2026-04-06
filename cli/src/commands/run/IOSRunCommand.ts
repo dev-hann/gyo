@@ -158,20 +158,23 @@ export class IOSRunCommand extends AbstractRunCommand {
 
     const foundBundleId = await new Promise<string>((resolve) => {
       let timeout: ReturnType<typeof setTimeout> | null = null;
-      let found = false;
       const safeBundleId = bundleId || '';
 
-      const cleanup = (): void => {
-        if (syslogCapture.stdout) {
-          syslogCapture.stdout.removeAllListeners('data');
+      const finish = (result: string): void => {
+        if (timeout) {
+          clearTimeout(timeout);
         }
+        timeout = null;
+
+        syslogCapture.stdout?.removeAllListeners('data');
         syslogCapture.removeAllListeners('error');
         syslogCapture.removeAllListeners('exit');
-        if (syslogCapture && !syslogCapture.killed) {
+
+        if (!syslogCapture.killed) {
           try {
             syslogCapture.kill('SIGTERM');
             setTimeout(() => {
-              if (syslogCapture && !syslogCapture.killed) {
+              if (!syslogCapture.killed) {
                 syslogCapture.kill('SIGKILL');
               }
             }, 1000);
@@ -179,6 +182,7 @@ export class IOSRunCommand extends AbstractRunCommand {
             // Ignore cleanup errors
           }
         }
+        resolve(result);
       };
 
       syslogCapture.stdout?.on('data', (data: Buffer) => {
@@ -190,47 +194,17 @@ export class IOSRunCommand extends AbstractRunCommand {
 
         for (const pattern of patterns) {
           const match = output.match(pattern);
-          if (match && !found) {
-            found = true;
-            if (timeout) {
-              clearTimeout(timeout);
-            }
-            cleanup();
-            resolve(match[1]);
+          if (match) {
+            finish(match[1]);
             return;
           }
         }
       });
 
-      syslogCapture.on('error', () => {
-        if (!found) {
-          found = true;
-          if (timeout) {
-            clearTimeout(timeout);
-          }
-          cleanup();
-          resolve(safeBundleId);
-        }
-      });
+      syslogCapture.on('error', () => finish(safeBundleId));
+      syslogCapture.on('exit', () => finish(safeBundleId));
 
-      syslogCapture.on('exit', () => {
-        if (!found) {
-          found = true;
-          if (timeout) {
-            clearTimeout(timeout);
-          }
-          cleanup();
-          resolve(safeBundleId);
-        }
-      });
-
-      timeout = setTimeout(() => {
-        if (!found) {
-          found = true;
-          cleanup();
-          resolve(safeBundleId);
-        }
-      }, 2000);
+      timeout = setTimeout(() => finish(safeBundleId), 2000);
     });
 
     return foundBundleId;
