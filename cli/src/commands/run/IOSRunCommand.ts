@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand, showYAMLParsingError } from '../../utils/exec';
+import { executeCommand, showYAMLParsingError, checkCommandExists } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
@@ -28,7 +28,7 @@ export class IOSRunCommand extends AbstractRunCommand {
   }
 
   private async checkXtoolAvailable(): Promise<void> {
-    if (!(await this.checkCommandExists('xtool'))) {
+    if (!(await checkCommandExists('xtool'))) {
       this.failSpinner('xtool not found');
       logger.error('Install xtool: https://xtool.sh');
       throw new ToolRequiredError('xtool', 'Install xtool: https://xtool.sh');
@@ -136,7 +136,7 @@ export class IOSRunCommand extends AbstractRunCommand {
       }
     }
 
-    if (fullBundleId === bundleId && (await this.checkCommandExists('idevicesyslog'))) {
+    if (fullBundleId === bundleId && (await checkCommandExists('idevicesyslog'))) {
       fullBundleId = await this.findBundleIdFromSyslog(bundleId);
     }
 
@@ -239,7 +239,7 @@ export class IOSRunCommand extends AbstractRunCommand {
   }
 
   protected async monitorLogs(identifier: string): Promise<void> {
-    const commandExists = await this.checkCommandExists('idevicesyslog');
+    const commandExists = await checkCommandExists('idevicesyslog');
 
     return new Promise<void>((resolve, reject) => {
       if (commandExists) {

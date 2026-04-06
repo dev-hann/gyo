@@ -34,7 +34,10 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     this.config = null;
     try {
       this.projectPath = process.cwd();
-    } catch {
+    } catch (error) {
+      logger.warn(
+        `Could not determine current directory: ${error instanceof Error ? error.message : String(error)}`
+      );
       this.projectPath = process.env.HOME || '/';
     }
   }

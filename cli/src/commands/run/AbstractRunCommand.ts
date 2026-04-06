@@ -3,7 +3,7 @@ import os from 'os';
 import { ChildProcess, spawn } from 'child_process';
 import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
 import { logger } from '../../utils/logger';
-import { executeCommand, checkCommandExists } from '../../utils/exec';
+import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
 import { saveConfig, shouldStartLocalServer } from '../../services/config.service';
 import {
@@ -169,8 +169,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       try {
         const fs = await import('fs-extra');
         await fs.remove(lockFile);
-      } catch (error) {
-        logger.warn(`Could not remove lock file: ${error}`);
+      } catch {
+        logger.warn('Could not remove lock file');
       }
     }
 
@@ -394,10 +394,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         );
       }
     }
-  }
-
-  protected async checkCommandExists(command: string): Promise<boolean> {
-    return checkCommandExists(command);
   }
 
   private async validateLibDirectory(libPath: string): Promise<void> {

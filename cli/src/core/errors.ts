@@ -41,9 +41,17 @@ export class PlatformDisabledError extends GyoError {
   }
 }
 
-export class BuildFailedError extends GyoError {}
+export class BuildFailedError extends GyoError {
+  constructor(message = 'Build failed') {
+    super(message);
+  }
+}
 
-export class ServerStartError extends GyoError {}
+export class ServerStartError extends GyoError {
+  constructor(message = 'Failed to start server') {
+    super(message);
+  }
+}
 
 export class DirectoryExistsError extends GyoError {
   constructor(directory: string, fullPath?: string) {

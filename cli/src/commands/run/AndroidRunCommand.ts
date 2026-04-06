@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand, getGradlew } from '../../utils/exec';
+import { executeCommand, getGradlew, checkCommandExists } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
@@ -29,7 +29,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async checkAdbAvailable(): Promise<void> {
-    if (!(await this.checkCommandExists('adb'))) {
+    if (!(await checkCommandExists('adb'))) {
       this.failSpinner('adb not found');
       logger.error('Please install Android SDK and add adb to your PATH');
       logger.info("Run 'gyo doctor' to check your environment.");

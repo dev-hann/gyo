@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { readJson, writeJson, pathExists } from '../utils/fs';
 import { logger } from '../utils/logger';
-import { GyoConfig } from '../core/index';
+import { GyoConfig, GyoError } from '../core/index';
 
 export { GyoConfig } from '../core/index';
 
@@ -109,7 +109,8 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
     }
     return raw;
   } catch (error) {
-    logger.error(`Failed to load config: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(`Failed to load config: ${message}`);
     return null;
   }
 }
@@ -127,7 +128,7 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
     const serverUrl = config.profiles[profile].serverUrl;
     if (!serverUrl || serverUrl.trim() === '') {
       logger.error(`Profile '${profile}' has empty serverUrl in gyo.config.json`);
-      throw new Error(`Profile '${profile}' serverUrl cannot be empty`);
+      throw new GyoError(`Profile '${profile}' serverUrl cannot be empty`);
     }
     return serverUrl;
   }
@@ -136,7 +137,7 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
     logger.warn('Using legacy serverUrl. Consider migrating to profiles in gyo.config.json');
     if (!config.serverUrl || config.serverUrl.trim() === '') {
       logger.error('serverUrl is empty in gyo.config.json');
-      throw new Error('serverUrl cannot be empty');
+      throw new GyoError('serverUrl cannot be empty');
     }
     return config.serverUrl;
   }
@@ -146,7 +147,7 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
   if (availableProfiles.length > 0) {
     logger.error(`Available profiles: ${availableProfiles.join(', ')}`);
   }
-  throw new Error(`Profile '${profile}' not found`);
+  throw new GyoError(`Profile '${profile}' not found`);
 }
 
 export function shouldStartLocalServer(
