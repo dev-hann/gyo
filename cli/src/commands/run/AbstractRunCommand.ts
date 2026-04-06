@@ -350,51 +350,34 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     await Promise.all(promises);
   }
 
-  protected cleanupSync(): void {
-    if (this.webServerProcess && !this.webServerProcess.killed) {
-      try {
-        const pid = this.webServerProcess.pid;
-        if (pid) {
+  private killProcessSync(proc: ChildProcess, name: string): void {
+    try {
+      const pid = proc.pid;
+      if (pid) {
+        try {
+          process.kill(-pid, 'SIGKILL');
+        } catch {
           try {
-            process.kill(-pid, 'SIGKILL');
-          } catch {
-            try {
-              this.webServerProcess.kill('SIGKILL');
-            } catch (e) {
-              logger.debug(
-                `Failed to kill web server process: ${e instanceof Error ? e.message : String(e)}`
-              );
-            }
+            proc.kill('SIGKILL');
+          } catch (e) {
+            logger.debug(
+              `Failed to kill ${name} process: ${e instanceof Error ? e.message : String(e)}`
+            );
           }
         }
-      } catch (e) {
-        logger.debug(
-          `Error during web server cleanup: ${e instanceof Error ? e.message : String(e)}`
-        );
       }
+    } catch (e) {
+      logger.debug(`Error during ${name} cleanup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  protected cleanupSync(): void {
+    if (this.webServerProcess && !this.webServerProcess.killed) {
+      this.killProcessSync(this.webServerProcess, 'web server');
     }
 
     if (this.platformProcess && !this.platformProcess.killed) {
-      try {
-        const pid = this.platformProcess.pid;
-        if (pid) {
-          try {
-            process.kill(-pid, 'SIGKILL');
-          } catch {
-            try {
-              this.platformProcess.kill('SIGKILL');
-            } catch (e) {
-              logger.debug(
-                `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
-              );
-            }
-          }
-        }
-      } catch (e) {
-        logger.debug(
-          `Error during platform process cleanup: ${e instanceof Error ? e.message : String(e)}`
-        );
-      }
+      this.killProcessSync(this.platformProcess, 'platform');
     }
   }
 
