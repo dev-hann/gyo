@@ -87,40 +87,34 @@ export async function getIOSDevices(): Promise<Device[]> {
         return devices;
       }
 
-      for (const deviceId of deviceIds) {
+      const deviceInfoPromises = deviceIds.map(async (deviceId) => {
         let deviceName = 'iOS Device';
-        let deviceModel = '';
 
         if (hasIdeviceInfo) {
-          const nameResult = await executeCommand(
-            'ideviceinfo',
-            ['-u', deviceId, '-k', 'DeviceName'],
-            { stdio: 'pipe' }
-          );
+          const [nameResult, modelResult] = await Promise.all([
+            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' }),
+            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' }),
+          ]);
           if (nameResult.success && nameResult.stdout) {
             deviceName = nameResult.stdout.trim() || deviceName;
           }
-
-          const modelResult = await executeCommand(
-            'ideviceinfo',
-            ['-u', deviceId, '-k', 'ProductType'],
-            { stdio: 'pipe' }
-          );
           if (modelResult.success && modelResult.stdout) {
-            deviceModel = modelResult.stdout.trim();
-            if (deviceModel) {
-              deviceName = `${deviceName} (${deviceModel})`;
+            const modelValue = modelResult.stdout.trim();
+            if (modelValue) {
+              deviceName = `${deviceName} (${modelValue})`;
             }
           }
         }
 
-        devices.push({
-          platform: 'ios',
+        return {
+          platform: 'ios' as const,
           id: deviceId,
           name: deviceName,
           state: 'Available',
-        });
-      }
+        };
+      });
+
+      devices.push(...(await Promise.all(deviceInfoPromises)));
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
