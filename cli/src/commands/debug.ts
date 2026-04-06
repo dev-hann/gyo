@@ -9,10 +9,6 @@ export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
     };
   }
 
-  setPlatform(platform: Platform): void {
-    this.platform = platform;
-  }
-
   protected getValidPlatforms(): Platform[] {
     return ['android', 'ios'];
   }
