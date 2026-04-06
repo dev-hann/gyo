@@ -28,6 +28,14 @@ export function executeCommand(
 
     let stdout = '';
     let stderr = '';
+    let resolved = false;
+
+    const done = (result: ExecResult): void => {
+      if (!resolved) {
+        resolved = true;
+        resolve(result);
+      }
+    };
 
     if (proc.stdout) {
       proc.stdout.on('data', (data) => {
@@ -52,7 +60,7 @@ export function executeCommand(
     }
 
     proc.on('close', (code) => {
-      resolve({
+      done({
         success: code === 0,
         stdout: stdout.trim(),
         stderr: stderr.trim(),
@@ -62,7 +70,7 @@ export function executeCommand(
 
     proc.on('error', (error) => {
       logger.error(`Failed to execute command: ${error.message}`);
-      resolve({
+      done({
         success: false,
         stdout: stdout.trim(),
         stderr: error.message,
