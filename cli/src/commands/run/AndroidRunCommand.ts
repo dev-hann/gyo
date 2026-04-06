@@ -106,7 +106,9 @@ export class AndroidRunCommand extends AbstractRunCommand {
       const content = await fs.readFile(buildGradlePath, 'utf-8');
       const match = content.match(/applicationId\s+"([^"]+)"/);
       return match ? match[1] : null;
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.debug(`Failed to read package name from build.gradle: ${message}`);
       return null;
     }
   }

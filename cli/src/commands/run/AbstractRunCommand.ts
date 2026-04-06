@@ -35,7 +35,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (this.platformProcess && !this.platformProcess.killed) {
       try {
         const pid = this.platformProcess.pid;
-        if (pid) {
+        if (pid && typeof pid === 'number' && pid > 0) {
           this.platformProcess.kill('SIGTERM');
         }
       } catch (e) {
