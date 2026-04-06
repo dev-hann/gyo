@@ -65,7 +65,7 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     }
 
     logger.info('Current gyo configuration:\n');
-    console.log(JSON.stringify(config, null, 2));
+    logger.log(JSON.stringify(config, null, 2));
   }
 
   private async setConfig(): Promise<void> {

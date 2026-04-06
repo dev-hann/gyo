@@ -73,7 +73,8 @@ describe('ConfigCommand', () => {
       command.setAction('show');
       mockedLoadConfig.mockResolvedValue(freshConfig());
 
-      const logSpy = jest.spyOn(console, 'log').mockImplementation();
+      const { logger } = await import('../utils/logger');
+      const logSpy = jest.spyOn(logger, 'log');
 
       await command['run']();
 
