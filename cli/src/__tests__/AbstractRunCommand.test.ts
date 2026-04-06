@@ -405,7 +405,9 @@ describe('AbstractRunCommand', () => {
 
       try {
         await (command as any)['handleError'](error);
-      } catch {}
+      } catch {
+        /* expected rethrow */
+      }
 
       expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('stack-test'));
     });
@@ -414,9 +416,7 @@ describe('AbstractRunCommand', () => {
       (command as any).failSpinner = jest.fn();
       (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
 
-      await expect((command as any)['handleError']('string error')).rejects.toThrow(
-        'string error'
-      );
+      await expect((command as any)['handleError']('string error')).rejects.toThrow('string error');
     });
 
     it('should call failSpinner with Run failed', async () => {
@@ -425,7 +425,9 @@ describe('AbstractRunCommand', () => {
 
       try {
         await (command as any)['handleError'](new Error('x'));
-      } catch {}
+      } catch {
+        /* expected rethrow */
+      }
 
       expect((command as any).failSpinner).toHaveBeenCalledWith('Run failed');
     });

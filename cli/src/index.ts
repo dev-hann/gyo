@@ -124,8 +124,8 @@ process.on('unhandledRejection', (error: unknown) => {
 program.parse(process.argv);
 
 if (!process.argv.slice(2).length) {
-  console.log('');
-  console.log('\x1b[36mWelcome to gyo!\x1b[0m Get started: \x1b[1mgyo create my-app\x1b[0m');
-  console.log('');
+  console.error('');
+  console.error('\x1b[36mWelcome to gyo!\x1b[0m Get started: \x1b[1mgyo create my-app\x1b[0m');
+  console.error('');
   program.outputHelp();
 }
