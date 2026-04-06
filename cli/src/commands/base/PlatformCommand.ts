@@ -2,12 +2,7 @@ import * as path from 'path';
 import { BaseCommand, BaseCommandOptions } from './BaseCommand';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
-import {
-  GyoError,
-  PlatformNotFoundError,
-  PlatformDisabledError,
-  Platform,
-} from '../../core/index';
+import { GyoError, PlatformNotFoundError, PlatformDisabledError, Platform } from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;

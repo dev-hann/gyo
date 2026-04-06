@@ -10,6 +10,7 @@ description: 무한 루프 지속 개선.
 3. 정지: 사용자가 "stop"/"중지"/"잠깐" 명시 입력만
 4. 1사이클 = 1개선, 같은 파일 연속 수정 금지
 5. 포맷 외 출력 금지 — "요약", "총정리" 절대 출력 안 함
+6. 서브태스크 30분 초과 시 중지 후 새 Task로 재시작 (N 유지)
 
 ## Main 루프
 
@@ -30,6 +31,8 @@ Task(
 
   Phase 4: 3사이클마다 git commit/push.
 
+  Phase 5: 완료 시간 출력. `date '+%Y-%m-%d %H:%M:%S'` 실행 후 아래 포맷으로 출력.
+
   출력 포맷 (이 형식 외 출력 금지):
   [Phase 1] {분석} | {후보수}개
   [PROCEED TO Phase 2]
@@ -38,9 +41,18 @@ Task(
   [Phase 3] {변경내용} | lint:{결과} tsc:{결과} test:{N}pass
   [PROCEED TO Phase 4]
   [Phase 4] C{N}: {WHAT} — {WHY}
-  [PROCEED TO Phase 1]
+  [PROCEED TO Phase 5]
+  [DONE C{N}] {YYYY-MM-DD HH:MM:SS}
   "
 )
 ```
 
 Sub 결과 수신 → 즉시 같은 Task 다시 호출.
+
+## 타임아웃 처리
+
+서브태스크가 30분(1,800,000ms) 이상 실행되면:
+1. Task 호출 시 `timeout: 1800000` 설정
+2. 타임아웃/에러 발생 시 동일 N으로 새 Task 즉시 재시작
+3. 이전 사이클에서 수정 중이던 내용은 무시하고 깨끗한 상태에서 시작
+4. 재시작 프롬프트에 "이전 C{N} 타임아웃으로 재시작" 명시

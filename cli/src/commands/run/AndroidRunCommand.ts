@@ -73,9 +73,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
       const output = buildResult.stderr || buildResult.stdout || '';
       logger.error(output);
       if (output.includes('SDK location not found')) {
-        logger.error(
-          'Set ANDROID_HOME or create android/local.properties with sdk.dir=<path>'
-        );
+        logger.error('Set ANDROID_HOME or create android/local.properties with sdk.dir=<path>');
         logger.info("Run 'gyo doctor' to check your environment.");
       }
       throw new BuildFailedError('Android build failed');

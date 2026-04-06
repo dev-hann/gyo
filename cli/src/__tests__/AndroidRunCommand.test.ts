@@ -167,6 +167,14 @@ describe('AndroidRunCommand', () => {
       const result = await command['getPackageName']('/android');
       expect(result).toBeNull();
     });
+
+    it('should return null when readFile throws', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedFsReadFile.mockRejectedValue(new Error('EACCES'));
+
+      const result = await command['getPackageName']('/android');
+      expect(result).toBeNull();
+    });
   });
 
   describe('launchApp', () => {
@@ -180,6 +188,15 @@ describe('AndroidRunCommand', () => {
         expect.arrayContaining(['shell']),
         expect.objectContaining({ stdio: 'pipe' })
       );
+    });
+
+    it('should warn when launch fails but package and device present', async () => {
+      mockedExec.mockResolvedValue(await makeExecResult(false));
+
+      await command['launchApp']('com.example.app', 'emulator-5554');
+
+      const { logger } = jest.requireMock('../utils/logger');
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Could not auto-launch'));
     });
 
     it('should succeed without launching when no package', async () => {
