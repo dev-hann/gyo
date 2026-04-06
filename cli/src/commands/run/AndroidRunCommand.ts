@@ -10,7 +10,7 @@ import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
-    return { name: 'run-android', description: '' };
+    return { name: 'run-android', description: 'Run Android app' };
   }
 
   protected async runPlatform(serverUrl: string): Promise<void> {

@@ -234,9 +234,16 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           const urlObj = new URL(detectedUrl);
           const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
 
-          this.getLocalIP().then((ip) => {
-            resolve(`http://${ip}:${port}`);
-          });
+          this.getLocalIP()
+            .then((ip) => {
+              resolve(`http://${ip}:${port}`);
+            })
+            .catch((error) => {
+              logger.warn(
+                `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
+              );
+              resolve(`http://${LOCALHOST}:${port}`);
+            });
         }
       });
 
@@ -251,9 +258,16 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           serverReady = true;
           clearTimeout(timeout);
 
-          this.getLocalIP().then((ip) => {
-            resolve(`http://${ip}:${expectedPort}`);
-          });
+          this.getLocalIP()
+            .then((ip) => {
+              resolve(`http://${ip}:${expectedPort}`);
+            })
+            .catch((error) => {
+              logger.warn(
+                `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
+              );
+              resolve(`http://${LOCALHOST}:${expectedPort}`);
+            });
         }
       });
 
