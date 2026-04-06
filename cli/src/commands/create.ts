@@ -506,7 +506,6 @@ ios/*.xcworkspace
   }
 
   private showNextSteps(): void {
-    logger.log('');
     logger.suggestNextSteps([
       `cd ${this.validatedName}`,
       `cd lib && npm install`,
