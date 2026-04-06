@@ -50,8 +50,8 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
   });
 
   c.action(async (...args) => {
-    const options = args.length >= 2 ? args[args.length - 2] : args.pop();
-    const positionalArgs = args.slice(0, -2);
+    const options = args.length >= 2 ? args[args.length - 2] : {};
+    const positionalArgs = args.length >= 2 ? args.slice(0, -2) : args;
 
     cmd.setOptions(options);
 
