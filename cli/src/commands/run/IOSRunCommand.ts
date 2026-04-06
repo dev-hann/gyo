@@ -171,7 +171,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     });
 
     const foundBundleId = await new Promise<string>((resolve) => {
-      let timeout: ReturnType<typeof setTimeout>;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
       let found = false;
       const safeBundleId = bundleId || '';
 
@@ -201,7 +201,9 @@ export class IOSRunCommand extends AbstractRunCommand {
           const match = output.match(pattern);
           if (match && !found) {
             found = true;
-            clearTimeout(timeout);
+            if (timeout) {
+              clearTimeout(timeout);
+            }
             cleanup();
             resolve(match[1]);
             return;
@@ -212,7 +214,9 @@ export class IOSRunCommand extends AbstractRunCommand {
       syslogCapture.on('error', () => {
         if (!found) {
           found = true;
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           resolve(safeBundleId);
         }
       });
@@ -220,7 +224,9 @@ export class IOSRunCommand extends AbstractRunCommand {
       syslogCapture.on('exit', () => {
         if (!found) {
           found = true;
-          clearTimeout(timeout);
+          if (timeout) {
+            clearTimeout(timeout);
+          }
           resolve(safeBundleId);
         }
       });
