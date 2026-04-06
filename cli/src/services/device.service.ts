@@ -56,7 +56,8 @@ export async function getAndroidDevices(): Promise<Device[]> {
       });
     }
   } catch (error) {
-    logger.debug(`Error detecting Android devices: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.debug(`Error detecting Android devices: ${message}`);
   }
 
   return devices;
@@ -122,7 +123,8 @@ export async function getIOSDevices(): Promise<Device[]> {
       }
     }
   } catch (error) {
-    logger.debug(`Error detecting iOS devices: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    logger.debug(`Error detecting iOS devices: ${message}`);
   }
 
   return devices;

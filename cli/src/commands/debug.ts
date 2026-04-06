@@ -43,7 +43,9 @@ export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
       logger.info('\nIn Chrome:');
       logger.info('  • Click "inspect" under your device');
       logger.info('  • Use Console, Elements, Network tabs as usual');
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.debug(`Failed to open Chrome: ${message}`);
       logger.warn('\nCould not auto-open Chrome. Please manually navigate to:');
       logger.info('  chrome://inspect');
     }
