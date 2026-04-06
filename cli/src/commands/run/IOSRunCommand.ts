@@ -162,6 +162,11 @@ export class IOSRunCommand extends AbstractRunCommand {
       const safeBundleId = bundleId || '';
 
       const cleanup = (): void => {
+        if (syslogCapture.stdout) {
+          syslogCapture.stdout.removeAllListeners('data');
+        }
+        syslogCapture.removeAllListeners('error');
+        syslogCapture.removeAllListeners('exit');
         if (syslogCapture && !syslogCapture.killed) {
           try {
             syslogCapture.kill('SIGTERM');
@@ -203,6 +208,7 @@ export class IOSRunCommand extends AbstractRunCommand {
           if (timeout) {
             clearTimeout(timeout);
           }
+          cleanup();
           resolve(safeBundleId);
         }
       });
@@ -213,6 +219,7 @@ export class IOSRunCommand extends AbstractRunCommand {
           if (timeout) {
             clearTimeout(timeout);
           }
+          cleanup();
           resolve(safeBundleId);
         }
       });
