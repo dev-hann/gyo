@@ -82,9 +82,10 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     if (await pathExists(buildPath)) {
       try {
         await removeDir(buildPath);
-      } catch {
+      } catch (error) {
         this.hadWarnings = true;
-        logger.warn('Failed to remove build directory');
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(`Failed to remove build directory: ${message}`);
       }
     }
   }
