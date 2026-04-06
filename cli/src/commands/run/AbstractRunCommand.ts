@@ -365,23 +365,25 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   private killProcessSync(proc: ChildProcess, name: string): void {
-    try {
-      const pid = proc.pid;
-      if (pid) {
-        try {
-          process.kill(-pid, 'SIGKILL');
-        } catch {
-          try {
-            proc.kill('SIGKILL');
-          } catch (e) {
-            logger.debug(
-              `Failed to kill ${name} process: ${e instanceof Error ? e.message : String(e)}`
-            );
-          }
-        }
+    const pid = proc.pid;
+    if (!pid) {
+      return;
+    }
+
+    const killProcess = (killFn: () => void, description: string): boolean => {
+      try {
+        killFn();
+        return true;
+      } catch (e) {
+        logger.debug(
+          `Failed to ${description} ${name} process: ${e instanceof Error ? e.message : String(e)}`
+        );
+        return false;
       }
-    } catch (e) {
-      logger.debug(`Error during ${name} cleanup: ${e instanceof Error ? e.message : String(e)}`);
+    };
+
+    if (!killProcess(() => process.kill(-pid, 'SIGKILL'), 'kill process group by PID')) {
+      killProcess(() => proc.kill('SIGKILL'), 'kill process');
     }
   }
 

@@ -151,7 +151,7 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
 }
 
 export function shouldStartLocalServer(
-  config: GyoConfig,
+  _config: GyoConfig,
   profile: string = 'development'
 ): boolean {
   return profile === 'development';
