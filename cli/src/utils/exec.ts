@@ -8,6 +8,10 @@ export interface ExecResult {
   code: number | null;
 }
 
+export interface ExecOptions extends SpawnOptions {
+  timeout?: number;
+}
+
 export function getGradlew(): string {
   return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 }
@@ -15,7 +19,7 @@ export function getGradlew(): string {
 export function executeCommand(
   command: string,
   args: string[] = [],
-  options: SpawnOptions = {}
+  options: ExecOptions = {}
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
     // Combine command and args into a single string to avoid DEP0190 warning
@@ -29,13 +33,32 @@ export function executeCommand(
     let stdout = '';
     let stderr = '';
     let resolved = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const done = (result: ExecResult): void => {
       if (!resolved) {
         resolved = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         resolve(result);
       }
     };
+
+    // Handle timeout
+    if (options.timeout) {
+      timeoutId = setTimeout(() => {
+        if (!resolved) {
+          proc.kill();
+          done({
+            success: false,
+            stdout: stdout.trim(),
+            stderr: `Command timed out after ${options.timeout}ms`,
+            code: null,
+          });
+        }
+      }, options.timeout);
+    }
 
     if (proc.stdout) {
       proc.stdout.on('data', (data) => {
