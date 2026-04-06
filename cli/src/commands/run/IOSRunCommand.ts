@@ -257,7 +257,14 @@ export class IOSRunCommand extends AbstractRunCommand {
           }
         });
 
-        this.platformProcess.stderr?.on('data', () => {});
+        this.platformProcess.stderr?.on('data', (data: Buffer) => {
+          const lines = data.toString().split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              logger.warn(line.trim());
+            }
+          }
+        });
 
         this.platformProcess.on('exit', (code) => {
           if (!this.isCleaningUp && code !== 0) {
