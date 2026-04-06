@@ -95,18 +95,22 @@ export async function getIOSDevices(): Promise<Device[]> {
       let deviceName = 'iOS Device';
 
       if (hasIdeviceInfo) {
-        const [nameResult, modelResult] = await Promise.all([
-          executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' }),
-          executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' }),
-        ]);
-        if (nameResult.success && nameResult.stdout) {
-          deviceName = nameResult.stdout.trim() || deviceName;
-        }
-        if (modelResult.success && modelResult.stdout) {
-          const modelValue = modelResult.stdout.trim();
-          if (modelValue) {
-            deviceName = `${deviceName} (${modelValue})`;
+        try {
+          const [nameResult, modelResult] = await Promise.all([
+            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' }),
+            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' }),
+          ]);
+          if (nameResult.success && nameResult.stdout) {
+            deviceName = nameResult.stdout.trim() || deviceName;
           }
+          if (modelResult.success && modelResult.stdout) {
+            const modelValue = modelResult.stdout.trim();
+            if (modelValue) {
+              deviceName = `${deviceName} (${modelValue})`;
+            }
+          }
+        } catch {
+          logger.debug(`Failed to get info for iOS device ${deviceId}, using default name`);
         }
       }
 
@@ -118,7 +122,14 @@ export async function getIOSDevices(): Promise<Device[]> {
       };
     });
 
-    devices.push(...(await Promise.all(deviceInfoPromises)));
+    const results = await Promise.allSettled(deviceInfoPromises);
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        devices.push(result.value);
+      } else {
+        logger.debug(`Failed to get device info: ${result.reason}`);
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.debug(`Error detecting iOS devices: ${message}`);
