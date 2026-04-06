@@ -76,46 +76,49 @@ export async function getIOSDevices(): Promise<Device[]> {
   try {
     const deviceResult = await executeCommand('idevice_id', ['-l'], { stdio: 'pipe' });
 
-    if (deviceResult.success && deviceResult.stdout) {
-      const deviceIds = deviceResult.stdout
-        .trim()
-        .split('\n')
-        .filter((id) => id.trim());
+    if (!deviceResult.success || !deviceResult.stdout) {
+      logger.debug('Failed to get iOS devices');
+      return devices;
+    }
 
-      if (deviceIds.length === 0) {
-        logger.debug('No iOS devices connected');
-        return devices;
-      }
+    const deviceIds = deviceResult.stdout
+      .trim()
+      .split('\n')
+      .filter((id) => id.trim());
 
-      const deviceInfoPromises = deviceIds.map(async (deviceId) => {
-        let deviceName = 'iOS Device';
+    if (deviceIds.length === 0) {
+      logger.debug('No iOS devices connected');
+      return devices;
+    }
 
-        if (hasIdeviceInfo) {
-          const [nameResult, modelResult] = await Promise.all([
-            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' }),
-            executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' }),
-          ]);
-          if (nameResult.success && nameResult.stdout) {
-            deviceName = nameResult.stdout.trim() || deviceName;
-          }
-          if (modelResult.success && modelResult.stdout) {
-            const modelValue = modelResult.stdout.trim();
-            if (modelValue) {
-              deviceName = `${deviceName} (${modelValue})`;
-            }
+    const deviceInfoPromises = deviceIds.map(async (deviceId) => {
+      let deviceName = 'iOS Device';
+
+      if (hasIdeviceInfo) {
+        const [nameResult, modelResult] = await Promise.all([
+          executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'DeviceName'], { stdio: 'pipe' }),
+          executeCommand('ideviceinfo', ['-u', deviceId, '-k', 'ProductType'], { stdio: 'pipe' }),
+        ]);
+        if (nameResult.success && nameResult.stdout) {
+          deviceName = nameResult.stdout.trim() || deviceName;
+        }
+        if (modelResult.success && modelResult.stdout) {
+          const modelValue = modelResult.stdout.trim();
+          if (modelValue) {
+            deviceName = `${deviceName} (${modelValue})`;
           }
         }
+      }
 
-        return {
-          platform: 'ios' as const,
-          id: deviceId,
-          name: deviceName,
-          state: 'Available',
-        };
-      });
+      return {
+        platform: 'ios' as const,
+        id: deviceId,
+        name: deviceName,
+        state: 'Available',
+      };
+    });
 
-      devices.push(...(await Promise.all(deviceInfoPromises)));
-    }
+    devices.push(...(await Promise.all(deviceInfoPromises)));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.debug(`Error detecting iOS devices: ${message}`);
