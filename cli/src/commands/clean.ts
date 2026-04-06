@@ -36,7 +36,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      throw new GyoError(message);
+      throw new GyoError(message, 1, { cause: error });
     }
   }
 
