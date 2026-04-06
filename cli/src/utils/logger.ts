@@ -44,8 +44,9 @@ export const logger = {
   suggestNextSteps: (steps: string[]): void => {
     console.log('');
     console.log(chalk.blue('ℹ'), "What's next:");
+    const icon = chalk.blue('ℹ');
     for (const step of steps) {
-      console.log(chalk.blue('ℹ'), `  • ${step}`);
+      console.log(icon, `  • ${step}`);
     }
     console.log('');
   },
