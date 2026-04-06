@@ -24,7 +24,7 @@ function getVersion(): string {
     return pkg.version;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.debug(`Failed to read package.json for version: ${message}`);
+    logger.error(`Failed to read package.json for version: ${message}`);
     return '0.0.0';
   }
 }

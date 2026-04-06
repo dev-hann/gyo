@@ -50,9 +50,9 @@ export abstract class MultiPlatformCommand<
     const results = await Promise.allSettled(platforms.map((p) => processor(p)));
     const failures = results.filter((r) => r.status === 'rejected');
     if (failures.length > 0) {
-      const messages = failures
-        .map((f) => f.reason)
-        .map((r) => (r instanceof Error ? r.message : String(r)));
+      const messages = failures.map((f) =>
+        f.reason instanceof Error ? f.reason.message : String(f.reason ?? 'Unknown error')
+      );
       throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`);
     }
   }

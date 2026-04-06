@@ -72,9 +72,9 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
   protected async requireGyoProject(): Promise<void> {
     const configPath = path.join(this.projectPath, 'gyo.config.json');
     if (!(await pathExists(configPath))) {
-      this.spinner.fail('Not a gyo project (gyo.config.json not found)');
-      logger.error("Run 'gyo create <project-name>' to create a new project");
-      throw new GyoError('Not a gyo project');
+      throw new GyoError(
+        `Not a gyo project (gyo.config.json not found in ${this.projectPath}).\n  Run 'gyo create <project-name>' to create a new project.`
+      );
     }
   }
 

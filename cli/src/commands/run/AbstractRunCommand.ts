@@ -1,6 +1,7 @@
 import * as path from 'path';
 import os from 'os';
 import { ChildProcess, spawn } from 'child_process';
+import * as fs from 'fs-extra';
 import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
@@ -32,17 +33,19 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected cleanupPlatformOnly(): void {
-    if (this.platformProcess && !this.platformProcess.killed) {
-      try {
-        const pid = this.platformProcess.pid;
-        if (pid && typeof pid === 'number' && pid > 0) {
-          this.platformProcess.kill('SIGTERM');
-        }
-      } catch (e) {
-        logger.debug(
-          `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
-        );
+    if (!this.platformProcess || this.platformProcess.killed) {
+      return;
+    }
+
+    try {
+      const pid = this.platformProcess.pid;
+      if (typeof pid === 'number' && pid > 0) {
+        this.platformProcess.kill('SIGTERM');
       }
+    } catch (e) {
+      logger.debug(
+        `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
+      );
     }
   }
 
@@ -169,7 +172,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     const lockFile = path.join(webPath, '.next/dev/lock');
     if (await pathExists(lockFile)) {
       try {
-        const fs = await import('fs-extra');
         await fs.remove(lockFile);
       } catch {
         logger.warn('Could not remove lock file');

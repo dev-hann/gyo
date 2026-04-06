@@ -147,6 +147,12 @@ export class AndroidRunCommand extends AbstractRunCommand {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    this.platformProcess.on('error', (error) => {
+      if (!this.isCleaningUp) {
+        logger.error(`Failed to start logcat: ${error.message}`);
+      }
+    });
+
     this.platformProcess.stdout?.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n');
       for (const line of lines) {
@@ -185,7 +191,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
       this.platformProcess.on('error', (error) => {
         if (!this.isCleaningUp) {
-          logger.error(`Log monitoring error: ${error.message}`);
           reject(error);
         } else {
           resolve();
