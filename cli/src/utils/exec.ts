@@ -119,7 +119,7 @@ export function showYAMLParsingError(errorOutput: string): void {
     logger.error('                    key: value');
     logger.error('  2. Check for unintended indentation or special characters');
     logger.error(`\nFull error:\n${errorOutput}`);
-  } else {
-    logger.error(errorOutput);
+    return;
   }
+  logger.error(errorOutput);
 }
