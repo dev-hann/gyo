@@ -127,9 +127,10 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       const urlObj = new URL(url);
       const port = urlObj.port;
       return port ? parseInt(port, 10) : DEFAULT_PORT;
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       logger.warn(
-        `Failed to parse URL from profile '${profile}', using default port ${DEFAULT_PORT}`
+        `Failed to parse URL from profile '${profile}', using default port ${DEFAULT_PORT}: ${message}`
       );
       return DEFAULT_PORT;
     }
@@ -193,6 +194,43 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     return serverUrl;
   }
 
+  private extractServerUrl(output: string): string | null {
+    const nextLocalMatch = output.match(
+      /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
+    );
+    if (nextLocalMatch) {
+      return `http://${LOCALHOST}:${nextLocalMatch[1]}`;
+    }
+
+    const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
+    if (viteMatch) {
+      return viteMatch[1];
+    }
+
+    const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
+    if (genericMatch) {
+      return `http://${LOCALHOST}:${genericMatch[1]}`;
+    }
+
+    return null;
+  }
+
+  private resolveServerUrl(detectedUrl: string): Promise<string> {
+    const urlObj = new URL(detectedUrl);
+    const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
+
+    return this.getLocalIP()
+      .then((ip) => {
+        return `http://${ip}:${port}`;
+      })
+      .catch((error) => {
+        logger.warn(
+          `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
+        );
+        return `http://${LOCALHOST}:${port}`;
+      });
+  }
+
   protected async waitForServerReady(expectedPort: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -208,44 +246,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
         if (serverReady) return;
 
-        let detectedUrl: string | null = null;
-
-        const nextLocalMatch = output.match(
-          /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
-        );
-        if (nextLocalMatch) {
-          detectedUrl = `http://${LOCALHOST}:${nextLocalMatch[1]}`;
-        }
-
-        const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
-        if (viteMatch) {
-          detectedUrl = viteMatch[1];
-        }
-
-        if (!detectedUrl) {
-          const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
-          if (genericMatch) {
-            detectedUrl = `http://${LOCALHOST}:${genericMatch[1]}`;
-          }
-        }
-
+        const detectedUrl = this.extractServerUrl(output);
         if (detectedUrl) {
           serverReady = true;
           clearTimeout(timeout);
-
-          const urlObj = new URL(detectedUrl);
-          const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
-
-          this.getLocalIP()
-            .then((ip) => {
-              resolve(`http://${ip}:${port}`);
-            })
-            .catch((error) => {
-              logger.warn(
-                `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
-              );
-              resolve(`http://${LOCALHOST}:${port}`);
-            });
+          this.resolveServerUrl(detectedUrl).then(resolve);
         }
       });
 
@@ -259,17 +264,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         if (!serverReady && output.match(/ready|listening|started/i)) {
           serverReady = true;
           clearTimeout(timeout);
-
-          this.getLocalIP()
-            .then((ip) => {
-              resolve(`http://${ip}:${expectedPort}`);
-            })
-            .catch((error) => {
-              logger.warn(
-                `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
-              );
-              resolve(`http://${LOCALHOST}:${expectedPort}`);
-            });
+          this.resolveServerUrl(`http://${LOCALHOST}:${expectedPort}`).then(resolve);
         }
       });
 
