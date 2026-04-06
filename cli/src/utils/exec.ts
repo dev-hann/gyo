@@ -22,13 +22,16 @@ export function executeCommand(
   options: ExecOptions = {}
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
-    // Combine command and args into a single string to avoid DEP0190 warning
-    // when using shell: true with args array
-    const fullCommand = args.length > 0 ? `${command} ${args.join(' ')}` : command;
-    const proc = spawn(fullCommand, [], {
-      ...options,
-      shell: true,
-    });
+    let spawnArgs: [string, string[], ExecOptions];
+    if (options.shell) {
+      const combinedArgs =
+        args.length > 0 ? args.map((arg) => (arg.includes(' ') ? `"${arg}"` : arg)).join(' ') : '';
+      const combinedCommand = combinedArgs ? `${command} ${combinedArgs}` : command;
+      spawnArgs = [combinedCommand, [], { ...options, shell: true }];
+    } else {
+      spawnArgs = [command, args, options];
+    }
+    const proc = spawn(...spawnArgs);
 
     let stdout = '';
     let stderr = '';

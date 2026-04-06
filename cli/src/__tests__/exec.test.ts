@@ -53,7 +53,7 @@ describe('exec utils', () => {
 
   describe('executeCommand', () => {
     it('should spawn with shell:true and combined command', async () => {
-      const promise = executeCommand('echo', ['hello']);
+      const promise = executeCommand('echo', ['hello'], { shell: true });
 
       expect(mockSpawn).toHaveBeenCalledTimes(1);
       expect(mockSpawn.mock.calls[0][0]).toBe('echo hello');

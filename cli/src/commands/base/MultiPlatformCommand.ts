@@ -51,7 +51,7 @@ export abstract class MultiPlatformCommand<
     const failures = results.filter((r) => r.status === 'rejected');
     if (failures.length > 0) {
       const messages = failures
-        .map((f) => (f as PromiseRejectedResult).reason)
+        .map((f) => f.reason)
         .map((r) => (r instanceof Error ? r.message : String(r)));
       throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`);
     }

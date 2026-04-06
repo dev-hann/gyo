@@ -1,5 +1,5 @@
 import inquirer from 'inquirer';
-import { BaseCommand, CommandMeta, Platform } from './base/index';
+import { BaseCommand, CommandMeta } from './base/index';
 import { AndroidRunCommand } from './run/AndroidRunCommand';
 import { IOSRunCommand } from './run/IOSRunCommand';
 import { getAllDevices, Device } from '../services/device.service';
@@ -14,8 +14,6 @@ interface RunCommandOptions {
 }
 
 export class RunCommand extends BaseCommand<RunCommandOptions> {
-  private platform: Platform = 'android';
-
   getMeta(): CommandMeta {
     return {
       name: 'run',
@@ -45,7 +43,6 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
     }
 
     const selectedDevice = await this.selectDevice(devices);
-    this.platform = selectedDevice.platform;
 
     const command = this.createCommand(selectedDevice);
     command.setOptions({

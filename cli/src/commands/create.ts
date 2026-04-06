@@ -396,7 +396,13 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       '/opt/android-sdk',
     ].filter((c) => c !== '');
 
-    const sdkPath = await candidates.find((candidate) => pathExists(candidate));
+    let sdkPath: string | undefined;
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        sdkPath = candidate;
+        break;
+      }
+    }
 
     if (!sdkPath) {
       logger.warn('Android SDK not found. Set ANDROID_HOME or install Android Studio.');

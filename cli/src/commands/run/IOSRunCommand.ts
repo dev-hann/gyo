@@ -43,7 +43,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     await fs.ensureDir(resourcesPath);
 
     const config = {
-      serverUrl: serverUrl,
+      serverUrl,
     };
 
     const configJson = JSON.stringify(config, null, 2);
