@@ -214,7 +214,6 @@ export class IOSRunCommand extends AbstractRunCommand {
   protected showSuccessMessage(serverUrl: string): void {
     logger.log('');
     logger.info('📱 Please tap the app icon on your device to launch it.');
-    logger.log('');
     logger.success(`App is connected to: ${serverUrl}`);
     logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
