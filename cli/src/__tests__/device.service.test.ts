@@ -17,6 +17,7 @@ jest.mock('../utils/logger', () => ({
 }));
 
 import { executeCommand, checkCommandExists } from '../utils/exec';
+import { logger } from '../utils/logger';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
@@ -127,6 +128,36 @@ describe('device.service', () => {
 
       expect(devices).toEqual([]);
     });
+
+    it('should log debug when adb not found', async () => {
+      mockedCheck.mockResolvedValue(false);
+
+      await getAndroidDevices();
+
+      expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('ADB not found'));
+    });
+
+    it('should log debug when adb command fails', async () => {
+      mockedCheck.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(mockExecResult({ success: false }));
+
+      await getAndroidDevices();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to get Android devices')
+      );
+    });
+
+    it('should log debug on exception', async () => {
+      mockedCheck.mockResolvedValue(true);
+      mockedExec.mockRejectedValue(new Error('spawn error'));
+
+      await getAndroidDevices();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Error detecting Android devices')
+      );
+    });
   });
 
   describe('getIOSDevices', () => {
@@ -190,6 +221,25 @@ describe('device.service', () => {
       const devices = await getIOSDevices();
 
       expect(devices).toEqual([]);
+    });
+
+    it('should log debug when idevice_id not found', async () => {
+      mockedCheck.mockResolvedValue(false);
+
+      await getIOSDevices();
+
+      expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('idevice_id not found'));
+    });
+
+    it('should log debug on exception', async () => {
+      mockedCheck.mockResolvedValue(true);
+      mockedExec.mockRejectedValue(new Error('spawn error'));
+
+      await getIOSDevices();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringContaining('Error detecting iOS devices')
+      );
     });
   });
 

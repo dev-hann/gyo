@@ -146,7 +146,7 @@ describe('CleanCommand', () => {
       await command['run']();
 
       expect(mockedRemoveDir).toHaveBeenCalled();
-      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('node_modules'));
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('node_modules'));
       expect(logger.success).toHaveBeenCalledWith('Lib build cleaned');
     });
   });

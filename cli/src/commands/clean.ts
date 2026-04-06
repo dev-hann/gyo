@@ -133,7 +133,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     const nodeModulesPath = path.join(libPath, 'node_modules');
     if (await pathExists(nodeModulesPath)) {
-      logger.error('Removing node_modules/ — you will need to run npm install before the next run');
+      logger.warn('Removing node_modules/ — you will need to run npm install before the next run');
       cleanupTasks.push(removeDir(nodeModulesPath));
     }
 
