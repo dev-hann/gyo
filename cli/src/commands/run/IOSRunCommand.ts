@@ -8,6 +8,8 @@ import { executeCommand, showYAMLParsingError, checkCommandExists } from '../../
 import { pathExists, readFile } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
+const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
+
 export class IOSRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
     return { name: 'run-ios', description: 'Run iOS app' };
@@ -205,7 +207,7 @@ export class IOSRunCommand extends AbstractRunCommand {
       syslogCapture.on('error', () => finish(safeBundleId));
       syslogCapture.on('exit', () => finish(safeBundleId));
 
-      timeout = setTimeout(() => finish(safeBundleId), 2000);
+      timeout = setTimeout(() => finish(safeBundleId), SYSLOG_SEARCH_TIMEOUT_MS);
     });
 
     return foundBundleId;

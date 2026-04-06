@@ -29,15 +29,18 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
 
     const content = await readFile(gradlePath);
     if (!content.includes('storeFile')) {
-      logger.error('Release signing not configured.');
-      logger.error('Add a signing config to android/app/build.gradle:');
-      logger.error('  android { signingConfigs { release {');
-      logger.error('    storeFile file("keystore.jks")');
-      logger.error('    storePassword "..."');
-      logger.error('    keyAlias "..."');
-      logger.error('    keyPassword "..."');
-      logger.error('  } } }');
-      logger.error('See: https://developer.android.com/build/configure-apk-signing');
+      const signingMessage = [
+        'Release signing not configured.',
+        'Add a signing config to android/app/build.gradle:',
+        '  android { signingConfigs { release {',
+        '    storeFile file("keystore.jks")',
+        '    storePassword "..."',
+        '    keyAlias "..."',
+        '    keyPassword "..."',
+        '  } } }',
+        'See: https://developer.android.com/build/configure-apk-signing',
+      ].join('\n');
+      logger.error(signingMessage);
       throw new BuildFailedError('Release signing config not found in build.gradle');
     }
   }

@@ -114,14 +114,18 @@ export async function checkCommandExists(command: string): Promise<boolean> {
 
 export function showYAMLParsingError(errorOutput: string): void {
   if (errorOutput.includes('typeMismatch') || errorOutput.includes('Expected to decode Scalar')) {
-    logger.error('YAML parsing error in xtool.yml or project.yml');
-    logger.error('Common issues:');
-    logger.error('  1. bundleID should be a simple string value, not a mapping');
-    logger.error('     ✓ Correct:   bundleID: com.example.app');
-    logger.error('     ✗ Wrong:     bundleID:');
-    logger.error('                    key: value');
-    logger.error('  2. Check for unintended indentation or special characters');
-    logger.error(`\nFull error:\n${errorOutput}`);
+    const message = [
+      'YAML parsing error in xtool.yml or project.yml',
+      'Common issues:',
+      '  1. bundleID should be a simple string value, not a mapping',
+      '     ✓ Correct:   bundleID: com.example.app',
+      '     ✗ Wrong:     bundleID:',
+      '                    key: value',
+      '  2. Check for unintended indentation or special characters',
+      '',
+      `Full error:\n${errorOutput}`,
+    ].join('\n');
+    logger.error(message);
     return;
   }
   logger.error(errorOutput);

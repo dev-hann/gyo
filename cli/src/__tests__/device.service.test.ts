@@ -76,7 +76,7 @@ describe('device.service', () => {
         platform: 'android',
         id: 'emulator-5554',
         name: 'sdk gphone64 x86 64',
-        state: 'Available',
+        state: 'device',
       });
       expect(devices[1].id).toBe('ABCD1234');
     });

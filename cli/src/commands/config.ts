@@ -69,7 +69,7 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
   }
 
   private async setConfig(): Promise<void> {
-    if (!this.options.key || this.options.value === undefined) {
+    if (!this.options.key || this.options.value == null) {
       throw new GyoError('Key and value are required for set operation');
     }
 

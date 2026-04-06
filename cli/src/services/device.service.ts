@@ -52,7 +52,7 @@ export async function getAndroidDevices(): Promise<Device[]> {
         platform: 'android',
         id: deviceId,
         name: model,
-        state: 'Available',
+        state,
       });
     }
   } catch (error) {
