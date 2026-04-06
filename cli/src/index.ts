@@ -120,7 +120,11 @@ process.on('unhandledRejection', (error: unknown) => {
   ) {
     process.exit(0);
   }
-  console.error(error);
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`\x1b[31m✗\x1b[0m Unexpected error: ${errorMessage}`);
+  if (error instanceof Error && error.stack && process.env.DEBUG) {
+    console.error(error.stack);
+  }
   process.exit(1);
 });
 
