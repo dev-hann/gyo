@@ -5,6 +5,13 @@ import { GyoConfig, GyoError } from '../core/index';
 
 export { GyoConfig } from '../core/index';
 
+function validateServerUrl(url: unknown): boolean {
+  if (typeof url !== 'string') {
+    return false;
+  }
+  return url.startsWith('http://') || url.startsWith('https://');
+}
+
 function collectConfigErrors(raw: unknown): string[] {
   const errors: string[] = [];
   if (typeof raw !== 'object' || raw === null) {
@@ -53,10 +60,8 @@ function collectConfigErrors(raw: unknown): string[] {
   }
 
   if (obj.serverUrl !== undefined) {
-    if (typeof obj.serverUrl !== 'string') {
-      errors.push("'serverUrl' must be a string");
-    } else if (!obj.serverUrl.startsWith('http://') && !obj.serverUrl.startsWith('https://')) {
-      errors.push('serverUrl must start with http:// or https://');
+    if (!validateServerUrl(obj.serverUrl)) {
+      errors.push("'serverUrl' must be a string starting with http:// or https://");
     }
   }
 
@@ -69,13 +74,10 @@ function collectConfigErrors(raw: unknown): string[] {
           errors.push(`'profiles.${key}' must be an object`);
         } else {
           const profile = value as Record<string, unknown>;
-          if (typeof profile.serverUrl !== 'string') {
-            errors.push(`'profiles.${key}.serverUrl' must be a string`);
-          } else if (
-            !profile.serverUrl.startsWith('http://') &&
-            !profile.serverUrl.startsWith('https://')
-          ) {
-            errors.push(`'profiles.${key}.serverUrl' must start with http:// or https://`);
+          if (!validateServerUrl(profile.serverUrl)) {
+            errors.push(
+              `'profiles.${key}.serverUrl' must be a string starting with http:// or https://`
+            );
           }
         }
       }
