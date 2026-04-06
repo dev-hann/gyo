@@ -109,7 +109,7 @@ registerConfigCommand();
 
 process.on('unhandledRejection', (error: unknown) => {
   if (error instanceof GyoError) {
-    console.error(`\x1b[31m✗\x1b[0m ${error.message}`);
+    logger.error(error.message);
     process.exit(error.exitCode);
   }
   if (
@@ -121,9 +121,9 @@ process.on('unhandledRejection', (error: unknown) => {
     process.exit(0);
   }
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(`\x1b[31m✗\x1b[0m Unexpected error: ${errorMessage}`);
+  logger.error(`Unexpected error: ${errorMessage}`);
   if (error instanceof Error && error.stack && process.env.DEBUG) {
-    console.error(error.stack);
+    logger.debug(error.stack);
   }
   process.exit(1);
 });
@@ -131,8 +131,8 @@ process.on('unhandledRejection', (error: unknown) => {
 program.parse(process.argv);
 
 if (!process.argv.slice(2).length) {
-  console.error('');
-  console.error('\x1b[36mWelcome to gyo!\x1b[0m Get started: \x1b[1mgyo create my-app\x1b[0m');
-  console.error('');
+  logger.log('');
+  logger.info('Welcome to gyo! Get started: gyo create my-app');
+  logger.log('');
   program.outputHelp();
 }
