@@ -10,7 +10,7 @@ import { BuildFailedError, ToolRequiredError } from '../../core/errors';
 
 export class IOSRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
-    return { name: 'run-ios', description: '' };
+    return { name: 'run-ios', description: 'Run iOS app' };
   }
 
   protected async runPlatform(serverUrl: string): Promise<void> {
