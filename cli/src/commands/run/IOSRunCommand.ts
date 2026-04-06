@@ -208,6 +208,9 @@ export class IOSRunCommand extends AbstractRunCommand {
       syslogCapture.on('exit', () => finish(safeBundleId));
 
       timeout = setTimeout(() => finish(safeBundleId), SYSLOG_SEARCH_TIMEOUT_MS);
+      if (timeout) {
+        timeout.unref();
+      }
     });
 
     return foundBundleId;

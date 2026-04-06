@@ -238,6 +238,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`)
         );
       }, WEB_SERVER_TIMEOUT_MS);
+      timeout.unref();
 
       let serverReady = false;
 
@@ -331,12 +332,13 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           webProc.once('exit', () => resolve());
           webProc.kill('SIGTERM');
 
-          setTimeout(() => {
+          const killTimeout = setTimeout(() => {
             if (!webProc.killed) {
               webProc.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
+          killTimeout.unref();
         })
       );
     }
@@ -348,12 +350,13 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           platProc.once('exit', () => resolve());
           platProc.kill('SIGTERM');
 
-          setTimeout(() => {
+          const killTimeout = setTimeout(() => {
             if (!platProc.killed) {
               platProc.kill('SIGKILL');
             }
             resolve();
           }, PROCESS_KILL_TIMEOUT_MS);
+          killTimeout.unref();
         })
       );
     }
