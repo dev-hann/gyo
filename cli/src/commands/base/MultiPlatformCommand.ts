@@ -58,7 +58,7 @@ export abstract class MultiPlatformCommand<
       if (firstError instanceof GyoError && firstError.cause) {
         originalCause = firstError.cause;
       }
-      throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`, 1, {
+      throw new GyoError(`Platform processing failed: ${messages.join('; ')}`, 1, {
         cause: originalCause,
       });
     }

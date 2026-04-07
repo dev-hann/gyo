@@ -118,7 +118,7 @@ describe('MultiPlatformCommand', () => {
       });
 
       await expect(command['processAllPlatforms'](processor)).rejects.toThrow(
-        'Platform cleanup failed: ios cleanup failed'
+        'Platform processing failed: ios cleanup failed'
       );
     });
 
@@ -129,7 +129,7 @@ describe('MultiPlatformCommand', () => {
       });
 
       await expect(command['processAllPlatforms'](processor)).rejects.toThrow(
-        'Platform cleanup failed'
+        'Platform processing failed'
       );
     });
   });
