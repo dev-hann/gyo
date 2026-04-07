@@ -100,37 +100,43 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     this.updateSpinner('Cleaning iOS build...');
 
-    const cleanupTasks: Array<{ path: string; task: Promise<void> }> = [];
-
     const buildPath = path.join(iosPath, 'build');
-    if (await pathExists(buildPath)) {
-      cleanupTasks.push({ path: buildPath, task: removeDir(buildPath) });
-    }
-
     const podsPath = path.join(iosPath, 'Pods');
-    if (await pathExists(podsPath)) {
-      cleanupTasks.push({ path: podsPath, task: removeDir(podsPath) });
-    }
+
+    const cleanupTasks = [
+      { path: buildPath, name: 'build' },
+      { path: podsPath, name: 'Pods' },
+    ];
 
     const results = await Promise.allSettled(
-      cleanupTasks.map(({ path, task }) =>
-        task
-          .then(() => ({ path, success: true, name: path === buildPath ? 'build' : 'Pods' }))
-          .catch((error) => ({
-            path,
-            success: false,
-            name: path === buildPath ? 'build' : 'Pods',
-            error,
-          }))
-      )
+      cleanupTasks
+        .filter(async ({ path }) => await pathExists(path))
+        .map(({ path, name }) =>
+          removeDir(path)
+            .then(() => ({ path, success: true, name }))
+            .catch((error) => ({ path, success: false, name, error }))
+        )
     );
 
+    this.processCleanupResults(results, 'iOS', 'iOS cleanup failed');
+  }
+
+  private processCleanupResults(
+    results: PromiseSettledResult<{
+      path: string;
+      success: boolean;
+      name: string;
+      error?: unknown;
+    }>[],
+    platform: string,
+    errorMessage: string
+  ): void {
     const failures: Array<{ path: string; error: unknown }> = [];
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
         if (result.value.success) {
-          logger.success(`iOS ${result.value.name} cleaned`);
+          logger.success(`${platform} ${result.value.name} cleaned`);
         } else {
           this.hadWarnings = true;
           const value = result.value as {
@@ -147,7 +153,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     }
 
     if (failures.length > 0) {
-      throw new GyoError(`iOS cleanup failed: ${failures.map((f) => f.path).join(', ')}`, 1, {
+      throw new GyoError(`${errorMessage}: ${failures.map((f) => f.path).join(', ')}`, 1, {
         cause: failures[0].error,
       });
     }
@@ -163,56 +169,29 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     this.updateSpinner('Cleaning lib build...');
 
-    const cleanupTasks: Array<{ path: string; task: Promise<void>; name: string }> = [];
-
     const distPath = path.join(libPath, 'dist');
-    if (await pathExists(distPath)) {
-      cleanupTasks.push({ path: distPath, task: removeDir(distPath), name: 'dist' });
-    }
-
     const nodeModulesPath = path.join(libPath, 'node_modules');
+
+    const cleanupTasks: Array<{ path: string; name: string }> = [{ path: distPath, name: 'dist' }];
+
     if (await pathExists(nodeModulesPath)) {
       logger.warn('Removing node_modules/ — you will need to run npm install before the next run');
       cleanupTasks.push({
         path: nodeModulesPath,
-        task: removeDir(nodeModulesPath),
         name: 'node_modules',
       });
     }
 
     const results = await Promise.allSettled(
-      cleanupTasks.map(({ path, task, name }) =>
-        task
-          .then(() => ({ path, success: true, name }))
-          .catch((error) => ({ path, success: false, name, error }))
-      )
+      cleanupTasks
+        .filter(async ({ path }) => await pathExists(path))
+        .map(({ path, name }) =>
+          removeDir(path)
+            .then(() => ({ path, success: true, name }))
+            .catch((error) => ({ path, success: false, name, error }))
+        )
     );
 
-    const failures: Array<{ path: string; error: unknown }> = [];
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) {
-          logger.success(`Lib ${result.value.name} cleaned`);
-        } else {
-          this.hadWarnings = true;
-          const value = result.value as {
-            path: string;
-            success: false;
-            name: string;
-            error: unknown;
-          };
-          const message = getErrorMessage(value.error);
-          logger.warn(`Failed to remove ${value.path}: ${message}`);
-          failures.push({ path: value.path, error: value.error });
-        }
-      }
-    }
-
-    if (failures.length > 0) {
-      throw new GyoError(`Lib cleanup failed: ${failures.map((f) => f.path).join(', ')}`, 1, {
-        cause: failures[0].error,
-      });
-    }
+    this.processCleanupResults(results, 'Lib', 'Lib cleanup failed');
   }
 }
