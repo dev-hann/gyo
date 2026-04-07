@@ -32,12 +32,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     this.options = {} as T;
     this.spinner = ora();
     this.config = null;
-    try {
-      this.projectPath = process.cwd();
-    } catch (error) {
-      const message = getErrorMessage(error);
-      throw new GyoError(`Could not determine current directory: ${message}`);
-    }
+    this.projectPath = process.cwd();
   }
 
   abstract getMeta(): CommandMeta;

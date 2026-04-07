@@ -138,12 +138,9 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   protected async monitorLogs(identifier: string): Promise<void> {
-    const logcatArgs = ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
-    if (identifier) {
-      logcatArgs.unshift('-s', identifier);
-    }
+    const adbArgs = identifier ? ['-s', identifier, 'logcat', '-v', 'brief', '-s', 'WebView-Console:*'] : ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
 
-    this.platformProcess = spawn('adb', logcatArgs, {
+    this.platformProcess = spawn('adb', adbArgs, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

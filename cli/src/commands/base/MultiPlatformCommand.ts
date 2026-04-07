@@ -53,7 +53,14 @@ export abstract class MultiPlatformCommand<
       const messages = failures.map((f) =>
         f.reason instanceof Error ? f.reason.message : String(f.reason ?? 'Unknown error')
       );
-      throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`);
+      const firstError = failures[0].reason;
+      let originalCause = firstError;
+      if (firstError instanceof GyoError && firstError.cause) {
+        originalCause = firstError.cause;
+      }
+      throw new GyoError(`Platform cleanup failed: ${messages.join('; ')}`, 1, {
+        cause: originalCause,
+      });
     }
   }
 

@@ -100,19 +100,57 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     this.updateSpinner('Cleaning iOS build...');
 
-    const cleanupTasks: Promise<void>[] = [];
+    const cleanupTasks: Array<{ path: string; task: Promise<void> }> = [];
 
     const buildPath = path.join(iosPath, 'build');
     if (await pathExists(buildPath)) {
-      cleanupTasks.push(removeDir(buildPath).then(() => logger.success('iOS build cleaned')));
+      cleanupTasks.push({ path: buildPath, task: removeDir(buildPath) });
     }
 
     const podsPath = path.join(iosPath, 'Pods');
     if (await pathExists(podsPath)) {
-      cleanupTasks.push(removeDir(podsPath).then(() => logger.success('iOS Pods cleaned')));
+      cleanupTasks.push({ path: podsPath, task: removeDir(podsPath) });
     }
 
-    await Promise.all(cleanupTasks);
+    const results = await Promise.allSettled(
+      cleanupTasks.map(({ path, task }) =>
+        task
+          .then(() => ({ path, success: true, name: path === buildPath ? 'build' : 'Pods' }))
+          .catch((error) => ({
+            path,
+            success: false,
+            name: path === buildPath ? 'build' : 'Pods',
+            error,
+          }))
+      )
+    );
+
+    const failures: Array<{ path: string; error: unknown }> = [];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        if (result.value.success) {
+          logger.success(`iOS ${result.value.name} cleaned`);
+        } else {
+          this.hadWarnings = true;
+          const value = result.value as {
+            path: string;
+            success: false;
+            name: string;
+            error: unknown;
+          };
+          const message = getErrorMessage(value.error);
+          logger.warn(`Failed to remove ${value.path}: ${message}`);
+          failures.push({ path: value.path, error: value.error });
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new GyoError(`iOS cleanup failed: ${failures.map((f) => f.path).join(', ')}`, 1, {
+        cause: failures[0].error,
+      });
+    }
   }
 
   private async cleanLib(): Promise<void> {
@@ -125,20 +163,56 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     this.updateSpinner('Cleaning lib build...');
 
-    const cleanupTasks: Promise<void>[] = [];
+    const cleanupTasks: Array<{ path: string; task: Promise<void>; name: string }> = [];
 
     const distPath = path.join(libPath, 'dist');
     if (await pathExists(distPath)) {
-      cleanupTasks.push(removeDir(distPath));
+      cleanupTasks.push({ path: distPath, task: removeDir(distPath), name: 'dist' });
     }
 
     const nodeModulesPath = path.join(libPath, 'node_modules');
     if (await pathExists(nodeModulesPath)) {
       logger.warn('Removing node_modules/ — you will need to run npm install before the next run');
-      cleanupTasks.push(removeDir(nodeModulesPath));
+      cleanupTasks.push({
+        path: nodeModulesPath,
+        task: removeDir(nodeModulesPath),
+        name: 'node_modules',
+      });
     }
 
-    await Promise.all(cleanupTasks);
-    logger.success('Lib build cleaned');
+    const results = await Promise.allSettled(
+      cleanupTasks.map(({ path, task, name }) =>
+        task
+          .then(() => ({ path, success: true, name }))
+          .catch((error) => ({ path, success: false, name, error }))
+      )
+    );
+
+    const failures: Array<{ path: string; error: unknown }> = [];
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        if (result.value.success) {
+          logger.success(`Lib ${result.value.name} cleaned`);
+        } else {
+          this.hadWarnings = true;
+          const value = result.value as {
+            path: string;
+            success: false;
+            name: string;
+            error: unknown;
+          };
+          const message = getErrorMessage(value.error);
+          logger.warn(`Failed to remove ${value.path}: ${message}`);
+          failures.push({ path: value.path, error: value.error });
+        }
+      }
+    }
+
+    if (failures.length > 0) {
+      throw new GyoError(`Lib cleanup failed: ${failures.map((f) => f.path).join(', ')}`, 1, {
+        cause: failures[0].error,
+      });
+    }
   }
 }

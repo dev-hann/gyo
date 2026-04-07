@@ -77,10 +77,9 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
     }
 
     if (devices.length === 1) {
-      logger.info(
-        `Found 1 device. Automatically selecting '${devices[0].name}' (${devices[0].platform})`
-      );
-      return devices[0];
+      const device = devices[0];
+      logger.info(`Found 1 device. Automatically selecting '${device.name}' (${device.platform})`);
+      return device;
     }
 
     return this.promptDeviceSelection(devices);

@@ -194,8 +194,9 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       } else if (pkg.scripts?.start) {
         this.detectedStartScript = 'npm run start';
       }
-    } catch {
+    } catch (error) {
       logger.warn('Could not read lib/package.json. Using default start script.');
+      logger.debug(getErrorMessage(error));
     }
   }
 

@@ -12,6 +12,14 @@ function validateServerUrl(url: unknown): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
+function validateNonEmptyUrl(url: string, context: string): string {
+  if (!url || url.trim() === '') {
+    logger.error(`${context} is empty in gyo.config.json`);
+    throw new GyoError(`${context} cannot be empty`);
+  }
+  return url;
+}
+
 function validatePlatform(
   platform: unknown,
   platformName: string,
@@ -127,20 +135,12 @@ export async function saveConfig(
 export function getProfileUrl(config: GyoConfig, profile: string = 'development'): string {
   if (config.profiles && config.profiles[profile]) {
     const serverUrl = config.profiles[profile].serverUrl;
-    if (!serverUrl || serverUrl.trim() === '') {
-      logger.error(`Profile '${profile}' has empty serverUrl in gyo.config.json`);
-      throw new GyoError(`Profile '${profile}' serverUrl cannot be empty`);
-    }
-    return serverUrl;
+    return validateNonEmptyUrl(serverUrl, `Profile '${profile}' serverUrl`);
   }
 
   if (config.serverUrl) {
     logger.warn('Using legacy serverUrl. Consider migrating to profiles in gyo.config.json');
-    if (!config.serverUrl || config.serverUrl.trim() === '') {
-      logger.error('serverUrl is empty in gyo.config.json');
-      throw new GyoError('serverUrl cannot be empty');
-    }
-    return config.serverUrl;
+    return validateNonEmptyUrl(config.serverUrl, 'serverUrl');
   }
 
   logger.error(`Profile '${profile}' not found in gyo.config.json`);

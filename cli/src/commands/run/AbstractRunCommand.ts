@@ -173,8 +173,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (await pathExists(lockFile)) {
       try {
         await fs.remove(lockFile);
-      } catch {
-        logger.warn('Could not remove lock file');
+      } catch (error) {
+        logger.warn(`Could not remove lock file: ${getErrorMessage(error)}`);
       }
     }
 
@@ -238,43 +238,61 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       timeout.unref();
 
       let serverReady = false;
+      let resolved = false;
 
-      this.webServerProcess?.stdout?.on('data', (data: Buffer) => {
-        const output = data.toString();
+      const doResolve = (url: string): void => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+        removeListeners();
+        resolve(url);
+      };
 
+      const doReject = (error: Error): void => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+        removeListeners();
+        reject(error);
+      };
+
+      const removeListeners = (): void => {
+        this.webServerProcess?.stdout?.off('data', onStdoutData);
+        this.webServerProcess?.stderr?.off('data', onStderrData);
+        this.webServerProcess?.off('error', onError);
+        this.webServerProcess?.off('exit', onExit);
+      };
+
+      const onStdoutData = (data: Buffer): void => {
         if (serverReady) return;
-
+        const output = data.toString();
         const detectedUrl = this.extractServerUrl(output);
         if (detectedUrl) {
           serverReady = true;
-          clearTimeout(timeout);
-          this.resolveServerUrl(detectedUrl).then(resolve);
+          this.resolveServerUrl(detectedUrl).then(doResolve).catch(doReject);
         }
-      });
+      };
 
-      this.webServerProcess?.stderr?.on('data', (data: Buffer) => {
+      const onStderrData = (data: Buffer): void => {
         const output = data.toString();
-
         if (output.match(/error|EADDRINUSE|EACCES/i)) {
           logger.error(`[web server] ${output.trim()}`);
         }
-
         if (!serverReady && output.match(/ready|listening|started/i)) {
           serverReady = true;
-          clearTimeout(timeout);
-          this.resolveServerUrl(`http://${LOCALHOST}:${expectedPort}`).then(resolve);
+          this.resolveServerUrl(`http://${LOCALHOST}:${expectedPort}`)
+            .then(doResolve)
+            .catch(doReject);
         }
-      });
+      };
 
-      this.webServerProcess?.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(new Error(`Failed to start web server: ${error.message}`));
-      });
+      const onError = (error: Error): void => {
+        doReject(new Error(`Failed to start web server: ${error.message}`));
+      };
 
-      this.webServerProcess?.on('exit', (code) => {
+      const onExit = (code: number | null): void => {
         if (!serverReady) {
-          clearTimeout(timeout);
-          reject(new Error(`Web server exited with code ${code}`));
+          doReject(new Error(`Web server exited with code ${code}`));
         } else if (code !== 0 && !this.isCleaningUp) {
           logger.error(`\n⚠️  Web server unexpectedly stopped with code ${code}`);
           logger.error(
@@ -284,7 +302,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
             'The app will continue running but may not be able to connect to the server.'
           );
         }
-      });
+      };
+
+      this.webServerProcess?.stdout?.on('data', onStdoutData);
+      this.webServerProcess?.stderr?.on('data', onStderrData);
+      this.webServerProcess?.on('error', onError);
+      this.webServerProcess?.on('exit', onExit);
     });
   }
 

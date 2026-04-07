@@ -128,7 +128,9 @@ export async function getIOSDevices(): Promise<Device[]> {
       if (result.status === 'fulfilled') {
         devices.push(result.value);
       } else {
-        logger.debug(`Failed to get device info: ${result.reason}`);
+        const reasonMessage =
+          result.reason instanceof Error ? result.reason.message : String(result.reason);
+        logger.debug(`Failed to get device info: ${reasonMessage}`);
       }
     }
   } catch (error) {

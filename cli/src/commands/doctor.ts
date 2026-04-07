@@ -168,13 +168,16 @@ export class DoctorCommand extends BaseCommand {
 
     if (config.minVersion) {
       const currentVersion = config.minVersion.parse(result.stdout);
-      const passed = currentVersion >= config.minVersion.required;
+      const isValidVersion = !isNaN(currentVersion);
+      const passed = isValidVersion && currentVersion >= config.minVersion.required;
       return {
         name: config.name,
         passed,
         message: passed
           ? versionOutput
-          : `${versionOutput} (requires v${config.minVersion.required} or higher)`,
+          : isValidVersion
+            ? `${versionOutput} (requires v${config.minVersion.required} or higher)`
+            : `${versionOutput} (version format not recognized)`,
         optional: config.optional,
       };
     }

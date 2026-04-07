@@ -147,7 +147,8 @@ describe('CleanCommand', () => {
 
       expect(mockedRemoveDir).toHaveBeenCalled();
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('node_modules'));
-      expect(logger.success).toHaveBeenCalledWith('Lib build cleaned');
+      expect(logger.success).toHaveBeenCalledWith('Lib dist cleaned');
+      expect(logger.success).toHaveBeenCalledWith('Lib node_modules cleaned');
     });
   });
 
@@ -192,15 +193,19 @@ describe('CleanCommand', () => {
       mockedRemoveDir.mockRejectedValue(new Error('disk error'));
       command.setPlatform('ios');
 
-      const GyoError = jest.requireActual('../core/errors').GyoError;
+      const { GyoError } = jest.requireActual('../core/errors');
       let thrownError: unknown;
       try {
         await command['run']();
       } catch (error) {
         thrownError = error;
       }
+      expect(thrownError).toBeDefined();
       expect(thrownError).toBeInstanceOf(GyoError);
-      expect((thrownError as Error).message).toContain('disk error');
+      const err = thrownError as InstanceType<typeof GyoError>;
+      expect(err.cause).toBeDefined();
+      expect(err.cause).toBeInstanceOf(Error);
+      expect((err.cause as Error).message).toContain('disk error');
     });
   });
 });

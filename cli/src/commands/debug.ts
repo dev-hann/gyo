@@ -48,7 +48,7 @@ export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
     }
   }
 
-  private showIOSDebugInfo(): void {
+  private async showIOSDebugInfo(): Promise<void> {
     logger.info('iOS Debugging with Safari Web Inspector\n');
     logger.info('📌 Steps:');
     logger.info('  1. Connect your iOS device via USB or use Simulator');

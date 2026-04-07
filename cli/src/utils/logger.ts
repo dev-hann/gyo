@@ -9,7 +9,6 @@ const EMOJI = {
 } as const;
 
 let verboseMode = false;
-let testMode = process.env.NODE_ENV === 'test';
 
 export const logger = {
   setVerbose: (verbose: boolean): void => {
@@ -21,12 +20,6 @@ export const logger = {
   },
 
   isVerbose: (): boolean => verboseMode,
-
-  setTestMode: (mode: boolean): void => {
-    testMode = mode;
-  },
-
-  isTestMode: (): boolean => testMode,
 
   info: (message: string): void => {
     console.log(chalk.blue(EMOJI.INFO), message);
@@ -41,9 +34,7 @@ export const logger = {
   },
 
   error: (message: string): void => {
-    if (!testMode) {
-      console.log(chalk.red(EMOJI.ERROR), message);
-    }
+    console.log(chalk.red(EMOJI.ERROR), message);
   },
 
   debug: (message: string): void => {

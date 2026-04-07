@@ -3,14 +3,11 @@ import { logger } from '../utils/logger';
 describe('logger', () => {
   let consoleLogSpy: jest.SpyInstance;
   let originalDebug: string | undefined;
-  let originalTestMode: boolean;
 
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     originalDebug = process.env.DEBUG;
-    originalTestMode = logger.isTestMode();
     logger.resetVerbose();
-    logger.setTestMode(false);
   });
 
   afterEach(() => {
@@ -20,7 +17,6 @@ describe('logger', () => {
     } else {
       process.env.DEBUG = originalDebug;
     }
-    logger.setTestMode(originalTestMode);
   });
 
   describe('setVerbose / isVerbose', () => {
