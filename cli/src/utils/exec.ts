@@ -52,7 +52,15 @@ export function executeCommand(
     if (options.timeout) {
       timeoutId = setTimeout(() => {
         if (!resolved) {
-          proc.kill();
+          try {
+            proc.kill();
+          } catch {
+            // Ignore kill errors
+          }
+          proc.stdout?.removeAllListeners('data');
+          proc.stderr?.removeAllListeners('data');
+          proc.removeAllListeners('close');
+          proc.removeAllListeners('error');
           done({
             success: false,
             stdout: stdout.trim(),
@@ -116,22 +124,26 @@ export async function checkCommandExists(command: string): Promise<boolean> {
 }
 
 export function showYAMLParsingError(errorOutput: string): void {
-  if (
+  const hasYamlError =
     errorOutput.includes(YAML_ERROR_TYPE_MISMATCH) ||
-    errorOutput.includes(YAML_ERROR_DECODE_SCALAR)
-  ) {
-    const message = `YAML parsing error in xtool.yml or project.yml
-Common issues:
-  1. bundleID should be a simple string value, not a mapping
-     ✓ Correct:   bundleID: com.example.app
-     ✗ Wrong:     bundleID:
-                    key: value
-  2. Check for unintended indentation or special characters
+    errorOutput.includes(YAML_ERROR_DECODE_SCALAR);
 
-Full error:
-${errorOutput}`;
-    logger.error(message);
+  if (!hasYamlError) {
+    logger.error(errorOutput);
     return;
   }
-  logger.error(errorOutput);
+
+  const lines = [
+    'YAML parsing error in xtool.yml or project.yml',
+    'Common issues:',
+    '  1. bundleID should be a simple string value, not a mapping',
+    '     ✓ Correct:   bundleID: com.example.app',
+    '     ✗ Wrong:     bundleID:',
+    '                     key: value',
+    '  2. Check for unintended indentation or special characters',
+    '',
+    'Full error:',
+    errorOutput,
+  ];
+  logger.error(lines.join('\n'));
 }
