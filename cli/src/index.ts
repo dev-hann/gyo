@@ -78,10 +78,11 @@ function registerConfigCommand(): void {
     if (sub.arguments) sc = sc.arguments(sub.arguments);
 
     sc.action(async (...args) => {
-      const options = args.pop();
-      const positionalArgs = args;
+      const options = args.length >= 2 ? args[args.length - 2] : {};
+      const positionalArgs = args.length >= 2 ? args.slice(0, -2) : args;
 
       const cmd = new ConfigCommand();
+      cmd.setOptions(options);
       cmd.setAction(sub.name as 'show' | 'set' | 'get');
 
       if (sub.name === 'set') {
@@ -90,7 +91,6 @@ function registerConfigCommand(): void {
         cmd.setKeyValue(positionalArgs[0]);
       }
 
-      cmd.setOptions(options);
       await cmd.execute();
     });
   });
@@ -129,11 +129,11 @@ function handleUnhandledRejection(error: unknown): void {
 
 process.on('unhandledRejection', handleUnhandledRejection);
 
-program.parse(process.argv);
-
-if (!process.argv.slice(2).length) {
-  logger.log('');
-  logger.info('Welcome to gyo! Get started: gyo create my-app');
-  logger.log('');
-  program.outputHelp();
-}
+program.parseAsync(process.argv).then(() => {
+  if (!process.argv.slice(2).length) {
+    logger.log('');
+    logger.info('Welcome to gyo! Get started: gyo create my-app');
+    logger.log('');
+    program.outputHelp();
+  }
+});

@@ -49,7 +49,7 @@ const FRAMEWORK_OPTIONS: FrameworkOption[] = [
   {
     name: 'Next.js',
     value: 'next',
-    scaffoldCommand: 'npx -y create-next-app@latest . --skip-install',
+    scaffoldCommand: 'npx -y create-next-app@latest . --skip-install --yes --disable-git',
     defaultStartScript: 'npm run dev',
   },
 ];
@@ -161,6 +161,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     const result = await executeCommand(this.scaffoldCommand, [], {
       cwd: libPath,
       stdio: 'inherit',
+      shell: true,
     });
 
     if (!result.success) {

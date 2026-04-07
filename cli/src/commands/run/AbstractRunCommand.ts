@@ -179,7 +179,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
 
     const startCommand = this.getStartCommand();
-    const isVite = /\bvite\b/.test(startCommand) || /\bnpm\s+run\s+dev\b/.test(startCommand);
+    const isVite = /\bvite\b/.test(startCommand);
     const finalCommand = isVite ? `${startCommand} -- --host 0.0.0.0` : startCommand;
 
     this.webServerProcess = spawn(finalCommand, [], {
