@@ -483,7 +483,6 @@ build/
 *.iml
 .idea/
 local.properties
-android/app/build/
 android/build/
 android/.gradle/
 ios/build/
