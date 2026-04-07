@@ -6,7 +6,7 @@ import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, showYAMLParsingError, checkCommandExists } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
-import { BuildFailedError, ToolRequiredError } from '../../core/errors';
+import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
 
 const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
 
@@ -182,9 +182,7 @@ export class IOSRunCommand extends AbstractRunCommand {
               }
             }, 1000).unref();
           } catch (e) {
-            logger.debug(
-              `Error killing syslog capture: ${e instanceof Error ? e.message : String(e)}`
-            );
+            logger.debug(`Error killing syslog capture: ${getErrorMessage(e)}`);
           }
         }
       };

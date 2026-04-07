@@ -256,14 +256,27 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         reject(error);
       };
 
+      let onStdoutData: ((data: Buffer) => void) | null = null;
+      let onStderrData: ((data: Buffer) => void) | null = null;
+      let onError: ((error: Error) => void) | null = null;
+      let onExit: ((code: number | null) => void) | null = null;
+
       const removeListeners = (): void => {
-        this.webServerProcess?.stdout?.off('data', onStdoutData);
-        this.webServerProcess?.stderr?.off('data', onStderrData);
-        this.webServerProcess?.off('error', onError);
-        this.webServerProcess?.off('exit', onExit);
+        if (onStdoutData) {
+          this.webServerProcess?.stdout?.off('data', onStdoutData);
+        }
+        if (onStderrData) {
+          this.webServerProcess?.stderr?.off('data', onStderrData);
+        }
+        if (onError) {
+          this.webServerProcess?.off('error', onError);
+        }
+        if (onExit) {
+          this.webServerProcess?.off('exit', onExit);
+        }
       };
 
-      const onStdoutData = (data: Buffer): void => {
+      onStdoutData = (data: Buffer): void => {
         if (serverReady) return;
         const output = data.toString();
         const detectedUrl = this.extractServerUrl(output);
@@ -273,7 +286,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       };
 
-      const onStderrData = (data: Buffer): void => {
+      onStderrData = (data: Buffer): void => {
         const output = data.toString();
         if (output.match(/error|EADDRINUSE|EACCES/i)) {
           logger.error(`[web server] ${output.trim()}`);
@@ -286,11 +299,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         }
       };
 
-      const onError = (error: Error): void => {
+      onError = (error: Error): void => {
         doReject(new Error(`Failed to start web server: ${error.message}`));
       };
 
-      const onExit = (code: number | null): void => {
+      onExit = (code: number | null): void => {
         if (!serverReady) {
           doReject(new Error(`Web server exited with code ${code}`));
         } else if (code !== 0 && !this.isCleaningUp) {
@@ -346,42 +359,29 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     const promises: Promise<void>[] = [];
 
     if (this.webServerProcess && !this.webServerProcess.killed) {
-      const webProc = this.webServerProcess;
-      promises.push(
-        new Promise<void>((resolve) => {
-          webProc.once('exit', () => resolve());
-          webProc.kill('SIGTERM');
-
-          const killTimeout = setTimeout(() => {
-            if (!webProc.killed) {
-              webProc.kill('SIGKILL');
-            }
-            resolve();
-          }, PROCESS_KILL_TIMEOUT_MS);
-          killTimeout.unref();
-        })
-      );
+      promises.push(this.killProcessWithTimeout(this.webServerProcess));
     }
 
     if (this.platformProcess && !this.platformProcess.killed) {
-      const platProc = this.platformProcess;
-      promises.push(
-        new Promise<void>((resolve) => {
-          platProc.once('exit', () => resolve());
-          platProc.kill('SIGTERM');
-
-          const killTimeout = setTimeout(() => {
-            if (!platProc.killed) {
-              platProc.kill('SIGKILL');
-            }
-            resolve();
-          }, PROCESS_KILL_TIMEOUT_MS);
-          killTimeout.unref();
-        })
-      );
+      promises.push(this.killProcessWithTimeout(this.platformProcess));
     }
 
     await Promise.all(promises);
+  }
+
+  private killProcessWithTimeout(proc: ChildProcess): Promise<void> {
+    return new Promise<void>((resolve) => {
+      proc.once('exit', () => resolve());
+      proc.kill('SIGTERM');
+
+      const killTimeout = setTimeout(() => {
+        if (!proc.killed) {
+          proc.kill('SIGKILL');
+        }
+        resolve();
+      }, PROCESS_KILL_TIMEOUT_MS);
+      killTimeout.unref();
+    });
   }
 
   private killProcessSync(proc: ChildProcess, name: string): void {
@@ -390,14 +390,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       return;
     }
 
-    const killProcess = (killFn: () => void, description: string): boolean => {
+      const killProcess = (killFn: () => void, description: string): boolean => {
       try {
         killFn();
         return true;
       } catch (e) {
-        logger.debug(
-          `Failed to ${description} ${name} process: ${e instanceof Error ? e.message : String(e)}`
-        );
+        logger.debug(`Failed to ${description} ${name} process: ${getErrorMessage(e)}`);
         return false;
       }
     };
