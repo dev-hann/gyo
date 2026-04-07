@@ -1,11 +1,10 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
-import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
-import { logger } from '../../utils/logger';
+import { logger, EMOJI } from '../../utils/logger';
 import { executeCommand, showYAMLParsingError, checkCommandExists } from '../../utils/exec';
-import { pathExists, readFile } from '../../utils/fs';
+import { pathExists, readFile, ensureDir, writeFile, removeDir } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
 
 const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
@@ -42,19 +41,19 @@ export class IOSRunCommand extends AbstractRunCommand {
     const resourcesPath = path.join(iosPath, 'Sources/Resources');
     const configPath = path.join(resourcesPath, 'gyo-config.json');
 
-    await fs.ensureDir(resourcesPath);
+    await ensureDir(resourcesPath);
 
     const config = {
       serverUrl,
     };
 
     const configJson = JSON.stringify(config, null, 2);
-    await fs.writeFile(configPath, configJson);
+    await writeFile(configPath, configJson);
 
     const buildPath = path.join(iosPath, '.build');
     if (await pathExists(buildPath)) {
       logger.verbose('Cleaning build cache...');
-      await fs.remove(buildPath);
+      await removeDir(buildPath);
     }
 
     logger.verbose(`Wrote config to ${configPath}: ${configJson}`);
@@ -97,8 +96,8 @@ export class IOSRunCommand extends AbstractRunCommand {
       if (error instanceof BuildFailedError) {
         throw error;
       }
-      logger.error(`Failed to read xtool.yml: ${error}`);
-      throw new BuildFailedError(`Failed to read xtool.yml: ${error}`);
+      logger.error(`Failed to read xtool.yml: ${getErrorMessage(error)}`);
+      throw new BuildFailedError(`Failed to read xtool.yml: ${getErrorMessage(error)}`);
     }
   }
 
@@ -162,6 +161,10 @@ export class IOSRunCommand extends AbstractRunCommand {
 
     const foundBundleId = await new Promise<string>((resolve) => {
       let timeout: ReturnType<typeof setTimeout> | null = null;
+      let onDataCallback: ((data: Buffer) => void) | null = null;
+      let onErrorCallback: ((error: Error) => void) | null = null;
+      let onExitCallback: ((code: number | null) => void) | null = null;
+      let finished = false;
 
       const cleanup = (): void => {
         if (timeout) {
@@ -169,18 +172,28 @@ export class IOSRunCommand extends AbstractRunCommand {
           timeout = null;
         }
 
-        syslogCapture.stdout?.removeAllListeners('data');
-        syslogCapture.removeAllListeners('error');
-        syslogCapture.removeAllListeners('exit');
+        if (onDataCallback) {
+          syslogCapture.stdout?.off('data', onDataCallback);
+          onDataCallback = null;
+        }
+        if (onErrorCallback) {
+          syslogCapture.off('error', onErrorCallback);
+          onErrorCallback = null;
+        }
+        if (onExitCallback) {
+          syslogCapture.off('exit', onExitCallback);
+          onExitCallback = null;
+        }
 
         if (!syslogCapture.killed) {
           try {
             syslogCapture.kill('SIGTERM');
-            setTimeout(() => {
+            const killTimeout = setTimeout(() => {
               if (!syslogCapture.killed) {
                 syslogCapture.kill('SIGKILL');
               }
-            }, 1000).unref();
+            }, 1000);
+            killTimeout.unref();
           } catch (e) {
             logger.debug(`Error killing syslog capture: ${getErrorMessage(e)}`);
           }
@@ -188,11 +201,14 @@ export class IOSRunCommand extends AbstractRunCommand {
       };
 
       const finish = (result: string): void => {
-        cleanup();
-        resolve(result);
+        if (!finished) {
+          finished = true;
+          cleanup();
+          resolve(result);
+        }
       };
 
-      syslogCapture.stdout?.on('data', (data: Buffer) => {
+      onDataCallback = (data: Buffer): void => {
         const output = data.toString();
         const patterns = [
           new RegExp(`(XTL-[A-Z0-9]+\\.${safeBundleId.replace(/\./g, '\\.')})`, 'i'),
@@ -206,10 +222,19 @@ export class IOSRunCommand extends AbstractRunCommand {
             return;
           }
         }
-      });
+      };
 
-      syslogCapture.on('error', () => finish(safeBundleId));
-      syslogCapture.on('exit', () => finish(safeBundleId));
+      onErrorCallback = (): void => {
+        finish(safeBundleId);
+      };
+
+      onExitCallback = (): void => {
+        finish(safeBundleId);
+      };
+
+      syslogCapture.stdout?.on('data', onDataCallback);
+      syslogCapture.on('error', onErrorCallback);
+      syslogCapture.on('exit', onExitCallback);
 
       timeout = setTimeout(() => finish(safeBundleId), SYSLOG_SEARCH_TIMEOUT_MS);
       if (timeout) {
@@ -222,7 +247,7 @@ export class IOSRunCommand extends AbstractRunCommand {
 
   protected showSuccessMessage(serverUrl: string): void {
     logger.log('');
-    logger.info('📱 Please tap the app icon on your device to launch it.');
+    logger.info(`${EMOJI.IOS} Please tap the app icon on your device to launch it.`);
     logger.success(`App is connected to: ${serverUrl}`);
     logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
@@ -242,7 +267,7 @@ export class IOSRunCommand extends AbstractRunCommand {
           const lines = data.toString().split('\n');
           for (const line of lines) {
             if (line.trim()) {
-              logger.info(`📱 ${line.trim()}`);
+              logger.info(`${EMOJI.IOS} ${line.trim()}`);
             }
           }
         });
