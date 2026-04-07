@@ -501,8 +501,9 @@ ios/*.xcworkspace
       let content = await readFile(configPath);
       content = content.replace(/"start"\s*:\s*"[^"]*"/, `"start": "${this.detectedStartScript}"`);
       await writeFile(configPath, content);
-    } catch {
+    } catch (error) {
       logger.warn('Could not update start script in gyo.config.json.');
+      logger.debug(getErrorMessage(error));
     }
   }
 
