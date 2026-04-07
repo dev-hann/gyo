@@ -119,7 +119,11 @@ describe('PlatformCommand', () => {
 
     it('should pass when config has no platforms', async () => {
       command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue(null);
+      mockedLoadConfig.mockResolvedValue({
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+      });
 
       await expect(command.execute()).resolves.toBeUndefined();
     });

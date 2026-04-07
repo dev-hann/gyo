@@ -6,7 +6,10 @@ const EMOJI = {
   WARNING: '⚠',
   ERROR: '✗',
   DEBUG: '🐛',
+  IOS: '📱',
 } as const;
+
+export { EMOJI };
 
 let verboseMode = false;
 

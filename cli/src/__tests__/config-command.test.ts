@@ -62,11 +62,9 @@ describe('ConfigCommand', () => {
   describe('showConfig', () => {
     it('should throw GyoError when config not found', async () => {
       command.setAction('show');
-      mockedLoadConfig.mockResolvedValue(null);
+      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
 
-      await expect(command['run']()).rejects.toThrow(
-        "Configuration not found. Run 'gyo create' to scaffold a project"
-      );
+      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
     });
 
     it('should display config as JSON when found', async () => {
@@ -174,9 +172,9 @@ describe('ConfigCommand', () => {
     it('should throw GyoError when config not found on set', async () => {
       command.setAction('set');
       command.setKeyValue('name', 'value');
-      mockedLoadConfig.mockResolvedValue(null);
+      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
 
-      await expect(command['run']()).rejects.toThrow('Configuration not found');
+      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
     });
 
     it('should keep empty string as string not convert to 0', async () => {
@@ -339,9 +337,9 @@ describe('ConfigCommand', () => {
     it('should throw GyoError when config not found on get', async () => {
       command.setAction('get');
       command.setKeyValue('name');
-      mockedLoadConfig.mockResolvedValue(null);
+      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
 
-      await expect(command['run']()).rejects.toThrow('Configuration not found');
+      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
     });
   });
 });

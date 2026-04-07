@@ -60,9 +60,6 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
 
   private async showConfig(): Promise<void> {
     const config = await loadConfig(this.projectPath);
-    if (!config) {
-      throw new GyoError("Configuration not found. Run 'gyo create' to scaffold a project");
-    }
 
     logger.info('Current gyo configuration:\n');
     logger.log(JSON.stringify(config, null, 2));
@@ -74,9 +71,6 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     }
 
     const config = await loadConfig(this.projectPath);
-    if (!config) {
-      throw new GyoError('Configuration not found');
-    }
 
     const keys = this.options.key.split('.');
     let current: Record<string, unknown> = config as unknown as Record<string, unknown>;
@@ -113,9 +107,6 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     }
 
     const config = await loadConfig(this.projectPath);
-    if (!config) {
-      throw new GyoError('Configuration not found');
-    }
 
     const keys = this.options.key.split('.');
     let current: unknown = config;
