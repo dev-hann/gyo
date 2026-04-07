@@ -17,12 +17,16 @@ describe('CLI Entry Point', () => {
       }
     };
 
+    let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
+
     beforeEach(() => {
       (fs.readFileSync as jest.Mock).mockReset();
+      consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     });
 
     afterEach(() => {
       (fs.readFileSync as jest.Mock).mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it('should return version from package.json', () => {
@@ -33,6 +37,7 @@ describe('CLI Entry Point', () => {
 
       expect(getVersion()).toBe(mockVersion);
       expect(fs.readFileSync).toHaveBeenCalledWith(mockPath, 'utf-8');
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it('should return 0.0.0 when package.json is not found', () => {
@@ -43,12 +48,18 @@ describe('CLI Entry Point', () => {
       });
 
       expect(getVersion()).toBe('0.0.0');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to read package.json for version: ENOENT: no such file or directory'
+      );
     });
 
     it('should return 0.0.0 when package.json has invalid JSON', () => {
       (fs.readFileSync as jest.Mock).mockReturnValue('invalid json{');
 
       expect(getVersion()).toBe('0.0.0');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^Failed to read package.json for version:/)
+      );
     });
 
     it('should return undefined when package.json has no version field', () => {
@@ -57,6 +68,7 @@ describe('CLI Entry Point', () => {
       (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(mockPkg));
 
       expect(getVersion()).toBe(undefined);
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
   });
 });
