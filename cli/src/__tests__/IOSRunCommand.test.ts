@@ -6,6 +6,7 @@ jest.mock('../utils/exec', () => ({
 }));
 
 jest.mock('../utils/logger', () => ({
+  ...jest.requireActual('../utils/logger'),
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -50,10 +51,9 @@ jest.mock('fs-extra', () => ({
 }));
 
 import { EventEmitter } from 'events';
-import fs from 'fs-extra';
 import { IOSRunCommand } from '../commands/run/IOSRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
-import { pathExists, readFile } from '../utils/fs';
+import { pathExists, readFile, ensureDir, writeFile, removeDir } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
 import { logger } from '../utils/logger';
@@ -62,9 +62,9 @@ const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedReadFile = readFile as unknown as jest.Mock;
-const mockedFsEnsureDir = fs.ensureDir as unknown as jest.Mock;
-const mockedFsWriteFile = fs.writeFile as unknown as jest.Mock;
-const mockedFsRemove = fs.remove as unknown as jest.Mock;
+const mockedFsEnsureDir = ensureDir as unknown as jest.Mock;
+const mockedFsWriteFile = writeFile as unknown as jest.Mock;
+const mockedFsRemove = removeDir as unknown as jest.Mock;
 const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {

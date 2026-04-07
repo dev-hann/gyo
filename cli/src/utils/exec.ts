@@ -48,6 +48,26 @@ export function executeCommand(
       }
     };
 
+    let onStdoutData: ((data: Buffer) => void) | null = null;
+    let onStderrData: ((data: Buffer) => void) | null = null;
+    let onClose: ((code: number | null) => void) | null = null;
+    let onError: ((error: Error) => void) | null = null;
+
+    const removeListeners = (): void => {
+      if (onStdoutData) {
+        proc.stdout?.off('data', onStdoutData);
+      }
+      if (onStderrData) {
+        proc.stderr?.off('data', onStderrData);
+      }
+      if (onClose) {
+        proc.off('close', onClose);
+      }
+      if (onError) {
+        proc.off('error', onError);
+      }
+    };
+
     // Handle timeout
     if (options.timeout) {
       timeoutId = setTimeout(() => {
@@ -57,10 +77,7 @@ export function executeCommand(
           } catch (killError) {
             logger.debug(`Failed to kill process: ${killError}`);
           }
-          proc.stdout?.removeAllListeners('data');
-          proc.stderr?.removeAllListeners('data');
-          proc.removeAllListeners('close');
-          proc.removeAllListeners('error');
+          removeListeners();
           done({
             success: false,
             stdout: stdout.trim(),
@@ -72,37 +89,38 @@ export function executeCommand(
     }
 
     if (proc.stdout) {
-      proc.stdout.on('data', (data) => {
+      onStdoutData = (data: Buffer) => {
         const output = data.toString();
         stdout += output;
-        // Only output if verbose mode or stdio is 'inherit'
         if (options.stdio === 'inherit' || logger.isVerbose()) {
           process.stdout.write(output);
         }
-      });
+      };
+      proc.stdout.on('data', onStdoutData);
     }
 
     if (proc.stderr) {
-      proc.stderr.on('data', (data) => {
+      onStderrData = (data: Buffer) => {
         const output = data.toString();
         stderr += output;
-        // Only output if verbose mode or stdio is 'inherit'
         if (options.stdio === 'inherit' || logger.isVerbose()) {
           process.stderr.write(output);
         }
-      });
+      };
+      proc.stderr.on('data', onStderrData);
     }
 
-    proc.on('close', (code) => {
+    onClose = (code: number | null) => {
       done({
         success: code === 0,
         stdout: stdout.trim(),
         stderr: stderr.trim(),
         code,
       });
-    });
+    };
+    proc.on('close', onClose);
 
-    proc.on('error', (error) => {
+    onError = (error: Error) => {
       logger.error(`Failed to execute command: ${error.message}`);
       done({
         success: false,
@@ -110,7 +128,8 @@ export function executeCommand(
         stderr: error.message,
         code: null,
       });
-    });
+    };
+    proc.on('error', onError);
   });
 }
 

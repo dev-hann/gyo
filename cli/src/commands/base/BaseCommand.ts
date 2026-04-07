@@ -39,8 +39,10 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
 
   setOptions(options: T): void {
     this.options = options;
-    if (options.verbose) {
+    if (options.verbose === true) {
       logger.setVerbose(true);
+    } else if (options.verbose === false) {
+      logger.setVerbose(false);
     }
   }
 

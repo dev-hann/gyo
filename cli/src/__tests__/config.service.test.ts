@@ -54,43 +54,36 @@ describe('config.service', () => {
       expect(mockedReadJson).toHaveBeenCalledWith('/project/gyo.config.json');
     });
 
-    it('should return null when config file does not exist', async () => {
+    it('should throw GyoError when config file does not exist', async () => {
       mockedPathExists.mockResolvedValue(false);
 
-      const result = await loadConfig('/project');
-
-      expect(result).toBeNull();
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('gyo.config.json not found')
+      await expect(loadConfig('/project')).rejects.toThrow(
+        'gyo.config.json not found in: /project'
       );
     });
 
     it('should use process.cwd() as default project path', async () => {
-      mockedPathExists.mockResolvedValue(false);
+      mockedPathExists.mockResolvedValue(true);
+      mockedReadJson.mockResolvedValue(validConfig);
 
       await loadConfig();
 
       expect(mockedPathExists).toHaveBeenCalledWith(expect.stringContaining('gyo.config.json'));
+      expect(mockedReadJson).toHaveBeenCalledWith(expect.stringContaining('gyo.config.json'));
     });
 
-    it('should return null when readJson throws', async () => {
+    it('should throw GyoError when readJson throws', async () => {
       mockedPathExists.mockResolvedValue(true);
       mockedReadJson.mockRejectedValue(new Error('parse error'));
 
-      const result = await loadConfig('/project');
-
-      expect(result).toBeNull();
-      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to load config'));
+      await expect(loadConfig('/project')).rejects.toThrow('Failed to load config: parse error');
     });
 
-    it('should return null when config fails validation', async () => {
+    it('should throw GyoError when config fails validation', async () => {
       mockedPathExists.mockResolvedValue(true);
       mockedReadJson.mockResolvedValue({ name: 123 });
 
-      const result = await loadConfig('/project');
-
-      expect(result).toBeNull();
-      expect(logger.error).toHaveBeenCalledWith('Invalid gyo.config.json:');
+      await expect(loadConfig('/project')).rejects.toThrow('Invalid gyo.config.json:');
     });
   });
 
