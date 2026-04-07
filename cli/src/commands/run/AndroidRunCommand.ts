@@ -1,11 +1,10 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
-import fs from 'fs-extra';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew, checkCommandExists } from '../../utils/exec';
-import { pathExists } from '../../utils/fs';
+import { pathExists, ensureDir, writeJson, readFile } from '../../utils/fs';
 import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
@@ -19,7 +18,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     await this.checkPlatformDirectoryExists();
     await this.checkAdbAvailable();
     await this.updateServerUrl(androidPath, serverUrl);
-    const selectedDevice = await this.getConnectedDevice();
+    const selectedDevice = this.options.device || '';
     await this.buildApp(androidPath);
     await this.installApp(androidPath);
     const packageName = await this.getPackageName(androidPath);
@@ -43,17 +42,13 @@ export class AndroidRunCommand extends AbstractRunCommand {
     const assetsPath = path.join(androidPath, 'app/src/main/assets');
     const configPath = path.join(assetsPath, 'gyo-config.json');
 
-    await fs.ensureDir(assetsPath);
+    await ensureDir(assetsPath);
 
     const config = {
-      serverUrl: serverUrl,
+      serverUrl,
     };
 
-    await fs.writeJson(configPath, config, { spaces: 2 });
-  }
-
-  private async getConnectedDevice(): Promise<string> {
-    return this.options.device || '';
+    await writeJson(configPath, config);
   }
 
   private async buildApp(androidPath: string): Promise<void> {
@@ -100,7 +95,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
         return null;
       }
 
-      const content = await fs.readFile(buildGradlePath, 'utf-8');
+      const content = await readFile(buildGradlePath);
       const match = content.match(/applicationId\s+"([^"]+)"/);
       return match ? match[1] : null;
     } catch (error) {
@@ -138,7 +133,9 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   protected async monitorLogs(identifier: string): Promise<void> {
-    const adbArgs = identifier ? ['-s', identifier, 'logcat', '-v', 'brief', '-s', 'WebView-Console:*'] : ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
+    const adbArgs = identifier
+      ? ['-s', identifier, 'logcat', '-v', 'brief', '-s', 'WebView-Console:*']
+      : ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
 
     this.platformProcess = spawn('adb', adbArgs, {
       stdio: ['ignore', 'pipe', 'pipe'],

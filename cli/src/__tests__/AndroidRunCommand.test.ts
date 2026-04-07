@@ -49,17 +49,16 @@ jest.mock('fs-extra', () => ({
 }));
 
 import { EventEmitter } from 'events';
-import fs from 'fs-extra';
 import { AndroidRunCommand } from '../commands/run/AndroidRunCommand';
 import { executeCommand, checkCommandExists } from '../utils/exec';
-import { pathExists } from '../utils/fs';
+import { pathExists, readFile } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-const mockedFsReadFile = fs.readFile as unknown as jest.Mock;
+const mockedFsReadFile = readFile as unknown as jest.Mock;
 const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
@@ -135,20 +134,6 @@ describe('AndroidRunCommand', () => {
       mockedExec.mockResolvedValue(await makeExecResult(false, '', 'INSTALL FAILED'));
 
       await expect(command['installApp']('/android')).rejects.toThrow(BuildFailedError);
-    });
-  });
-
-  describe('getConnectedDevice', () => {
-    it('should return device from options', async () => {
-      const device = await command['getConnectedDevice']();
-      expect(device).toBe('emulator-5554');
-    });
-
-    it('should return empty string when no device specified', async () => {
-      (command as any).options = { profile: 'development' };
-
-      const device = await command['getConnectedDevice']();
-      expect(device).toBe('');
     });
   });
 
