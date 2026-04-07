@@ -25,7 +25,7 @@ export abstract class PlatformCommand<
       this.validatePlatformEnabled();
       await this.run();
     } catch (error) {
-      await this.handleError(error);
+      this.handleError(error);
     }
   }
 
