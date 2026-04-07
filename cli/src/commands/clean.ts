@@ -108,14 +108,19 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
       { path: podsPath, name: 'Pods' },
     ];
 
+    const existingTasks: Array<{ path: string; name: string }> = [];
+    for (const task of cleanupTasks) {
+      if (await pathExists(task.path)) {
+        existingTasks.push(task);
+      }
+    }
+
     const results = await Promise.allSettled(
-      cleanupTasks
-        .filter(async ({ path }) => await pathExists(path))
-        .map(({ path, name }) =>
-          removeDir(path)
-            .then(() => ({ path, success: true, name }))
-            .catch((error) => ({ path, success: false, name, error }))
-        )
+      existingTasks.map(({ path, name }) =>
+        removeDir(path)
+          .then(() => ({ path, success: true, name }))
+          .catch((error) => ({ path, success: false, name, error }))
+      )
     );
 
     this.processCleanupResults(results, 'iOS', 'iOS cleanup failed');
@@ -175,21 +180,26 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     const cleanupTasks: Array<{ path: string; name: string }> = [{ path: distPath, name: 'dist' }];
 
     if (await pathExists(nodeModulesPath)) {
-      logger.warn('Removing node_modules/ — you will need to run npm install before the next run');
+      logger.warn('Removing node_modules/ — you will need to run npm install before next run');
       cleanupTasks.push({
         path: nodeModulesPath,
         name: 'node_modules',
       });
     }
 
+    const existingTasks: Array<{ path: string; name: string }> = [];
+    for (const task of cleanupTasks) {
+      if (await pathExists(task.path)) {
+        existingTasks.push(task);
+      }
+    }
+
     const results = await Promise.allSettled(
-      cleanupTasks
-        .filter(async ({ path }) => await pathExists(path))
-        .map(({ path, name }) =>
-          removeDir(path)
-            .then(() => ({ path, success: true, name }))
-            .catch((error) => ({ path, success: false, name, error }))
-        )
+      existingTasks.map(({ path, name }) =>
+        removeDir(path)
+          .then(() => ({ path, success: true, name }))
+          .catch((error) => ({ path, success: false, name, error }))
+      )
     );
 
     this.processCleanupResults(results, 'Lib', 'Lib cleanup failed');

@@ -3,7 +3,7 @@ import * as fs from 'fs-extra';
 import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand } from '../utils/exec';
-import { GyoError, getErrorMessage } from '../core/index';
+import { GyoError } from '../core/index';
 
 interface UpgradeCommandOptions extends BaseCommandOptions {
   check?: boolean;
@@ -23,33 +23,24 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
   }
 
   protected async run(): Promise<void> {
-    try {
-      logger.info('Checking for Gyo updates...\n');
+    logger.info('Checking for Gyo updates...\n');
 
-      const { currentVersion, latestVersion } = await this.getVersionInfo();
-      const targetVersion = this.options.version || latestVersion;
+    const { currentVersion, latestVersion } = await this.getVersionInfo();
+    const targetVersion = this.options.version || latestVersion;
 
-      this.displayVersionInfo(currentVersion, latestVersion);
+    this.displayVersionInfo(currentVersion, latestVersion);
 
-      if (this.options.check) {
-        this.handleCheckOnly(currentVersion, latestVersion);
-        return;
-      }
-
-      if (currentVersion === targetVersion) {
-        logger.success('\nAlready up to date!');
-        return;
-      }
-
-      await this.performUpgrade(targetVersion);
-    } catch (error) {
-      if (error instanceof GyoError) {
-        throw error;
-      }
-      throw new GyoError(getErrorMessage(error), 1, {
-        cause: error,
-      });
+    if (this.options.check) {
+      this.handleCheckOnly(currentVersion, latestVersion);
+      return;
     }
+
+    if (currentVersion === targetVersion) {
+      logger.success('\nAlready up to date!');
+      return;
+    }
+
+    await this.performUpgrade(targetVersion);
   }
 
   private async getVersionInfo(): Promise<{ currentVersion: string; latestVersion: string }> {
