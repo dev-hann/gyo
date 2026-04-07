@@ -106,7 +106,7 @@ registerCommand(new UpgradeCommand());
 registerCommand(new DebugCommand());
 registerConfigCommand();
 
-process.on('unhandledRejection', (error: unknown) => {
+function handleUnhandledRejection(error: unknown): void {
   if (error instanceof GyoError) {
     logger.error(error.message);
     process.exit(error.exitCode);
@@ -125,7 +125,9 @@ process.on('unhandledRejection', (error: unknown) => {
     logger.debug(error.stack);
   }
   process.exit(1);
-});
+}
+
+process.on('unhandledRejection', handleUnhandledRejection);
 
 program.parse(process.argv);
 
