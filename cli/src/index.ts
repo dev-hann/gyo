@@ -55,14 +55,13 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
 
     cmd.setOptions(options);
 
-    if (cmd instanceof BuildCommand) {
-      cmd.setPlatform(positionalArgs[0] as Platform);
+    const arg0 = positionalArgs[0];
+    if (cmd instanceof BuildCommand || cmd instanceof DebugCommand) {
+      cmd.setPlatform(arg0 as Platform);
     } else if (cmd instanceof CleanCommand) {
-      cmd.setPlatform(positionalArgs[0] || 'all');
+      cmd.setPlatform(arg0 || 'all');
     } else if (cmd instanceof CreateCommand) {
-      cmd.setProjectName(positionalArgs[0]);
-    } else if (cmd instanceof DebugCommand) {
-      cmd.setPlatform(positionalArgs[0] as Platform);
+      cmd.setProjectName(arg0);
     }
 
     await cmd.execute();
