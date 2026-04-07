@@ -120,17 +120,16 @@ export function showYAMLParsingError(errorOutput: string): void {
     errorOutput.includes(YAML_ERROR_TYPE_MISMATCH) ||
     errorOutput.includes(YAML_ERROR_DECODE_SCALAR)
   ) {
-    const message = [
-      'YAML parsing error in xtool.yml or project.yml',
-      'Common issues:',
-      '  1. bundleID should be a simple string value, not a mapping',
-      '     ✓ Correct:   bundleID: com.example.app',
-      '     ✗ Wrong:     bundleID:',
-      '                    key: value',
-      '  2. Check for unintended indentation or special characters',
-      '',
-      `Full error:\n${errorOutput}`,
-    ].join('\n');
+    const message = `YAML parsing error in xtool.yml or project.yml
+Common issues:
+  1. bundleID should be a simple string value, not a mapping
+     ✓ Correct:   bundleID: com.example.app
+     ✗ Wrong:     bundleID:
+                    key: value
+  2. Check for unintended indentation or special characters
+
+Full error:
+${errorOutput}`;
     logger.error(message);
     return;
   }
