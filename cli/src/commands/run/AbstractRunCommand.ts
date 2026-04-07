@@ -55,7 +55,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
     this.setupSignalHandlers();
 
-    const startLocalServer = shouldStartLocalServer(this.config, this.options.profile);
+    const startLocalServer = shouldStartLocalServer(this.options.profile);
     const libPath = path.join(this.projectPath, 'lib');
 
     if (startLocalServer) {

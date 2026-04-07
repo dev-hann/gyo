@@ -185,15 +185,15 @@ describe('config.service', () => {
 
   describe('shouldStartLocalServer', () => {
     it('should return true for development profile', () => {
-      expect(shouldStartLocalServer(validConfig as GyoConfig, 'development')).toBe(true);
+      expect(shouldStartLocalServer('development')).toBe(true);
     });
 
     it('should return false for production profile', () => {
-      expect(shouldStartLocalServer(validConfig as GyoConfig, 'production')).toBe(false);
+      expect(shouldStartLocalServer('production')).toBe(false);
     });
 
     it('should default to development profile', () => {
-      expect(shouldStartLocalServer(validConfig as GyoConfig)).toBe(true);
+      expect(shouldStartLocalServer()).toBe(true);
     });
   });
 

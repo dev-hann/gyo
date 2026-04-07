@@ -148,9 +148,6 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
   throw new GyoError(`Profile '${profile}' not found`);
 }
 
-export function shouldStartLocalServer(
-  _config: GyoConfig,
-  profile: string = 'development'
-): boolean {
+export function shouldStartLocalServer(profile: string = 'development'): boolean {
   return profile === 'development';
 }

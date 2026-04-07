@@ -76,7 +76,11 @@ export function executeCommand(
           try {
             proc.kill();
           } catch (killError) {
-            logger.debug(`Failed to kill process: ${getErrorMessage(killError)}`);
+            const message = getErrorMessage(killError);
+            logger.debug(`Failed to kill process: ${message}`);
+            if (killError instanceof Error && killError.stack && process.env.DEBUG) {
+              logger.debug(killError.stack);
+            }
           }
           removeListeners();
           done({
