@@ -3,6 +3,16 @@ import { logger } from '../utils/logger';
 import { getAllDevices, Device } from '../services/device.service';
 import { GyoError, getErrorMessage } from '../core/index';
 
+interface SystemError extends Error {
+  code: string;
+}
+
+function isSystemError(error: unknown): error is SystemError {
+  return (
+    error instanceof Error && 'code' in error && typeof (error as SystemError).code === 'string'
+  );
+}
+
 interface DevicesCommandOptions extends BaseCommandOptions {
   json?: boolean;
 }
@@ -38,12 +48,11 @@ export class DevicesCommand extends BaseCommand<DevicesCommandOptions> {
       const message = getErrorMessage(error);
       this.stopSpinner();
 
-      if (error instanceof Error && 'code' in error) {
-        const code = (error as Error & { code: string }).code;
-        if (code === 'EACCES') {
+      if (isSystemError(error)) {
+        if (error.code === 'EACCES') {
           throw new GyoError('ADB permission denied. Run with sudo or check USB debugging.');
         }
-        if (code === 'ENOENT') {
+        if (error.code === 'ENOENT') {
           throw new GyoError('adb not found. Install Android SDK.');
         }
       }
