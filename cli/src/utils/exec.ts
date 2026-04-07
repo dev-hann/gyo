@@ -1,5 +1,6 @@
 import { spawn, SpawnOptions } from 'child_process';
 import { logger } from './logger';
+import { getErrorMessage } from '../core/errors';
 
 export interface ExecResult {
   success: boolean;
@@ -75,7 +76,7 @@ export function executeCommand(
           try {
             proc.kill();
           } catch (killError) {
-            logger.debug(`Failed to kill process: ${killError}`);
+            logger.debug(`Failed to kill process: ${getErrorMessage(killError)}`);
           }
           removeListeners();
           done({
