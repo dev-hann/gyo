@@ -111,6 +111,7 @@ export function executeCommand(
     }
 
     onClose = (code: number | null) => {
+      removeListeners();
       done({
         success: code === 0,
         stdout: stdout.trim(),
@@ -121,6 +122,7 @@ export function executeCommand(
     proc.on('close', onClose);
 
     onError = (error: Error) => {
+      removeListeners();
       logger.error(`Failed to execute command: ${error.message}`);
       done({
         success: false,
