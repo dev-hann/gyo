@@ -98,29 +98,27 @@ export function validateConfig(raw: unknown): raw is GyoConfig {
   return collectConfigErrors(raw).length === 0;
 }
 
-export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig | null> {
+export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig> {
   const configPath = path.join(projectPath, 'gyo.config.json');
 
   if (!(await pathExists(configPath))) {
-    logger.error(`gyo.config.json not found in: ${projectPath}`);
-    return null;
+    throw new GyoError(`gyo.config.json not found in: ${projectPath}`);
   }
 
   try {
     const raw = await readJson(configPath);
     if (!validateConfig(raw)) {
       const errors = collectConfigErrors(raw);
-      logger.error('Invalid gyo.config.json:');
-      for (const err of errors) {
-        logger.error(`  - ${err}`);
-      }
-      return null;
+      const errorMessage = errors.map((err) => `  - ${err}`).join('\n');
+      throw new GyoError(`Invalid gyo.config.json:\n${errorMessage}`);
     }
     return raw;
   } catch (error) {
+    if (error instanceof GyoError) {
+      throw error;
+    }
     const message = getErrorMessage(error);
-    logger.error(`Failed to load config: ${message}`);
-    return null;
+    throw new GyoError(`Failed to load config: ${message}`, 1, { cause: error });
   }
 }
 
@@ -143,11 +141,10 @@ export function getProfileUrl(config: GyoConfig, profile: string = 'development'
     return validateNonEmptyUrl(config.serverUrl, 'serverUrl');
   }
 
-  logger.error(`Profile '${profile}' not found in gyo.config.json`);
   const availableProfiles = config.profiles ? Object.keys(config.profiles) : [];
-  if (availableProfiles.length > 0) {
-    logger.error(`Available profiles: ${availableProfiles.join(', ')}`);
-  }
+  const availableText =
+    availableProfiles.length > 0 ? ` Available profiles: ${availableProfiles.join(', ')}` : '';
+  logger.error(`Profile '${profile}' not found in gyo.config.json.${availableText}`);
   throw new GyoError(`Profile '${profile}' not found`);
 }
 
