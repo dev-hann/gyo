@@ -29,7 +29,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
   protected projectPath: string;
 
   constructor() {
-    this.options = {} as T;
+    this.options = { verbose: undefined } as T;
     this.spinner = ora();
     this.config = null;
     this.projectPath = process.cwd();
