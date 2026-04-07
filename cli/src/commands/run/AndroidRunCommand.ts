@@ -101,6 +101,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     } catch (error) {
       const message = getErrorMessage(error);
       logger.debug(`Failed to read package name from build.gradle: ${message}`);
+      logger.warn('Auto-launch may not work. Launch the app manually on your device.');
       return null;
     }
   }
