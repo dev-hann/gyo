@@ -54,8 +54,8 @@ export function executeCommand(
         if (!resolved) {
           try {
             proc.kill();
-          } catch {
-            // Ignore kill errors
+          } catch (killError) {
+            logger.debug(`Failed to kill process: ${killError}`);
           }
           proc.stdout?.removeAllListeners('data');
           proc.stderr?.removeAllListeners('data');
