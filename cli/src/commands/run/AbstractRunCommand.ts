@@ -425,22 +425,25 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         return;
       }
 
-      this.platformProcess.stdout?.on('data', (data: Buffer) => {
-        const lines = data.toString().split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            logger.info(line.trim());
-          }
+      const logLine = (line: string, logFn: (msg: string) => void): void => {
+        const trimmed = line.trim();
+        if (trimmed) {
+          logFn(trimmed);
         }
+      };
+
+      this.platformProcess.stdout?.on('data', (data: Buffer) => {
+        data
+          .toString()
+          .split('\n')
+          .forEach((line) => logLine(line, logger.info));
       });
 
       this.platformProcess.stderr?.on('data', (data: Buffer) => {
-        const lines = data.toString().split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            logger.warn(line.trim());
-          }
-        }
+        data
+          .toString()
+          .split('\n')
+          .forEach((line) => logLine(line, logger.warn));
       });
 
       this.platformProcess.on('exit', (code) => {
