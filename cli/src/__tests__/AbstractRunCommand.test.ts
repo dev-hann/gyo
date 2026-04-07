@@ -80,6 +80,11 @@ describe('AbstractRunCommand', () => {
     (command as any).options = { profile: 'development' };
   });
 
+  afterEach(() => {
+    (command as any).platformProcess = null;
+    (command as any).isCleaningUp = false;
+  });
+
   describe('getStartCommand', () => {
     it('should return configured start command', () => {
       (command as any).config = {

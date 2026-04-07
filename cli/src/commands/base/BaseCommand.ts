@@ -3,7 +3,7 @@ import ora from 'ora';
 import { loadConfig, GyoConfig } from '../../services/config.service';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
-import { GyoError } from '../../core/index';
+import { GyoError, getErrorMessage } from '../../core/index';
 
 export interface CommandOption {
   flags: string;
@@ -35,7 +35,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     try {
       this.projectPath = process.cwd();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       throw new GyoError(`Could not determine current directory: ${message}`);
     }
   }
@@ -64,7 +64,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
       this.config = await loadConfig(this.projectPath);
     } catch (error) {
       this.spinner.fail('Failed to load gyo.config.json');
-      logger.error(error instanceof Error ? error.message : String(error));
+      logger.error(getErrorMessage(error));
       throw error;
     }
   }
@@ -80,14 +80,14 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
 
   protected handleError(error: unknown): void {
     this.spinner.fail('Command failed');
-    logger.error(error instanceof Error ? error.message : String(error));
+    logger.error(getErrorMessage(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
     }
     if (error instanceof GyoError) {
       throw error;
     }
-    throw new GyoError(error instanceof Error ? error.message : String(error), 1, {
+    throw new GyoError(getErrorMessage(error), 1, {
       cause: error,
     });
   }

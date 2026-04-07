@@ -6,7 +6,7 @@ import { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew, checkCommandExists } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
-import { BuildFailedError, ToolRequiredError } from '../../core/errors';
+import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -104,7 +104,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
       const match = content.match(/applicationId\s+"([^"]+)"/);
       return match ? match[1] : null;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       logger.debug(`Failed to read package name from build.gradle: ${message}`);
       return null;
     }

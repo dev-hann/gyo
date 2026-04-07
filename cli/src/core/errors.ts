@@ -65,3 +65,7 @@ export class InvalidPlatformError extends GyoError {
     super(`Invalid platform: ${platform}. Valid platforms are: ${validPlatforms.join(', ')}`);
   }
 }
+
+export function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}

@@ -76,6 +76,16 @@ describe('AndroidRunCommand', () => {
     (command as any).projectPath = '/project';
   });
 
+  afterEach(() => {
+    if (mockedSpawn.mock.calls.length > 0) {
+      mockedSpawn.mock.calls.forEach(([, , options]) => {
+        if (options && typeof options === 'object') {
+          mockedSpawn.mockClear();
+        }
+      });
+    }
+  });
+
   describe('checkAdbAvailable', () => {
     it('should pass when adb exists', async () => {
       mockedCheck.mockResolvedValue(true);

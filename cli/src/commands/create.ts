@@ -13,7 +13,7 @@ import {
   getTemplatesPath,
 } from '../utils/fs';
 import { executeCommand } from '../utils/exec';
-import { GyoError, DirectoryExistsError } from '../core/index';
+import { GyoError, DirectoryExistsError, getErrorMessage } from '../core/index';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName?: string;
@@ -112,7 +112,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       if (error instanceof GyoError) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       throw new GyoError(message, 1, { cause: error });
     }
   }

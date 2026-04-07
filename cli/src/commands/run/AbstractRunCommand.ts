@@ -14,6 +14,7 @@ import {
   WEB_SERVER_TIMEOUT_MS,
   PROCESS_KILL_TIMEOUT_MS,
   LOCALHOST,
+  getErrorMessage,
 } from '../../core/index';
 
 export interface RunCommandOptions extends PlatformCommandOptions {
@@ -43,9 +44,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         this.platformProcess.kill('SIGTERM');
       }
     } catch (e) {
-      logger.debug(
-        `Failed to kill platform process: ${e instanceof Error ? e.message : String(e)}`
-      );
+      logger.debug(`Failed to kill platform process: ${getErrorMessage(e)}`);
     }
   }
 
@@ -75,7 +74,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
           `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
         );
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = getErrorMessage(error);
         this.failSpinner(`Failed to start web server: ${errorMsg}`);
         await this.cleanup();
         throw error;
@@ -128,7 +127,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       const port = urlObj.port;
       return port ? parseInt(port, 10) : DEFAULT_PORT;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       logger.warn(
         `Failed to parse URL from profile '${profile}', using default port ${DEFAULT_PORT}: ${message}`
       );
@@ -224,9 +223,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         return `http://${ip}:${port}`;
       })
       .catch((error) => {
-        logger.warn(
-          `Failed to get local IP, using localhost: ${error instanceof Error ? error.message : String(error)}`
-        );
+        logger.warn(`Failed to get local IP, using localhost: ${getErrorMessage(error)}`);
         return `http://${LOCALHOST}:${port}`;
       });
   }
@@ -465,7 +462,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
   protected async handleError(error: unknown): Promise<void> {
     this.failSpinner('Run failed');
-    logger.error(error instanceof Error ? error.message : String(error));
+    logger.error(getErrorMessage(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);
     }
@@ -475,7 +472,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     if (error instanceof GyoError) {
       throw error;
     }
-    throw new GyoError(error instanceof Error ? error.message : String(error), 1, {
+    throw new GyoError(getErrorMessage(error), 1, {
       cause: error,
     });
   }

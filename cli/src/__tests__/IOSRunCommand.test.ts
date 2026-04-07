@@ -81,6 +81,16 @@ describe('IOSRunCommand', () => {
     (command as any).projectPath = '/project';
   });
 
+  afterEach(() => {
+    if (mockedSpawn.mock.calls.length > 0) {
+      mockedSpawn.mock.calls.forEach(([, , options]) => {
+        if (options && typeof options === 'object') {
+          mockedSpawn.mockClear();
+        }
+      });
+    }
+  });
+
   describe('checkXtoolAvailable', () => {
     it('should pass when xtool exists', async () => {
       mockedCheck.mockResolvedValue(true);
@@ -235,8 +245,11 @@ describe('IOSRunCommand', () => {
     }
 
     async function waitForSpawn(): Promise<void> {
-      for (let i = 0; i < 50; i++) {
-        await new Promise((r) => setImmediate(r));
+      const timeout = 100;
+      const start = Date.now();
+      const maxWaitTime = 5000;
+      while (Date.now() - start < maxWaitTime) {
+        await new Promise((r) => setTimeout(r, timeout));
         if (mockedSpawn.mock.calls.length > 0) return;
       }
       throw new Error('spawn was never called');

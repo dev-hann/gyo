@@ -12,7 +12,7 @@ import { DoctorCommand } from './commands/doctor';
 import { DevicesCommand } from './commands/devices';
 import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
-import { GyoError } from './core/index';
+import { GyoError, getErrorMessage } from './core/index';
 import { logger } from './utils/logger';
 
 function getVersion(): string {
@@ -23,7 +23,7 @@ function getVersion(): string {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     return pkg.version;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     logger.error(`Failed to read package.json for version: ${message}`);
     return '0.0.0';
   }
@@ -120,7 +120,7 @@ process.on('unhandledRejection', (error: unknown) => {
   ) {
     process.exit(0);
   }
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = getErrorMessage(error);
   logger.error(`Unexpected error: ${errorMessage}`);
   if (error instanceof Error && error.stack && process.env.DEBUG) {
     logger.debug(error.stack);

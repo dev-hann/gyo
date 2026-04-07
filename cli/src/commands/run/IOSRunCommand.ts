@@ -158,11 +158,12 @@ export class IOSRunCommand extends AbstractRunCommand {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    const safeBundleId = bundleId || '';
+
     const foundBundleId = await new Promise<string>((resolve) => {
       let timeout: ReturnType<typeof setTimeout> | null = null;
-      const safeBundleId = bundleId || '';
 
-      const finish = (result: string): void => {
+      const cleanup = (): void => {
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;
@@ -175,16 +176,21 @@ export class IOSRunCommand extends AbstractRunCommand {
         if (!syslogCapture.killed) {
           try {
             syslogCapture.kill('SIGTERM');
-            const killTimeout = setTimeout(() => {
+            setTimeout(() => {
               if (!syslogCapture.killed) {
                 syslogCapture.kill('SIGKILL');
               }
-            }, 1000);
-            killTimeout.unref();
-          } catch {
-            // Ignore cleanup errors
+            }, 1000).unref();
+          } catch (e) {
+            logger.debug(
+              `Error killing syslog capture: ${e instanceof Error ? e.message : String(e)}`
+            );
           }
         }
+      };
+
+      const finish = (result: string): void => {
+        cleanup();
         resolve(result);
       };
 

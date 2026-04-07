@@ -106,6 +106,9 @@ export function executeCommand(
   });
 }
 
+export const YAML_ERROR_TYPE_MISMATCH = 'typeMismatch';
+export const YAML_ERROR_DECODE_SCALAR = 'Expected to decode Scalar';
+
 export async function checkCommandExists(command: string): Promise<boolean> {
   const checker = process.platform === 'win32' ? 'where' : 'which';
   const result = await executeCommand(checker, [command], { stdio: 'pipe' });
@@ -113,7 +116,10 @@ export async function checkCommandExists(command: string): Promise<boolean> {
 }
 
 export function showYAMLParsingError(errorOutput: string): void {
-  if (errorOutput.includes('typeMismatch') || errorOutput.includes('Expected to decode Scalar')) {
+  if (
+    errorOutput.includes(YAML_ERROR_TYPE_MISMATCH) ||
+    errorOutput.includes(YAML_ERROR_DECODE_SCALAR)
+  ) {
     const message = [
       'YAML parsing error in xtool.yml or project.yml',
       'Common issues:',

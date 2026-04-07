@@ -1,7 +1,7 @@
 import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
 import { getAllDevices, Device } from '../services/device.service';
-import { GyoError } from '../core/index';
+import { GyoError, getErrorMessage } from '../core/index';
 
 interface DevicesCommandOptions extends BaseCommandOptions {
   json?: boolean;
@@ -35,7 +35,7 @@ export class DevicesCommand extends BaseCommand<DevicesCommandOptions> {
         this.displayDevicesTable(devices);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       this.stopSpinner();
 
       if (error instanceof Error && 'code' in error) {

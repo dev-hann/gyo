@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { readJson, writeJson, pathExists } from '../utils/fs';
 import { logger } from '../utils/logger';
-import { GyoConfig, GyoError } from '../core/index';
+import { GyoConfig, GyoError, getErrorMessage } from '../core/index';
 
 export { GyoConfig } from '../core/index';
 
@@ -110,7 +110,7 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
     }
     return raw;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     logger.error(`Failed to load config: ${message}`);
     return null;
   }

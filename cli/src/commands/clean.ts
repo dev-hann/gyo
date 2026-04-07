@@ -3,7 +3,7 @@ import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from '
 import { logger } from '../utils/logger';
 import { executeCommand, getGradlew } from '../utils/exec';
 import { pathExists, removeDir } from '../utils/fs';
-import { GyoError } from '../core/index';
+import { GyoError, getErrorMessage } from '../core/index';
 
 export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptions> {
   private hadWarnings = false;
@@ -35,7 +35,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
       if (error instanceof GyoError) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       throw new GyoError(message, 1, { cause: error });
     }
   }
@@ -84,7 +84,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
         await removeDir(buildPath);
       } catch (error) {
         this.hadWarnings = true;
-        const message = error instanceof Error ? error.message : String(error);
+        const message = getErrorMessage(error);
         logger.warn(`Failed to remove build directory: ${message}`);
       }
     }

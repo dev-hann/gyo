@@ -2,7 +2,7 @@ import { BaseCommand, CommandMeta } from './base/index';
 import { logger } from '../utils/logger';
 import { checkCommandExists, executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
-import { GyoError } from '../core/index';
+import { GyoError, getErrorMessage } from '../core/index';
 
 interface CheckResult {
   name: string;
@@ -53,7 +53,7 @@ export class DoctorCommand extends BaseCommand {
 
       this.displaySummary(results);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       logger.error(`Doctor check failed: ${message}`);
       throw new GyoError(message);
     }

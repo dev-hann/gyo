@@ -1,5 +1,6 @@
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { logger } from '../utils/logger';
+import { getErrorMessage } from '../core/errors';
 
 export interface Device {
   platform: 'android' | 'ios';
@@ -56,7 +57,7 @@ export async function getAndroidDevices(): Promise<Device[]> {
       });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     logger.debug(`Error detecting Android devices: ${message}`);
   }
 
@@ -131,7 +132,7 @@ export async function getIOSDevices(): Promise<Device[]> {
       }
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = getErrorMessage(error);
     logger.debug(`Error detecting iOS devices: ${message}`);
   }
 

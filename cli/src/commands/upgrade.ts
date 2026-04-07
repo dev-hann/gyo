@@ -3,7 +3,7 @@ import * as fs from 'fs-extra';
 import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand } from '../utils/exec';
-import { GyoError } from '../core/index';
+import { GyoError, getErrorMessage } from '../core/index';
 
 interface UpgradeCommandOptions extends BaseCommandOptions {
   check?: boolean;
@@ -46,7 +46,7 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
       if (error instanceof GyoError) {
         throw error;
       }
-      throw new GyoError(error instanceof Error ? error.message : String(error), 1, {
+      throw new GyoError(getErrorMessage(error), 1, {
         cause: error,
       });
     }

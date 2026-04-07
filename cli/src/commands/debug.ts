@@ -1,5 +1,6 @@
 import { PlatformCommand, CommandMeta, Platform, PlatformCommandOptions } from './base/index';
 import { logger } from '../utils/logger';
+import { getErrorMessage } from '../core/index';
 
 export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
   getMeta(): CommandMeta {
@@ -40,7 +41,7 @@ export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
       logger.info('  • Click "inspect" under your device');
       logger.info('  • Use Console, Elements, Network tabs as usual');
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = getErrorMessage(error);
       logger.debug(`Failed to open Chrome: ${message}`);
       logger.warn('\nCould not auto-open Chrome. Please manually navigate to:');
       logger.info('  chrome://inspect');
