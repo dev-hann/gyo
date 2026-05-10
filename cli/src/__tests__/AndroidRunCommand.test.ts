@@ -2,6 +2,7 @@ jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
   getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
+  requireTool: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -50,13 +51,13 @@ jest.mock('fs-extra', () => ({
 
 import { EventEmitter } from 'events';
 import { AndroidRunCommand } from '../commands/run/AndroidRunCommand';
-import { executeCommand, checkCommandExists } from '../utils/exec';
+import { executeCommand, requireTool } from '../utils/exec';
 import { pathExists, readFile } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
-const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
+const mockedRequireTool = requireTool as jest.MockedFunction<typeof requireTool>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedFsReadFile = readFile as unknown as jest.Mock;
 const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
@@ -87,13 +88,14 @@ describe('AndroidRunCommand', () => {
 
   describe('checkAdbAvailable', () => {
     it('should pass when adb exists', async () => {
-      mockedCheck.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
 
       await expect(command['checkAdbAvailable']()).resolves.toBeUndefined();
     });
 
-    it('should throw ToolRequiredError when adb not found', async () => {
-      mockedCheck.mockResolvedValue(false);
+    it('should throw when adb not found', async () => {
+      const { ToolRequiredError } = jest.requireActual('../core/errors');
+      mockedRequireTool.mockRejectedValue(new ToolRequiredError('adb', 'Install Android SDK'));
 
       await expect(command['checkAdbAvailable']()).rejects.toThrow('Required tool');
     });

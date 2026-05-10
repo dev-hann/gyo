@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
-import { CommandMeta } from '../base/BaseCommand';
+import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';

@@ -1,12 +1,10 @@
 package gyo.plugins.bridge
 
 import android.util.Log
+import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Bridge Registry - Singleton for managing custom bridges
- */
 object BridgeRegistry {
-    private val handlers = mutableMapOf<String, BridgeHandler>()
+    private val handlers = ConcurrentHashMap<String, BridgeHandler>()
 
     fun initialize() {
         handlers.clear()

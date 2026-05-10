@@ -24,9 +24,9 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
-    "prepare": "husky",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:e2e": "jest --config e2e/jest.config.cjs --runInBand --verbose"
   },
   "keywords": [
     "gyo",
@@ -44,35 +44,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gyo-framework/gyo.git",
+    "url": "https://github.com/dev-hann/gyo.git",
     "directory": "cli"
   },
   "bugs": {
-    "url": "https://github.com/gyo-framework/gyo/issues"
+    "url": "https://github.com/dev-hann/gyo/issues"
   },
-  "homepage": "https://github.com/gyo-framework/gyo#readme",
+  "homepage": "https://github.com/dev-hann/gyo#readme",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.10.0",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
-    "eslint": "^10.0.2",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.3.0",
-    "husky": "^9.1.7",
     "jest": "^29.7.0",
-    "lint-staged": "^16.3.0",
-    "prettier": "^3.8.1",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.1",
-    "tsup": "^8.5.1",
-    "typescript": "^5.0.0"
+    "tsup": "^8.5.1"
   },
   "dependencies": {
     "@types/inquirer": "^9.0.9",

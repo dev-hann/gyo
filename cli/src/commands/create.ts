@@ -1,7 +1,7 @@
 import * as path from 'path';
-import inquirer from 'inquirer';
 import fs from 'fs-extra';
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import type { CommandMeta, BaseCommandOptions } from './base/index';
+import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import {
   ensureDir,
@@ -14,6 +14,7 @@ import {
 } from '../utils/fs';
 import { executeCommand } from '../utils/exec';
 import { GyoError, DirectoryExistsError, getErrorMessage } from '../core/index';
+import inquirer from 'inquirer';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName?: string;
@@ -66,6 +67,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
     return {
       name: 'create <project-name>',
       description: 'Create a new gyo project',
+      positionalHandler: 'projectName',
       options: [
         {
           flags: '-t, --template <template>',
@@ -118,7 +120,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private async resolveFramework(): Promise<FrameworkOption> {
-    const templateFlag = this.options.template?.toLowerCase()?.trim();
+    const templateFlag = this.options.template.toLowerCase().trim();
     const matched = FRAMEWORK_OPTIONS.find((f) => f.value === templateFlag);
 
     if (matched) {

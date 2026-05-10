@@ -1,123 +1,80 @@
-# Plugin API Reference
+# Plugin API Specifications
+
+Type signatures and contracts for Gyo plugins.
 
 ## @gyo-framework/bridge
 
-웹-네이티브 통신 코어 라이브러리.
+Core bridge for web-native communication.
 
-### TypeScript API
-
-```typescript
-import { Bridge } from '@gyo-framework/bridge'
-
-const bridge = new Bridge('@gyo-framework/plugin-name')
-
-// 동기 호출
-const result = await bridge.call('methodName', { param: 'value' })
-
-// 이벤트 리스닝
-bridge.onEvent('eventName', (data) => {
-  console.log('Event:', data)
-})
-```
-
-### BridgeResponse 타입
+### Exports
 
 ```typescript
-type BridgeResponse = 
-  | { success: true; data: any }
-  | { success: false; error: string }
+class Bridge {
+  constructor(name: string, options?: BridgeOptions)
+  invoke<T>(method: string, data?: unknown): Promise<T>
+  listen(callback: EventCallback): Unsubscribe
+  getName(): string
+  destroy(): void
+}
+
+interface BridgeOptions {
+  timeout?: number // default: 30000
+}
+
+interface BridgeRequest {
+  bridgeName: string
+  methodName: string
+  data?: unknown
+  callbackId: string
+}
+
+interface BridgeResponse {
+  callbackId: string
+  success: boolean
+  data?: unknown
+  error?: string
+}
+
+interface BridgeEvent {
+  bridgeName: string
+  data: unknown
+}
+
+type EventCallback = (data: unknown) => void
+type Unsubscribe = () => void
 ```
 
----
+> See `plugins/bridge/src/types.ts` for full type definitions.
+> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for native handler protocols.
 
-## @gyo-framework/camera
+## Plugin Development Conventions
 
-카메라 및 갤러리 접근.
+### Naming
 
-### API
+| Scope | Usage | Example |
+|-------|-------|---------|
+| `@gyo-framework/` | Official | `@gyo-framework/barcode` |
+| `@gyo-community/` | Community | `@gyo-community/analytics` |
 
-```typescript
-import Camera from '@gyo-framework/camera'
+### Structure
 
-interface CameraResult {
-  base64: string      // Base64 인코딩 이미지
-  format: string      // 'jpeg' | 'png'
-  width: number
-  height: number
-}
-
-interface CameraOptions {
-  quality?: number    // 0-1, default 0.8
-  maxWidth?: number   // default 1920
-  maxHeight?: number  // default 1080
-}
-
-// 사진 촬영
-const result: CameraResult = await Camera.takePicture(options?)
-
-// 갤러리에서 선택
-const result: CameraResult = await Camera.pickFromGallery(options?)
-
-// 카메라 사용 가능 여부
-const available: boolean = await Camera.isAvailable()
+```
+@gyo-framework/<name>/
+├── package.json
+├── src/
+│   ├── index.ts        # Exported API
+│   └── __tests__/
+├── android/            # Kotlin implementation (optional)
+│   └── src/main/kotlin/gyo/plugins/<name>/
+└── ios/                # Swift implementation (optional)
+    └── Sources/
 ```
 
-### 권한
+### Rules
 
-**Android**: `CAMERA`, `READ_EXTERNAL_STORAGE`
-**iOS**: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`
+1. Must depend on `@gyo-framework/bridge` as `peerDependencies`.
+2. Export a class with static methods wrapping `Bridge.invoke()`.
+3. Define and export all TypeScript interfaces for input/output.
+4. Register native handlers via `BridgeRegistry` on each platform.
 
----
-
-## @gyo-framework/geolocation
-
-GPS 위치 추적.
-
-### API
-
-```typescript
-import Geolocation from '@gyo-framework/geolocation'
-
-interface Position {
-  coords: {
-    latitude: number
-    longitude: number
-    accuracy: number       // meters
-    altitude: number | null
-    altitudeAccuracy: number | null
-    heading: number | null   // 0-359 degrees
-    speed: number | null     // m/s
-  }
-  timestamp: number
-}
-
-interface PositionError {
-  code: 1 | 2 | 3  // PERMISSION_DENIED | POSITION_UNAVAILABLE | TIMEOUT
-  message: string
-}
-
-// 현재 위치 (1회)
-const position: Position = await Geolocation.getCurrentPosition()
-
-// 위치 감시 (실시간)
-const watchId: number = await Geolocation.watchPosition(
-  (position: Position) => { /* update */ },
-  (error: PositionError) => { /* handle error */ }
-)
-
-// 감시 중지
-await Geolocation.clearWatch(watchId)
-
-// 사용 가능 여부
-const available: boolean = await Geolocation.isAvailable()
-```
-
-### 권한
-
-**Android**: `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
-**iOS**: `NSLocationWhenInUseUsageDescription`
-
-### 의존성
-
-**Android**: Google Play Services Location 21.0.1
-**iOS**: CoreLocation (내장)
+> See `plugins/README.md` for package listing.

@@ -43,9 +43,7 @@ describe('Bridge', () => {
 
   describe('invoke', () => {
     it('should throw error when no native bridge is found', async () => {
-      await expect(bridge.invoke('testMethod')).rejects.toThrow(
-        'No native bridge found'
-      );
+      await expect(bridge.invoke('testMethod')).rejects.toThrow('No native bridge found');
     });
 
     it('should reject on timeout', async () => {
@@ -61,9 +59,7 @@ describe('Bridge', () => {
 
       jest.advanceTimersByTime(100);
 
-      await expect(promise).rejects.toThrow(
-        "Bridge method 'slowMethod' timed out after 50ms"
-      );
+      await expect(promise).rejects.toThrow("Bridge method 'slowMethod' timed out after 50ms");
 
       fastBridge.destroy();
       jest.useRealTimers();
@@ -248,8 +244,12 @@ describe('Bridge', () => {
       let resolved = false;
       let rejected = false;
       invokePromise.then(
-        () => { resolved = true; },
-        () => { rejected = true; }
+        () => {
+          resolved = true;
+        },
+        () => {
+          rejected = true;
+        }
       );
 
       await Promise.resolve();
@@ -272,9 +272,7 @@ describe('Bridge', () => {
     it('should reject invoke after destroy', async () => {
       bridge.destroy();
 
-      await expect(bridge.invoke('anyMethod')).rejects.toThrow(
-        'Bridge has been destroyed'
-      );
+      await expect(bridge.invoke('anyMethod')).rejects.toThrow('Bridge has been destroyed');
     });
   });
 

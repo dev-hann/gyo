@@ -1,4 +1,5 @@
-import { BaseCommand, CommandMeta } from '../commands/base/BaseCommand';
+import type { CommandMeta } from '../commands/base/BaseCommand';
+import { BaseCommand } from '../commands/base/BaseCommand';
 import { GyoError } from '../core/index';
 
 jest.mock('../services/config.service', () => ({
@@ -63,7 +64,7 @@ class TestableBaseCommand extends BaseCommand {
     return this.requireGyoProject();
   }
 
-  public testHandleError(error: unknown): void {
+  public async testHandleError(error: unknown): Promise<void> {
     return this.handleError(error);
   }
 }
@@ -150,23 +151,23 @@ describe('BaseCommand', () => {
   });
 
   describe('handleError', () => {
-    it('should re-throw GyoError as-is', () => {
+    it('should re-throw GyoError as-is', async () => {
       const gyoError = new GyoError('custom error');
 
-      expect(() => command.testHandleError(gyoError)).toThrow(gyoError);
+      await expect(command.testHandleError(gyoError)).rejects.toThrow(gyoError);
     });
 
-    it('should wrap generic Error in GyoError', () => {
-      expect(() => command.testHandleError(new Error('generic'))).toThrow(GyoError);
+    it('should wrap generic Error in GyoError', async () => {
+      await expect(command.testHandleError(new Error('generic'))).rejects.toThrow(GyoError);
     });
 
-    it('should wrap non-Error in GyoError', () => {
-      expect(() => command.testHandleError('string error')).toThrow(GyoError);
+    it('should wrap non-Error in GyoError', async () => {
+      await expect(command.testHandleError('string error')).rejects.toThrow(GyoError);
     });
 
-    it('should log error message', () => {
+    it('should log error message', async () => {
       try {
-        command.testHandleError(new Error('test msg'));
+        await command.testHandleError(new Error('test msg'));
       } catch {
         // expected
       }
@@ -174,9 +175,9 @@ describe('BaseCommand', () => {
       expect(logger.error).toHaveBeenCalledWith('test msg');
     });
 
-    it('should log stack in debug mode', () => {
+    it('should log stack in debug mode', async () => {
       try {
-        command.testHandleError(new Error('test msg'));
+        await command.testHandleError(new Error('test msg'));
       } catch {
         // expected
       }
@@ -184,18 +185,18 @@ describe('BaseCommand', () => {
       expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('test msg'));
     });
 
-    it('should preserve cause when wrapping Error', () => {
+    it('should preserve cause when wrapping Error', async () => {
       const original = new Error('original');
       try {
-        command.testHandleError(original);
+        await command.testHandleError(original);
       } catch (err) {
         expect((err as GyoError).cause).toBe(original);
       }
     });
 
-    it('should preserve cause when wrapping non-Error', () => {
+    it('should preserve cause when wrapping non-Error', async () => {
       try {
-        command.testHandleError('string error');
+        await command.testHandleError('string error');
       } catch (err) {
         expect((err as GyoError).cause).toBe('string error');
       }

@@ -1,5 +1,6 @@
 import * as path from 'path';
-import { MultiPlatformCommand, CommandMeta, MultiPlatformCommandOptions } from './base/index';
+import type { CommandMeta, MultiPlatformCommandOptions } from './base/index';
+import { MultiPlatformCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand, getGradlew } from '../utils/exec';
 import { pathExists, removeDir } from '../utils/fs';
@@ -13,6 +14,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
       name: 'clean',
       arguments: '[platform]',
       description: 'Clean build artifacts (android, ios, lib, or all)',
+      positionalHandler: 'platformWithAll',
     };
   }
 
@@ -26,6 +28,7 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     try {
       await this.processAllPlatforms((p) => this.cleanPlatform(p));
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (this.hadWarnings) {
         this.warnSpinner('Clean completed with warnings');
       } else {

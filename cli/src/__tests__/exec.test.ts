@@ -1,4 +1,4 @@
-import { executeCommand, checkCommandExists, getGradlew } from '../utils/exec';
+import { executeCommand, checkCommandExists, getGradlew, requireTool } from '../utils/exec';
 
 jest.mock('child_process', () => {
   const { EventEmitter } = jest.requireActual('events');
@@ -216,6 +216,22 @@ describe('exec utils', () => {
       expect(result).toBe(true);
 
       Object.defineProperty(process, 'platform', { value: original });
+    });
+  });
+
+  describe('requireTool', () => {
+    it('should resolve when tool exists', async () => {
+      const promise = requireTool('node', 'install node');
+      mockProcess.emit('close', 0);
+
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('should throw ToolRequiredError when tool not found', async () => {
+      const promise = requireTool('missing-tool', 'install it');
+      mockProcess.emit('close', 1);
+
+      await expect(promise).rejects.toThrow('Required tool');
     });
   });
 });

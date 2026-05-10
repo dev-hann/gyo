@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import type { CommandMeta, BaseCommandOptions } from './base/index';
+import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand } from '../utils/exec';
 import { GyoError } from '../core/index';

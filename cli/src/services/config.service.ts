@@ -1,9 +1,10 @@
 import * as path from 'path';
 import { readJson, writeJson, pathExists } from '../utils/fs';
 import { logger } from '../utils/logger';
-import { GyoConfig, GyoError, getErrorMessage } from '../core/index';
+import type { GyoConfig } from '../core/index';
+import { GyoError, getErrorMessage } from '../core/index';
 
-export { GyoConfig } from '../core/index';
+export type { GyoConfig } from '../core/index';
 
 function validateServerUrl(url: unknown): boolean {
   if (typeof url !== 'string') {
@@ -131,7 +132,7 @@ export async function saveConfig(
 }
 
 export function getProfileUrl(config: GyoConfig, profile: string = 'development'): string {
-  if (config.profiles && config.profiles[profile]) {
+  if (config.profiles && profile in config.profiles) {
     const serverUrl = config.profiles[profile].serverUrl;
     return validateNonEmptyUrl(serverUrl, `Profile '${profile}' serverUrl`);
   }

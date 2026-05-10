@@ -1,169 +1,86 @@
-# Gyo Architecture
+# Architecture
 
-## 시스템 개요
+System architecture for the Gyo framework.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         CLI (gyo)                           │
-│  create / run / build / config / doctor / devices / debug   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        ▼                     ▼                     ▼
-┌───────────────┐     ┌───────────────┐     ┌───────────────┐
-│   Android     │     │   WebView     │     │     iOS       │
-│   (Kotlin)    │     │  (React/Vite) │     │   (Swift)     │
-└───────────────┘     └───────────────┘     └───────────────┘
-        │                     │                     │
-        └─────────────────────┼─────────────────────┘
-                              │
-                    ┌─────────▼─────────┐
-                    │   Bridge System   │
-                    │  @gyo-framework/  │
-                    │     bridge        │
-                    └───────────────────┘
-```
-
-## 통신 흐름
+## Directory Structure
 
 ```
-Web (JS/TS)                 Native (Kotlin/Swift)
-    │                              │
-    │  bridge.call('method', {})   │
-    │─────────────────────────────▶│
-    │                              │ handleCall()
-    │                              │ 실행
-    │  { result }                  │
-    │◀─────────────────────────────│
-    │                              │
+gyo/
+├── cli/                       # @gyo-framework/cli
+│   ├── src/
+│   │   ├── core/              # Types, errors, constants
+│   │   ├── services/          # Business logic
+│   │   ├── utils/             # Utilities
+│   │   └── commands/          # CLI commands
+│   └── templates/             # Project scaffolding
+├── plugins/
+│   └── bridge/                # @gyo-framework/bridge (built-in)
+└── docs/                      # Specifications
 ```
 
-## 디렉토리 구조
+> See `cli/src/README.md` for CLI source structure.
+> See `plugins/README.md` for plugin package listing.
+
+## Command Class Hierarchy
 
 ```
-cli/
-├── src/
-│   ├── core/                 # Types, errors, constants
-│   │   ├── types.ts
-│   │   ├── errors.ts
-│   │   └── constants.ts
-│   ├── services/             # Business logic
-│   │   ├── config.service.ts
-│   │   └── device.service.ts
-│   ├── utils/                # Utilities
-│   │   ├── logger.ts
-│   │   ├── exec.ts
-│   │   └── fs.ts
-│   ├── commands/             # CLI commands
-│   │   ├── base/             # Base command classes
-│   │   ├── build/            # gyo build
-│   │   ├── run/              # gyo run
-│   │   ├── create.ts
-│   │   ├── config.ts
-│   │   ├── devices.ts
-│   │   ├── doctor.ts
-│   │   ├── debug.ts
-│   │   ├── upgrade.ts
-│   │   └── clean.ts
-│   └── index.ts              # Entry point
-└── templates/                # Project templates
-    ├── gyo.config.json
-    ├── android/              # Android project template
-    ├── ios/                  # iOS project template
-    └── lib/                  # Web app template (React + Vite)
-
-plugins/
-├── bridge/                   # Built-in bridge library
-│   ├── src/                  # TypeScript API
-│   ├── android/              # Kotlin implementation
-│   └── ios/                  # Swift implementation
-├── camera/                   # Camera plugin
-└── geolocation/              # Geolocation plugin
+BaseCommand
+├── CreateCommand               gyo create
+├── ConfigCommand               gyo config (show/set/get)
+├── DoctorCommand               gyo doctor
+├── DevicesCommand              gyo devices
+├── UpgradeCommand              gyo upgrade
+├── RunCommand                  gyo run (delegates to Android/IOSRunCommand)
+├── BuildCommand                gyo build <platform> (delegates to Android/IOSBuildCommand)
+├── PlatformCommand
+│   ├── DebugCommand            gyo debug <platform>
+│   ├── AbstractRunCommand
+│   │   ├── AndroidRunCommand
+│   │   └── IOSRunCommand
+│   └── AbstractBuildCommand
+│       ├── AndroidBuildCommand
+│       └── IOSBuildCommand
+└── MultiPlatformCommand
+    └── CleanCommand            gyo clean
 ```
 
-## 런타임 컴포넌트
+> See `cli/src/commands/README.md` for command development patterns.
 
-### 개발 모드 (`gyo run`)
+## Runtime Components
 
-```
-┌─────────────┐         ┌─────────────┐
-│ Vite Server │────────▶│   Device    │
-│   :3000     │         │   App       │
-└─────────────┘         └─────────────┘
-```
-
-### 프로덕션
+### Development (`gyo run`)
 
 ```
-┌─────────────┐         ┌─────────────┐
-│  Bundled    │────────▶│   Native    │
-│  JS/CSS     │         │   WebView   │
-└─────────────┘         └─────────────┘
+Android: Vite server → gradlew assembleDebug → installDebug → adb shell am start → adb logcat
+iOS:     Vite server → xtool dev → idevicesyslog
 ```
 
-## Bridge 인터페이스
-
-### TypeScript
-
-```typescript
-import { Bridge } from '@gyo-framework/bridge'
-
-const bridge = new Bridge('@gyo-framework/plugin-name')
-const result = await bridge.call('methodName', { param: 'value' })
-```
-
-### Android (Kotlin)
-
-```kotlin
-class PluginBridge(context: Context) : BridgeInterface {
-    override val name = "@gyo-framework/plugin-name"
-    
-    override fun handleCall(method: String, params: JsonObject?): BridgeResponse {
-        return when (method) {
-            "methodName" -> BridgeResponse.success(mapOf("result" to "value"))
-            else -> BridgeResponse.error("Unknown method")
-        }
-    }
-}
-```
-
-### iOS (Swift)
-
-```swift
-class PluginBridge: BridgeInterface {
-    let name = "@gyo-framework/plugin-name"
-    
-    func handleCall(method: String, params: [String: Any]?) async -> BridgeResponse {
-        switch method {
-        case "methodName": return .success(["result": "value"])
-        default: return .error("Unknown method")
-        }
-    }
-}
-```
-
-## Built-in Bridge 구조
-
-Bridge는 이제 CLI에 내장되어 있으며, 별도의 플러그인 설치 없이 사용할 수 있습니다.
+### Production (`gyo build`)
 
 ```
-plugins/bridge/
-├── package.json             # npm 패키지 정보
-├── src/
-│   └── index.ts             # TypeScript API
-├── dist/                    # 빌드 결과물
-├── android/
-│   ├── build.gradle.kts
-│   └── src/main/kotlin/
-│       └── BridgeInterface.kt
-└── ios/
-    ├── Package.swift
-    └── Sources/
-        └── BridgeInterface.swift
+Android: npm run build (lib) → gradlew assembleRelease/Debug → APK
+iOS:     npm run build (lib) → xtool dev → install to device
 ```
 
-## 빌드 산출물
+## Communication Flow
 
-- **Android**: APK/AAB (Gradle)
-- **iOS**: IPA (Swift Package Manager + xcodebuild)
-- **Web**: 정적 파일 (Vite 빌드 → 네이티브에 번들)
+```
+Web (JS/TS)                              Native (Kotlin/Swift)
+    │                                         │
+    │  bridge.invoke('method', data)          │
+    │────────────────────────────────────────▶│
+    │                                         │ handler.execute()
+    │  Promise<T>                             │
+    │◀────────────────────────────────────────│
+```
+
+> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for native handler protocols.
+
+## Platform Tooling
+
+| Platform | Build Tool | Device Comm | Log Monitoring | Debug |
+|----------|-----------|-------------|----------------|-------|
+| Android | Gradle | ADB | adb logcat | Chrome DevTools |
+| iOS | xtool | libimobiledevice | idevicesyslog | Safari Web Inspector |
+
+> See [CLI.md](./CLI.md) for platform-specific requirements and setup.

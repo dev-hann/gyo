@@ -1,10 +1,12 @@
-import inquirer from 'inquirer';
-import { BaseCommand, CommandMeta } from './base/index';
+import type { CommandMeta } from './base/index';
+import { BaseCommand } from './base/index';
 import { AndroidRunCommand } from './run/AndroidRunCommand';
 import { IOSRunCommand } from './run/IOSRunCommand';
-import { getAllDevices, Device } from '../services/device.service';
+import type { Device } from '../services/device.service';
+import { getAllDevices } from '../services/device.service';
 import { logger } from '../utils/logger';
 import { GyoError, InvalidPlatformError } from '../core/index';
+import inquirer from 'inquirer';
 
 interface RunCommandOptions {
   device?: string;

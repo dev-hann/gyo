@@ -1,8 +1,10 @@
 import * as path from 'path';
-import { BaseCommand, BaseCommandOptions } from './BaseCommand';
+import type { BaseCommandOptions } from './BaseCommand';
+import { BaseCommand } from './BaseCommand';
 import { logger } from '../../utils/logger';
-import { pathExists } from '../../utils/fs';
-import { PlatformNotFoundError, PlatformDisabledError, Platform } from '../../core/index';
+import { pathExists, ensureDir, writeFile } from '../../utils/fs';
+import type { Platform } from '../../core/index';
+import { PlatformNotFoundError, PlatformDisabledError } from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -19,21 +21,22 @@ export abstract class PlatformCommand<
 
   async execute(): Promise<void> {
     try {
-      this.validatePlatform();
-      await this.requireGyoProject();
-      await this.loadConfiguration();
-      this.validatePlatformEnabled();
+      await this.beforeRun();
       await this.run();
     } catch (error) {
-      this.handleError(error);
+      await this.handleError(error);
     }
   }
 
-  async runDirectly(): Promise<void> {
+  protected async beforeRun(): Promise<void> {
     this.validatePlatform();
     await this.requireGyoProject();
     await this.loadConfiguration();
     this.validatePlatformEnabled();
+  }
+
+  async runDirectly(): Promise<void> {
+    await this.beforeRun();
     await this.run();
   }
 
@@ -49,7 +52,7 @@ export abstract class PlatformCommand<
   protected abstract getValidPlatforms(): Platform[];
 
   protected validatePlatformEnabled(): void {
-    if (!this.config || !this.config.platforms) {
+    if (this.config == null) {
       return;
     }
 
@@ -71,6 +74,12 @@ export abstract class PlatformCommand<
       throw new PlatformNotFoundError(this.platform);
     }
   }
+
+  protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
+    this.updateSpinner(`Configuring server URL: ${serverUrl}`);
+    await ensureDir(path.dirname(configPath));
+    await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
+  }
 }
 
-export { Platform };
+export type { Platform };

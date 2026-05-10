@@ -1,53 +1,29 @@
-# Gyo Project Templates
+# Project Templates
 
-This directory contains templates for creating new Gyo projects with `gyo create` command.
+Templates for `gyo create` project scaffolding.
 
-## Template Structure
+## Structure
 
 ```
 templates/
-├── android/        # Android native project
-├── ios/            # iOS native project (xtool)
-├── lib/            # Web application (React)
-└── gyo.config.json # Gyo configuration template
+├── android/        # Gradle-based Android project
+├── ios/            # xtool-based iOS project
+├── lib/            # React + Vite web app (scaffolded at create time)
+└── gyo.config.json # Configuration template
 ```
-
-## Platforms
-
-### Android
-- Gradle-based build system
-- WebView with JavaScript bridge
-- Kotlin source code
-
-### iOS
-- xtool-based (works on Linux, macOS, Windows)
-- SwiftUI + WKWebView
-- Swift Package Manager
-
-### Web (lib)
-- React + Vite
-- TypeScript
-- Hot reload support
 
 ## Template Variables
 
-Templates use placeholders that are replaced during `gyo create`:
-
 | Placeholder | Replaced with |
 |-------------|---------------|
-| `{{PROJECT_NAME}}` | Project name (e.g., "MyApp") |
-| `{{PROJECT_NAME_LOWER}}` | Lowercase project name (e.g., "myapp") |
-| `{{PACKAGE_NAME}}` | Android/iOS package name (e.g., "com.example.myapp") |
+| `{{PROJECT_NAME}}` | Project name (e.g. "MyApp") |
+| `{{PROJECT_NAME_LOWER}}` | Lowercase project name (e.g. "myapp") |
+| `{{PACKAGE_NAME}}` | Package name (e.g. "com.example.myapp") |
 
-## Files
+## Platform Details
 
-- `android/` - Android Studio project structure
-- `ios/` - xtool project structure
-- `lib/` - React web application
-- `gyo.config.json` - Configuration template
-
-## Future Enhancements
-
-- [ ] Multiple state management templates (Redux, Zustand)
-- [ ] Custom template support (`gyo create --template <path>`)
-- [ ] Desktop platform templates (Electron, Tauri)
+| Platform | Build System | Language | Details |
+|----------|-------------|----------|---------|
+| Android | Gradle | Kotlin | [android/README.md](./android/README.md) |
+| iOS | xtool | Swift | [ios/README.md](./ios/README.md) |
+| Web | Vite | TypeScript | Scaffolded via `create-vite` or `create-next-app` |

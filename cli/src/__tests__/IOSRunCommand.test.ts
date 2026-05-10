@@ -3,6 +3,7 @@ jest.mock('../utils/exec', () => ({
   getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
   showYAMLParsingError: jest.requireActual('../utils/exec').showYAMLParsingError,
+  requireTool: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -52,7 +53,7 @@ jest.mock('fs-extra', () => ({
 
 import { EventEmitter } from 'events';
 import { IOSRunCommand } from '../commands/run/IOSRunCommand';
-import { executeCommand, checkCommandExists } from '../utils/exec';
+import { executeCommand, checkCommandExists, requireTool } from '../utils/exec';
 import { pathExists, readFile, ensureDir, writeFile, removeDir } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
@@ -60,6 +61,7 @@ import { logger } from '../utils/logger';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
+const mockedRequireTool = requireTool as jest.MockedFunction<typeof requireTool>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedReadFile = readFile as unknown as jest.Mock;
 const mockedFsEnsureDir = ensureDir as unknown as jest.Mock;
@@ -93,13 +95,16 @@ describe('IOSRunCommand', () => {
 
   describe('checkXtoolAvailable', () => {
     it('should pass when xtool exists', async () => {
-      mockedCheck.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
 
       await expect(command['checkXtoolAvailable']()).resolves.toBeUndefined();
     });
 
-    it('should throw ToolRequiredError when xtool not found', async () => {
-      mockedCheck.mockResolvedValue(false);
+    it('should throw when xtool not found', async () => {
+      const { ToolRequiredError } = jest.requireActual('../core/errors');
+      mockedRequireTool.mockRejectedValue(
+        new ToolRequiredError('xtool', 'Install xtool: https://xtool.sh')
+      );
 
       await expect(command['checkXtoolAvailable']()).rejects.toThrow('Required tool');
     });

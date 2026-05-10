@@ -1,8 +1,13 @@
 import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
-import { CommandMeta } from '../base/BaseCommand';
+import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand, checkCommandExists, showYAMLParsingError } from '../../utils/exec';
+import {
+  executeCommand,
+  requireTool,
+  showYAMLParsingError,
+  checkCommandExists,
+} from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
 
 export class IOSBuildCommand extends AbstractBuildCommand {
@@ -25,11 +30,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
   }
 
   private async checkXtoolAvailable(): Promise<void> {
-    if (!(await checkCommandExists('xtool'))) {
-      this.failSpinner('xtool not found');
-      logger.error('Install xtool: https://xtool.sh');
-      throw new BuildFailedError('xtool not found');
-    }
+    await requireTool('xtool', 'Install xtool: https://xtool.sh');
   }
 
   private async checkDeviceConnected(): Promise<void> {

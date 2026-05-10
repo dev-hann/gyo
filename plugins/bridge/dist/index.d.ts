@@ -76,6 +76,7 @@ declare global {
  * Bridge class for web-native communication
  */
 declare class Bridge {
+    private static instances;
     private name;
     private timeout;
     private pendingCallbacks;
@@ -84,9 +85,7 @@ declare class Bridge {
     private activeTimers;
     private destroyed;
     constructor(name: string, options?: BridgeOptions);
-    /**
-     * Setup global bridge interface for native to call
-     */
+    private static findCallback;
     private setupGlobalBridge;
     /**
      * Generate unique callback ID
@@ -102,7 +101,7 @@ declare class Bridge {
      * @param data - Optional data to send
      * @returns Promise that resolves with the native response
      */
-    invoke<T = any>(method: string, data?: any): Promise<T>;
+    invoke<T = unknown>(method: string, data?: unknown): Promise<T>;
     /**
      * Listen to events from native
      * @param callback - Function to call when event is received

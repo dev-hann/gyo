@@ -1,8 +1,10 @@
 import * as path from 'path';
 import os from 'os';
-import { ChildProcess, spawn } from 'child_process';
+import type { ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
 import * as fs from 'fs-extra';
-import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
+import type { Platform, PlatformCommandOptions } from '../base/index';
+import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
@@ -144,7 +146,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       this.config.profiles = {};
     }
 
-    if (!this.config.profiles[profile]) {
+    if (!(profile in this.config.profiles)) {
       this.config.profiles[profile] = { serverUrl: serverUrl };
     } else {
       this.config.profiles[profile].serverUrl = serverUrl;
@@ -390,7 +392,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       return;
     }
 
-      const killProcess = (killFn: () => void, description: string): boolean => {
+    const killProcess = (killFn: () => void, description: string): boolean => {
       try {
         killFn();
         return true;

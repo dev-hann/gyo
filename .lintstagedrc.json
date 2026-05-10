@@ -1,3 +1,4 @@
 {
-  "cli/src/**/*.ts": ["cd cli && npx eslint --fix", "cd cli && npx prettier --write"]
+  "cli/src/**/*.ts": ["eslint --fix", "prettier --write"],
+  "plugins/*/src/**/*.ts": ["eslint --fix", "prettier --write"]
 }

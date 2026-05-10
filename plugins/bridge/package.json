@@ -51,13 +51,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/gyo-framework/gyo.git",
+    "url": "https://github.com/dev-hann/gyo.git",
     "directory": "plugins/bridge"
   },
   "bugs": {
-    "url": "https://github.com/gyo-framework/gyo/issues"
+    "url": "https://github.com/dev-hann/gyo/issues"
   },
-  "homepage": "https://github.com/gyo-framework/gyo#readme",
+  "homepage": "https://github.com/dev-hann/gyo#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -66,7 +66,6 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "ts-jest": "^29.4.9",
-    "tsup": "^8.0.0",
-    "typescript": "^5.3.3"
+    "tsup": "^8.0.0"
   }
 }

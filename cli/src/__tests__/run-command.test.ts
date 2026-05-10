@@ -1,5 +1,5 @@
 import { RunCommand } from '../commands/run';
-import { Device } from '../services/device.service';
+import type { Device } from '../services/device.service';
 
 jest.mock('../services/device.service', () => ({
   getAllDevices: jest.fn(),

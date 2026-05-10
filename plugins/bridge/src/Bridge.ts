@@ -1,18 +1,17 @@
-import type {
-  BridgeRequest,
-  EventCallback,
-  Unsubscribe,
-  BridgeOptions,
-} from './types';
+import type { BridgeRequest, EventCallback, Unsubscribe, BridgeOptions } from './types';
 
 /**
  * Bridge class for web-native communication
  */
 export class Bridge {
+  private static instances: Bridge[] = [];
+
   private name: string;
   private timeout: number;
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  private pendingCallbacks: Map<string, { resolve: Function; reject: Function }> = new Map();
+  private pendingCallbacks: Map<
+    string,
+    { resolve: (value: unknown) => void; reject: (reason: unknown) => void }
+  > = new Map();
   private callbackCounter: number = 0;
   private eventListeners: Set<EventCallback> = new Set();
   private activeTimers: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -21,44 +20,44 @@ export class Bridge {
   constructor(name: string, options: BridgeOptions = {}) {
     this.name = name;
     this.timeout = options.timeout ?? 30000;
+    Bridge.instances.push(this);
     this.setupGlobalBridge();
   }
 
-  /**
-   * Setup global bridge interface for native to call
-   */
+  private static findCallback(callbackId: string):
+    | {
+        resolve: (value: unknown) => void;
+        reject: (reason: unknown) => void;
+      }
+    | undefined {
+    for (const instance of Bridge.instances) {
+      const pending = instance.pendingCallbacks.get(callbackId);
+      if (pending) {
+        instance.pendingCallbacks.delete(callbackId);
+        return pending;
+      }
+    }
+    return undefined;
+  }
+
   private setupGlobalBridge(): void {
     if (!window.gyoBridge) {
       window.gyoBridge = {
         resolve: (callbackId: string, data: unknown) => {
-          const pending = this.pendingCallbacks.get(callbackId);
-          if (pending) {
-            pending.resolve(data);
-            this.pendingCallbacks.delete(callbackId);
-          }
+          const pending = Bridge.findCallback(callbackId);
+          pending?.resolve(data);
         },
         reject: (callbackId: string, error: string) => {
-          const pending = this.pendingCallbacks.get(callbackId);
-          if (pending) {
-            pending.reject(new Error(error));
-            this.pendingCallbacks.delete(callbackId);
-          }
+          const pending = Bridge.findCallback(callbackId);
+          pending?.reject(new Error(error));
         },
         publish: (bridgeName: string, data: unknown) => {
-          if (bridgeName === this.name) {
-            this.eventListeners.forEach(listener => listener(data));
+          for (const instance of Bridge.instances) {
+            if (bridgeName === instance.name) {
+              instance.eventListeners.forEach((listener) => listener(data));
+            }
           }
         },
-      };
-    } else {
-      const originalPublish = window.gyoBridge.publish;
-      window.gyoBridge.publish = (bridgeName: string, data: unknown) => {
-        if (bridgeName === this.name) {
-          this.eventListeners.forEach(listener => listener(data));
-        }
-        if (originalPublish) {
-          originalPublish.call(window.gyoBridge, bridgeName, data);
-        }
       };
     }
   }
@@ -89,7 +88,9 @@ export class Bridge {
     }
 
     // No native bridge found
-    throw new Error('No native bridge found. Make sure you are running in a WebView with bridge support.');
+    throw new Error(
+      'No native bridge found. Make sure you are running in a WebView with bridge support.'
+    );
   }
 
   /**
@@ -104,9 +105,12 @@ export class Bridge {
     }
     return new Promise((resolve, reject) => {
       const callbackId = this.generateCallbackId();
-      
+
       // Store callback
-      this.pendingCallbacks.set(callbackId, { resolve, reject });
+      this.pendingCallbacks.set(callbackId, {
+        resolve: resolve as (value: unknown) => void,
+        reject: reject as (reason: unknown) => void,
+      });
 
       // Set timeout to reject if no response
       const timer = setTimeout(() => {

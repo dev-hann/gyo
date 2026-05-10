@@ -1,6 +1,7 @@
-import { spawn, SpawnOptions } from 'child_process';
+import type { SpawnOptions } from 'child_process';
+import { spawn } from 'child_process';
 import { logger } from './logger';
-import { getErrorMessage } from '../core/errors';
+import { getErrorMessage, ToolRequiredError } from '../core/errors';
 
 export interface ExecResult {
   success: boolean;
@@ -147,6 +148,12 @@ export async function checkCommandExists(command: string): Promise<boolean> {
   const checker = process.platform === 'win32' ? 'where' : 'which';
   const result = await executeCommand(checker, [command], { stdio: 'pipe' });
   return result.success;
+}
+
+export async function requireTool(name: string, hint: string): Promise<void> {
+  if (!(await checkCommandExists(name))) {
+    throw new ToolRequiredError(name, hint);
+  }
 }
 
 export function showYAMLParsingError(errorOutput: string): void {

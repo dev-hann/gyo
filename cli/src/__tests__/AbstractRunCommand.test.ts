@@ -39,7 +39,7 @@ jest.mock('../services/config.service', () => ({
 }));
 
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
-import { CommandMeta } from '../commands/base/BaseCommand';
+import type { CommandMeta } from '../commands/base/BaseCommand';
 import { saveConfig } from '../services/config.service';
 import { DEFAULT_PORT } from '../core/index';
 

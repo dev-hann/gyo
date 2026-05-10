@@ -1,46 +1,34 @@
 # CLI Source (`src`)
 
-This directory contains the main source code for the `gyo` CLI.
-
 ## Directory Structure
 
 ```
 src/
-├── index.ts              # Entry point - command registration
-│
-├── core/                 # Domain core (no business logic)
-│   ├── index.ts          # Barrel export
+├── index.ts              # Entry point — command registration
+├── core/                 # Domain core (no dependencies)
 │   ├── types.ts          # Platform, GyoConfig, ProfileConfig
 │   ├── errors.ts         # GyoError, BuildFailedError, etc.
-│   └── constants.ts      # DEFAULT_PORT, DEFAULT_CONFIG, etc.
-│
-├── services/             # Business logic layer
+│   └── constants.ts      # DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, etc.
+├── services/             # Business logic (depends on: core, utils)
 │   ├── config.service.ts # loadConfig, saveConfig, getProfileUrl
 │   └── device.service.ts # getAndroidDevices, getIOSDevices, getAllDevices
-│
-├── utils/                # Pure utilities
-│   ├── logger.ts         # Console logging with colors
-│   ├── exec.ts           # Command execution, getGradlew
-│   └── fs.ts             # File system operations
-│
-└── commands/             # CLI commands
+├── utils/                # Pure utilities (no dependencies)
+│   ├── logger.ts         # Console logging with chalk
+│   ├── exec.ts           # child_process spawn wrapper
+│   └── fs.ts             # fs-extra wrappers
+└── commands/             # CLI commands (depends on: all above)
     ├── base/             # BaseCommand, PlatformCommand, MultiPlatformCommand
-    ├── build/            # AbstractBuildCommand, Android/IOSBuildCommand
-    ├── run/              # AbstractRunCommand, Android/IOSRunCommand
+    ├── build/            # AbstractBuildCommand → Android/IOSBuildCommand
+    ├── run/              # AbstractRunCommand → Android/IOSRunCommand
     └── *.ts              # Command entry points
 ```
 
-## Layers
+## Dependency Direction
 
-| Layer | Purpose | Dependencies |
-|-------|---------|--------------|
-| `core/` | Types, errors, constants | None |
-| `services/` | Business logic | core, utils |
-| `utils/` | Pure utilities | None |
-| `commands/` | CLI presentation | all above |
+```
+core → utils → services → commands
+```
 
-## Adding a New Command
+Each layer only imports from layers to its left.
 
-1. Create `commands/mycommand.ts` extending `BaseCommand`
-2. Implement `getMeta()` and `run()`
-3. Register in `index.ts`: `registerCommand(new MyCommand())`
+> See [commands/README.md](./commands/README.md) for command development patterns.

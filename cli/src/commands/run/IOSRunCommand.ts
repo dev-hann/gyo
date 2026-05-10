@@ -1,11 +1,16 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
-import { CommandMeta } from '../base/BaseCommand';
+import type { CommandMeta } from '../base/BaseCommand';
 import { logger, EMOJI } from '../../utils/logger';
-import { executeCommand, showYAMLParsingError, checkCommandExists } from '../../utils/exec';
-import { pathExists, readFile, ensureDir, writeFile, removeDir } from '../../utils/fs';
-import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
+import {
+  executeCommand,
+  showYAMLParsingError,
+  requireTool,
+  checkCommandExists,
+} from '../../utils/exec';
+import { pathExists, readFile, removeDir } from '../../utils/fs';
+import { BuildFailedError, getErrorMessage } from '../../core/errors';
 
 const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
 
@@ -29,34 +34,18 @@ export class IOSRunCommand extends AbstractRunCommand {
   }
 
   private async checkXtoolAvailable(): Promise<void> {
-    if (!(await checkCommandExists('xtool'))) {
-      this.failSpinner('xtool not found');
-      logger.error('Install xtool: https://xtool.sh');
-      throw new ToolRequiredError('xtool', 'Install xtool: https://xtool.sh');
-    }
+    await requireTool('xtool', 'Install xtool: https://xtool.sh');
   }
 
   private async updateServerUrl(iosPath: string, serverUrl: string): Promise<void> {
-    this.updateSpinner(`Updating server URL to ${serverUrl}...`);
-    const resourcesPath = path.join(iosPath, 'Sources/Resources');
-    const configPath = path.join(resourcesPath, 'gyo-config.json');
-
-    await ensureDir(resourcesPath);
-
-    const config = {
-      serverUrl,
-    };
-
-    const configJson = JSON.stringify(config, null, 2);
-    await writeFile(configPath, configJson);
+    const configPath = path.join(iosPath, 'Sources/Resources/gyo-config.json');
+    await this.writeConfigFile(configPath, serverUrl);
 
     const buildPath = path.join(iosPath, '.build');
     if (await pathExists(buildPath)) {
       logger.verbose('Cleaning build cache...');
       await removeDir(buildPath);
     }
-
-    logger.verbose(`Wrote config to ${configPath}: ${configJson}`);
   }
 
   private async getBundleId(iosPath: string): Promise<string> {
@@ -173,6 +162,7 @@ export class IOSRunCommand extends AbstractRunCommand {
         }
 
         if (onDataCallback) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           syslogCapture.stdout?.off('data', onDataCallback);
           onDataCallback = null;
         }
@@ -232,11 +222,13 @@ export class IOSRunCommand extends AbstractRunCommand {
         finish(safeBundleId);
       };
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       syslogCapture.stdout?.on('data', onDataCallback);
       syslogCapture.on('error', onErrorCallback);
       syslogCapture.on('exit', onExitCallback);
 
       timeout = setTimeout(() => finish(safeBundleId), SYSLOG_SEARCH_TIMEOUT_MS);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (timeout) {
         timeout.unref();
       }

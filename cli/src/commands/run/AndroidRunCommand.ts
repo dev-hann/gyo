@@ -1,11 +1,11 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
-import { CommandMeta } from '../base/BaseCommand';
+import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import { executeCommand, getGradlew, checkCommandExists } from '../../utils/exec';
-import { pathExists, ensureDir, writeJson, readFile } from '../../utils/fs';
-import { BuildFailedError, ToolRequiredError, getErrorMessage } from '../../core/errors';
+import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
+import { pathExists, readFile } from '../../utils/fs';
+import { BuildFailedError, getErrorMessage } from '../../core/errors';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -28,27 +28,12 @@ export class AndroidRunCommand extends AbstractRunCommand {
   }
 
   private async checkAdbAvailable(): Promise<void> {
-    if (!(await checkCommandExists('adb'))) {
-      throw new ToolRequiredError(
-        'adb',
-        'Install the Android SDK and add adb to your PATH. Run: gyo doctor'
-      );
-    }
+    await requireTool('adb', 'Install the Android SDK and add adb to your PATH. Run: gyo doctor');
   }
 
   private async updateServerUrl(androidPath: string, serverUrl: string): Promise<void> {
-    this.updateSpinner(`Updating server URL to ${serverUrl}...`);
-
-    const assetsPath = path.join(androidPath, 'app/src/main/assets');
-    const configPath = path.join(assetsPath, 'gyo-config.json');
-
-    await ensureDir(assetsPath);
-
-    const config = {
-      serverUrl,
-    };
-
-    await writeJson(configPath, config);
+    const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
+    await this.writeConfigFile(configPath, serverUrl);
   }
 
   private async buildApp(androidPath: string): Promise<void> {

@@ -38,7 +38,7 @@ jest.mock('../services/config.service', () => ({
 }));
 
 import { MultiPlatformCommand } from '../commands/base/MultiPlatformCommand';
-import { CommandMeta } from '../commands/base/BaseCommand';
+import type { CommandMeta } from '../commands/base/BaseCommand';
 
 class TestableMultiCommand extends MultiPlatformCommand {
   getMeta(): CommandMeta {

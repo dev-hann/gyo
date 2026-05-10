@@ -3,6 +3,7 @@ jest.mock('../utils/exec', () => ({
   getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
   showYAMLParsingError: jest.requireActual('../utils/exec').showYAMLParsingError,
+  requireTool: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -46,12 +47,13 @@ jest.mock('fs-extra', () => ({
 }));
 
 import { IOSBuildCommand } from '../commands/build/IOSBuildCommand';
-import { executeCommand, checkCommandExists } from '../utils/exec';
+import { executeCommand, checkCommandExists, requireTool } from '../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../utils/fs';
-import { BuildFailedError } from '../core/errors';
+import { BuildFailedError, ToolRequiredError } from '../core/errors';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkCommandExists>;
+const mockedRequireTool = requireTool as jest.MockedFunction<typeof requireTool>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
 const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
@@ -78,16 +80,17 @@ describe('IOSBuildCommand', () => {
 
   describe('checkXtoolAvailable', () => {
     it('should pass when xtool exists', async () => {
-      mockedCheck.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
 
       await expect(command['checkXtoolAvailable']()).resolves.toBeUndefined();
     });
 
-    it('should throw BuildFailedError when xtool not found', async () => {
-      mockedCheck.mockResolvedValue(false);
+    it('should throw ToolRequiredError when xtool not found', async () => {
+      mockedRequireTool.mockRejectedValue(
+        new ToolRequiredError('xtool', 'Install xtool: https://xtool.sh')
+      );
 
-      await expect(command['checkXtoolAvailable']()).rejects.toThrow(BuildFailedError);
-      await expect(command['checkXtoolAvailable']()).rejects.toThrow('xtool not found');
+      await expect(command['checkXtoolAvailable']()).rejects.toThrow(ToolRequiredError);
     });
   });
 
@@ -168,6 +171,7 @@ describe('IOSBuildCommand', () => {
   describe('buildPlatform (integration)', () => {
     it('should run full build pipeline successfully', async () => {
       mockedPathExists.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
       mockedCheck.mockResolvedValue(true);
       mockedExec
         .mockResolvedValueOnce(await makeExecResult(true, 'device-id\n', ''))

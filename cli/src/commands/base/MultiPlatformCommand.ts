@@ -1,4 +1,5 @@
-import { BaseCommand, BaseCommandOptions } from './BaseCommand';
+import type { BaseCommandOptions } from './BaseCommand';
+import { BaseCommand } from './BaseCommand';
 import { InvalidPlatformError, GyoError } from '../../core/index';
 
 export type MultiPlatform = string;
@@ -21,7 +22,7 @@ export abstract class MultiPlatformCommand<
       this.validatePlatform();
       await this.run();
     } catch (error) {
-      this.handleError(error);
+      await this.handleError(error);
     }
   }
 

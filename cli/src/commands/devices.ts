@@ -1,6 +1,8 @@
-import { BaseCommand, CommandMeta, BaseCommandOptions } from './base/index';
+import type { CommandMeta, BaseCommandOptions } from './base/index';
+import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
-import { getAllDevices, Device } from '../services/device.service';
+import type { Device } from '../services/device.service';
+import { getAllDevices } from '../services/device.service';
 import { GyoError, getErrorMessage } from '../core/index';
 
 interface SystemError extends Error {

@@ -1,6 +1,7 @@
 import * as path from 'path';
 import ora from 'ora';
-import { loadConfig, GyoConfig } from '../../services/config.service';
+import type { GyoConfig } from '../../services/config.service';
+import { loadConfig } from '../../services/config.service';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
 import { GyoError, getErrorMessage } from '../../core/index';
@@ -11,11 +12,14 @@ export interface CommandOption {
   default?: string | boolean | string[];
 }
 
+export type PositionalHandler = 'platform' | 'platformWithAll' | 'projectName';
+
 export interface CommandMeta {
   name: string;
   description: string;
   arguments?: string;
   options?: CommandOption[];
+  positionalHandler?: PositionalHandler;
 }
 
 export interface BaseCommandOptions {
@@ -48,7 +52,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     try {
       await this.run();
     } catch (error) {
-      this.handleError(error);
+      await this.handleError(error);
     }
   }
 
@@ -73,7 +77,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     }
   }
 
-  protected handleError(error: unknown): void {
+  protected async handleError(error: unknown): Promise<void> {
     this.spinner.fail('Command failed');
     logger.error(getErrorMessage(error));
     if (error instanceof Error && error.stack) {

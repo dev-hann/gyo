@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { Command } from 'commander';
-import { BaseCommand, Platform, BaseCommandOptions } from './commands/base/index';
+import type { BaseCommand, Platform, BaseCommandOptions } from './commands/base/index';
 import { BuildCommand } from './commands/build';
 import { RunCommand } from './commands/run';
 import { CleanCommand } from './commands/clean';
@@ -56,12 +56,12 @@ function registerCommand(cmd: BaseCommand<BaseCommandOptions>): void {
     cmd.setOptions(options);
 
     const arg0 = positionalArgs[0];
-    if (cmd instanceof BuildCommand || cmd instanceof DebugCommand) {
-      cmd.setPlatform(arg0 as Platform);
-    } else if (cmd instanceof CleanCommand) {
-      cmd.setPlatform(arg0 || 'all');
-    } else if (cmd instanceof CreateCommand) {
-      cmd.setProjectName(arg0);
+    if (meta.positionalHandler === 'platform' && arg0) {
+      (cmd as unknown as { setPlatform(p: Platform): void }).setPlatform(arg0 as Platform);
+    } else if (meta.positionalHandler === 'platformWithAll') {
+      (cmd as unknown as { setPlatform(p: string): void }).setPlatform(arg0 || 'all');
+    } else if (meta.positionalHandler === 'projectName' && arg0) {
+      (cmd as unknown as { setProjectName(n: string): void }).setProjectName(arg0);
     }
 
     await cmd.execute();
@@ -129,7 +129,7 @@ function handleUnhandledRejection(error: unknown): void {
 
 process.on('unhandledRejection', handleUnhandledRejection);
 
-program.parseAsync(process.argv).then(() => {
+void program.parseAsync(process.argv).then(() => {
   if (!process.argv.slice(2).length) {
     logger.log('');
     logger.info('Welcome to gyo! Get started: gyo create my-app');

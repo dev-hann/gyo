@@ -1,4 +1,5 @@
-import { BaseCommand, CommandMeta, Platform } from './base/index';
+import type { CommandMeta, Platform } from './base/index';
+import { BaseCommand } from './base/index';
 import { AndroidBuildCommand } from './build/AndroidBuildCommand';
 import { IOSBuildCommand } from './build/IOSBuildCommand';
 import { InvalidPlatformError } from '../core/index';
@@ -16,6 +17,7 @@ export class BuildCommand extends BaseCommand<BuildCommandOptions> {
     return {
       name: 'build <platform>',
       description: 'Build the native application for the specified platform',
+      positionalHandler: 'platform',
       options: [
         { flags: '-r, --release', description: 'Build for release (production)', default: false },
         {

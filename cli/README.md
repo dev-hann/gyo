@@ -1,61 +1,29 @@
-# Gyo CLI
+# CLI
 
 ## Development Setup
 
-### Initial Setup
 ```bash
-cd cli
-npm install
-npm run build
-npm link  # Make 'gyo' command available globally
+cd cli && npm install && npm run build && npm link
 ```
 
-### Development Mode (Auto Build)
-CLI code is automatically built when modified:
+## Scripts
 
-```bash
-# Terminal 1: Watch mode (auto build on changes)
-npm run dev
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Watch mode (auto rebuild) |
+| `npm run build` | Build with tsup |
+| `npm run test` | Run jest |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript check |
 
-# Terminal 2: Test gyo commands
-cd /path/to/test-project
-gyo run
-```
+## Source Map
 
-### Manual Build
-```bash
-npm run build
-```
+> See [src/README.md](./src/README.md) for source structure and layer responsibilities.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `gyo create <name>` | Create a new gyo project |
-| `gyo run` | Run app on connected device |
-| `gyo build <platform>` | Build for production |
-| `gyo clean [platform]` | Clean build artifacts |
-| `gyo config <action>` | Manage configuration |
-| `gyo devices` | List connected devices |
-| `gyo doctor` | Check development environment |
-| `gyo debug <platform>` | Launch debugger |
-| `gyo upgrade` | Upgrade CLI |
+> See [docs/CLI.md](../docs/CLI.md) for full command specifications.
 
-## Architecture
+## Templates
 
-```
-cli/src/
-├── core/        # Types, errors, constants
-├── services/    # Business logic
-├── utils/       # Pure utilities
-└── commands/    # CLI presentation
-    └── base/    # BaseCommand hierarchy
-```
-
-## Future Enhancements
-
-- [ ] `gyo test` command (unit and integration tests)
-- [ ] `gyo lint` command (code style and static analysis)
-- [ ] Enhanced help messages for each command
-- [ ] Better error handling and user feedback
-- [ ] Auto-update functionality (`gyo upgrade`)
+> See [templates/README.md](./templates/README.md) for template variables and platform details.

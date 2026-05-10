@@ -59,7 +59,7 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
      */
     private func resolveCallback(_ callbackId: String, result: Any?) {
         guard let webView = self.webView else { return }
-        
+
         let resultJson: String
         if let result = result {
             do {
@@ -72,8 +72,16 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
         } else {
             resultJson = "null"
         }
-        
-        let script = "window.gyoBridge.resolve('\(callbackId)', \(resultJson));"
+
+        let encodedCallbackId: String
+        if let data = try? JSONSerialization.data(withJSONObject: callbackId, options: []),
+           let str = String(data: data, encoding: .utf8) {
+            encodedCallbackId = str
+        } else {
+            encodedCallbackId = "''"
+        }
+
+        let script = "window.gyoBridge.resolve(\(encodedCallbackId), \(resultJson));"
         webView.evaluateJavaScript(script) { _, error in
             if let error = error {
                 print("Error resolving callback: \(error)")
@@ -86,9 +94,24 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
      */
     private func rejectCallback(_ callbackId: String, error: String) {
         guard let webView = self.webView else { return }
-        
-        let escapedError = error.replacingOccurrences(of: "'", with: "\\'")
-        let script = "window.gyoBridge.reject('\(callbackId)', '\(escapedError)');"
+
+        let encodedCallbackId: String
+        if let data = try? JSONSerialization.data(withJSONObject: callbackId, options: []),
+           let str = String(data: data, encoding: .utf8) {
+            encodedCallbackId = str
+        } else {
+            encodedCallbackId = "''"
+        }
+
+        let encodedError: String
+        if let data = try? JSONSerialization.data(withJSONObject: error, options: []),
+           let str = String(data: data, encoding: .utf8) {
+            encodedError = str
+        } else {
+            encodedError = "'Unknown error'"
+        }
+
+        let script = "window.gyoBridge.reject(\(encodedCallbackId), \(encodedError));"
         webView.evaluateJavaScript(script) { _, err in
             if let err = err {
                 print("Error rejecting callback: \(err)")
@@ -101,7 +124,7 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
      */
     public func publishEvent(bridgeName: String, data: Any?) {
         guard let webView = self.webView else { return }
-        
+
         let dataJson: String
         if let data = data {
             do {
@@ -114,8 +137,16 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
         } else {
             dataJson = "null"
         }
-        
-        let script = "window.gyoBridge.publish('\(bridgeName)', \(dataJson));"
+
+        let encodedName: String
+        if let nameData = try? JSONSerialization.data(withJSONObject: bridgeName, options: []),
+           let nameStr = String(data: nameData, encoding: .utf8) {
+            encodedName = nameStr
+        } else {
+            encodedName = "''"
+        }
+
+        let script = "window.gyoBridge.publish(\(encodedName), \(dataJson));"
         webView.evaluateJavaScript(script) { _, error in
             if let error = error {
                 print("Error publishing event: \(error)")

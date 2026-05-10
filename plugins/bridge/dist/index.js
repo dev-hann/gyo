@@ -1,5 +1,5 @@
 // src/Bridge.ts
-var Bridge = class {
+var _Bridge = class _Bridge {
   constructor(name, options = {}) {
     this.pendingCallbacks = /* @__PURE__ */ new Map();
     this.callbackCounter = 0;
@@ -8,42 +8,36 @@ var Bridge = class {
     this.destroyed = false;
     this.name = name;
     this.timeout = options.timeout ?? 3e4;
+    _Bridge.instances.push(this);
     this.setupGlobalBridge();
   }
-  /**
-   * Setup global bridge interface for native to call
-   */
+  static findCallback(callbackId) {
+    for (const instance of _Bridge.instances) {
+      const pending = instance.pendingCallbacks.get(callbackId);
+      if (pending) {
+        instance.pendingCallbacks.delete(callbackId);
+        return pending;
+      }
+    }
+    return void 0;
+  }
   setupGlobalBridge() {
     if (!window.gyoBridge) {
       window.gyoBridge = {
         resolve: (callbackId, data) => {
-          const pending = this.pendingCallbacks.get(callbackId);
-          if (pending) {
-            pending.resolve(data);
-            this.pendingCallbacks.delete(callbackId);
-          }
+          const pending = _Bridge.findCallback(callbackId);
+          pending?.resolve(data);
         },
         reject: (callbackId, error) => {
-          const pending = this.pendingCallbacks.get(callbackId);
-          if (pending) {
-            pending.reject(new Error(error));
-            this.pendingCallbacks.delete(callbackId);
-          }
+          const pending = _Bridge.findCallback(callbackId);
+          pending?.reject(new Error(error));
         },
         publish: (bridgeName, data) => {
-          if (bridgeName === this.name) {
-            this.eventListeners.forEach((listener) => listener(data));
+          for (const instance of _Bridge.instances) {
+            if (bridgeName === instance.name) {
+              instance.eventListeners.forEach((listener) => listener(data));
+            }
           }
-        }
-      };
-    } else {
-      const originalPublish = window.gyoBridge.publish;
-      window.gyoBridge.publish = (bridgeName, data) => {
-        if (bridgeName === this.name) {
-          this.eventListeners.forEach((listener) => listener(data));
-        }
-        if (originalPublish) {
-          originalPublish.call(window.gyoBridge, bridgeName, data);
         }
       };
     }
@@ -67,7 +61,9 @@ var Bridge = class {
       window.webkit.messageHandlers.gyoBridge.postMessage(request);
       return;
     }
-    throw new Error("No native bridge found. Make sure you are running in a WebView with bridge support.");
+    throw new Error(
+      "No native bridge found. Make sure you are running in a WebView with bridge support."
+    );
   }
   /**
    * Invoke a method on the native side
@@ -81,7 +77,10 @@ var Bridge = class {
     }
     return new Promise((resolve, reject) => {
       const callbackId = this.generateCallbackId();
-      this.pendingCallbacks.set(callbackId, { resolve, reject });
+      this.pendingCallbacks.set(callbackId, {
+        resolve,
+        reject
+      });
       const timer = setTimeout(() => {
         this.activeTimers.delete(timer);
         if (this.pendingCallbacks.has(callbackId)) {
@@ -134,6 +133,8 @@ var Bridge = class {
     this.eventListeners.clear();
   }
 };
+_Bridge.instances = [];
+var Bridge = _Bridge;
 export {
   Bridge
 };

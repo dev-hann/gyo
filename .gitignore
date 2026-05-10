@@ -1,20 +1,35 @@
 # Logs
+*.log
 *.ips
 *.ips.ca
 *.metriclog
 *.metriclog.anon
 
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+
 # Dependencies
-/cli/node_modules
-/cli/dist
-/node_modules
-/plugins/*/node_modules
-/package-lock.json
+node_modules
+**/node_modules
+dist
+**/dist
+
+# Lockfiles (root only)
+*/package-lock.json
 
 # Build caches
 .build/
 **/.build/
-**/dist/
+.cache/
 
 # Plugin system
 .gyo/cache/
@@ -24,3 +39,7 @@ coverage/
 
 # Archives
 *.tgz
+*.tar.gz
+
+# Tool cache
+.opencode/

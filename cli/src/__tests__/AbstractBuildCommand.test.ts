@@ -39,7 +39,7 @@ jest.mock('../services/config.service', () => ({
 }));
 
 import { AbstractBuildCommand } from '../commands/build/AbstractBuildCommand';
-import { CommandMeta } from '../commands/base/BaseCommand';
+import type { CommandMeta } from '../commands/base/BaseCommand';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../utils/fs';
 import { getProfileUrl } from '../services/config.service';

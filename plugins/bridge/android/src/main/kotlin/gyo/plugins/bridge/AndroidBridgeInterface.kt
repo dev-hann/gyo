@@ -5,17 +5,9 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import org.json.JSONObject
 
-/**
- * Android Bridge Interface for gyo-bridge system
- * Routes messages to registered bridge handlers via BridgeRegistry
- */
 class AndroidBridgeInterface(private val webView: WebView) {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    /**
-     * Main entry point from JavaScript
-     * Routes requests to registered bridge handlers
-     */
     @JavascriptInterface
     fun postMessage(message: String) {
         try {
@@ -27,14 +19,12 @@ class AndroidBridgeInterface(private val webView: WebView) {
 
             Log.d("AndroidBridge", "Received: bridge=$bridgeName, method=$methodName")
 
-            // Get handler from registry
             val bridgeHandler = BridgeRegistry.get(bridgeName)
             if (bridgeHandler == null) {
                 rejectCallback(callbackId, "Bridge '$bridgeName' not found")
                 return
             }
 
-            // Process in background thread
             Thread {
                 try {
                     val result = bridgeHandler.handle(methodName, data)
@@ -50,51 +40,40 @@ class AndroidBridgeInterface(private val webView: WebView) {
         }
     }
 
-    /**
-     * Resolve a promise on the web side
-     */
+    private fun toJsonString(value: Any?): String {
+        return when (value) {
+            is Map<*, *> -> JSONObject(value as Map<String, Any?>).toString()
+            is JSONObject -> value.toString()
+            is String -> JSONObject.quote(value)
+            is Number, is Boolean -> value.toString()
+            null -> "null"
+            else -> JSONObject.quote(value.toString())
+        }
+    }
+
     private fun resolveCallback(callbackId: String, result: Any?) {
-        val resultJson = when (result) {
-            is Map<*, *> -> JSONObject(result as Map<String, Any?>).toString()
-            is JSONObject -> result.toString()
-            is String -> JSONObject.quote(result)
-            is Number, is Boolean -> result.toString()
-            null -> "null"
-            else -> JSONObject.quote(result.toString())
-        }
-
+        val resultJson = toJsonString(result)
+        val escapedId = JSONObject.quote(callbackId)
         handler.post {
-            val script = "window.gyoBridge.resolve('$callbackId', $resultJson);"
+            val script = "window.gyoBridge.resolve($escapedId, $resultJson);"
             webView.evaluateJavascript(script, null)
         }
     }
 
-    /**
-     * Reject a promise on the web side
-     */
     private fun rejectCallback(callbackId: String, error: String) {
-        val escapedError = error.replace("'", "\\'")
+        val errorJson = JSONObject.quote(error)
+        val escapedId = JSONObject.quote(callbackId)
         handler.post {
-            val script = "window.gyoBridge.reject('$callbackId', '$escapedError');"
+            val script = "window.gyoBridge.reject($escapedId, $errorJson);"
             webView.evaluateJavascript(script, null)
         }
     }
 
-    /**
-     * Publish an event to web listeners
-     */
     fun publish(bridgeName: String, data: Any?) {
-        val dataJson = when (data) {
-            is Map<*, *> -> JSONObject(data as Map<String, Any?>).toString()
-            is JSONObject -> data.toString()
-            is String -> JSONObject.quote(data)
-            is Number, is Boolean -> data.toString()
-            null -> "null"
-            else -> JSONObject.quote(data.toString())
-        }
-
+        val dataJson = toJsonString(data)
+        val escapedName = JSONObject.quote(bridgeName)
         handler.post {
-            val script = "window.gyoBridge.publish('$bridgeName', $dataJson);"
+            val script = "window.gyoBridge.publish($escapedName, $dataJson);"
             webView.evaluateJavascript(script, null)
         }
     }

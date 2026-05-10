@@ -1,8 +1,9 @@
 import * as path from 'path';
-import { PlatformCommand, Platform, PlatformCommandOptions } from '../base/index';
+import type { Platform, PlatformCommandOptions } from '../base/index';
+import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
-import { pathExists, writeFile, ensureDir } from '../../utils/fs';
+import { pathExists } from '../../utils/fs';
 import { getProfileUrl } from '../../services/config.service';
 import { BuildFailedError, GyoError } from '../../core/errors';
 
@@ -56,12 +57,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
       throw new GyoError('Configuration not loaded');
     }
     return getProfileUrl(this.config, this.options.profile);
-  }
-
-  protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
-    this.updateSpinner(`Configuring server URL: ${serverUrl}`);
-    await ensureDir(path.dirname(configPath));
-    await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
   }
 
   protected abstract buildPlatform(): Promise<void>;

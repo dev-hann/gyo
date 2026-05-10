@@ -1,6 +1,7 @@
 import { PlatformCommand } from '../commands/base/PlatformCommand';
-import { CommandMeta } from '../commands/base/BaseCommand';
-import { PlatformNotFoundError, PlatformDisabledError, Platform } from '../core/index';
+import type { CommandMeta } from '../commands/base/BaseCommand';
+import type { Platform } from '../core/index';
+import { PlatformNotFoundError, PlatformDisabledError } from '../core/index';
 
 jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn().mockResolvedValue(null),
