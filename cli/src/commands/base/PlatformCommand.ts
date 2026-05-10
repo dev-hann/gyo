@@ -19,15 +19,6 @@ export abstract class PlatformCommand<
     this.platform = platform;
   }
 
-  async execute(): Promise<void> {
-    try {
-      await this.beforeRun();
-      await this.run();
-    } catch (error) {
-      await this.handleError(error);
-    }
-  }
-
   protected async beforeRun(): Promise<void> {
     this.validatePlatform();
     await this.requireGyoProject();

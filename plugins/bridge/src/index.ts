@@ -6,4 +6,7 @@ export type {
   EventCallback,
   Unsubscribe,
   BridgeOptions,
+  BridgeInterceptor,
+  AndroidBridge,
+  IOSMessageHandler,
 } from './types';

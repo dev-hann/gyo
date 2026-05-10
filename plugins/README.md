@@ -5,6 +5,7 @@
 | Package | Version | Description |
 |---------|---------|-------------|
 | [@gyo-framework/bridge](./bridge/README.md) | 0.1.3 | Web-native communication core (built-in) |
+| [@gyo-framework/test-utils](./test-utils/README.md) | 0.1.0 | Test utilities for Gyo apps (devDependency) |
 
 ## Naming Convention
 

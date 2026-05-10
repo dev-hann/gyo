@@ -12,8 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectConfigs = [
   { files: 'cli/src/**/*.ts', tsconfig: 'cli/tsconfig.json' },
   { files: 'plugins/bridge/src/**/*.ts', tsconfig: 'plugins/bridge/tsconfig.json' },
-  { files: 'plugins/camera/src/**/*.ts', tsconfig: 'plugins/camera/tsconfig.json' },
-  { files: 'plugins/geolocation/src/**/*.ts', tsconfig: 'plugins/geolocation/tsconfig.json' },
+  { files: 'plugins/test-utils/src/**/*.ts', tsconfig: 'plugins/test-utils/tsconfig.json' },
+
 ];
 
 export default [
@@ -94,10 +94,20 @@ export default [
     },
   },
   {
-    files: ['plugins/bridge/src/**/*.ts'],
+    files: ['plugins/bridge/src/**/*.ts', 'plugins/test-utils/src/**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.browser,
+      },
+    },
+  },
+  {
+    files: ['plugins/test-utils/src/**/*.ts'],
+    ignores: ['**/__tests__/**'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        jest: 'readonly',
       },
     },
   },

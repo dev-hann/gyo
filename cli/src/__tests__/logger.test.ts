@@ -7,7 +7,9 @@ describe('logger', () => {
   beforeEach(() => {
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
     originalDebug = process.env.DEBUG;
+    delete process.env.DEBUG;
     logger.resetVerbose();
+    delete process.env.DEBUG;
   });
 
   afterEach(() => {

@@ -4,9 +4,9 @@ describe('Bridge', () => {
   let bridge: Bridge;
 
   beforeEach(() => {
-    window.gyoBridge = undefined;
-    window.androidBridge = undefined;
-    window.webkit = undefined;
+    delete (window as unknown as Record<string, unknown>).gyoBridge;
+    delete (window as unknown as Record<string, unknown>).androidBridge;
+    delete (window as unknown as Record<string, unknown>).webkit;
     bridge = new Bridge('test-bridge');
   });
 
@@ -33,11 +33,37 @@ describe('Bridge', () => {
       expect(b.getName()).toBe('custom-timeout');
       b.destroy();
     });
+
+    it('should accept interceptors option', () => {
+      const interceptor = {
+        beforeInvoke: jest.fn((req) => req),
+      };
+      const b = new Bridge('interceptor-test', { interceptors: [interceptor] });
+      expect(b.getName()).toBe('interceptor-test');
+      b.destroy();
+    });
   });
 
   describe('getName', () => {
     it('should return the bridge name', () => {
       expect(bridge.getName()).toBe('test-bridge');
+    });
+  });
+
+  describe('isAvailable', () => {
+    it('should return false when no native bridge is present', () => {
+      expect(bridge.isAvailable()).toBe(false);
+    });
+
+    it('should return true when Android bridge is present', () => {
+      window.androidBridge = { postMessage: jest.fn() };
+      expect(bridge.isAvailable()).toBe(true);
+    });
+
+    it('should return false after destroy', () => {
+      window.androidBridge = { postMessage: jest.fn() };
+      bridge.destroy();
+      expect(bridge.isAvailable()).toBe(false);
     });
   });
 
@@ -57,7 +83,9 @@ describe('Bridge', () => {
 
       const promise = fastBridge.invoke('slowMethod');
 
+      await Promise.resolve();
       jest.advanceTimersByTime(100);
+      await Promise.resolve();
 
       await expect(promise).rejects.toThrow("Bridge method 'slowMethod' timed out after 50ms");
 
@@ -71,6 +99,7 @@ describe('Bridge', () => {
 
       const invokePromise = bridge.invoke('testMethod', { key: 'value' });
 
+      await Promise.resolve();
       expect(mockPostMessage).toHaveBeenCalledTimes(1);
 
       const sentMessage = JSON.parse(mockPostMessage.mock.calls[0][0]);
@@ -95,6 +124,7 @@ describe('Bridge', () => {
 
       const invokePromise = bridge.invoke('iosMethod');
 
+      await Promise.resolve();
       expect(mockPostMessage).toHaveBeenCalledTimes(1);
 
       const sentRequest = mockPostMessage.mock.calls[0][0];
@@ -113,6 +143,8 @@ describe('Bridge', () => {
 
       const invokePromise = bridge.invoke('failingMethod');
 
+      await Promise.resolve();
+
       const sentMessage = JSON.parse(
         (window.androidBridge.postMessage as jest.Mock).mock.calls[0][0]
       );
@@ -126,6 +158,8 @@ describe('Bridge', () => {
       window.androidBridge = { postMessage: jest.fn() };
 
       const invokePromise = bridge.invoke('testMethod');
+
+      await Promise.resolve();
 
       const sentMessage = JSON.parse(
         (window.androidBridge.postMessage as jest.Mock).mock.calls[0][0]
@@ -147,6 +181,8 @@ describe('Bridge', () => {
       bridge.invoke('method1');
       bridge.invoke('method2');
 
+      await Promise.resolve();
+
       const calls = (window.androidBridge.postMessage as jest.Mock).mock.calls;
       const id1 = JSON.parse(calls[0][0]).callbackId;
       const id2 = JSON.parse(calls[1][0]).callbackId;
@@ -165,12 +201,72 @@ describe('Bridge', () => {
 
       const invokePromise = bridge.invoke('prefMethod');
 
+      await Promise.resolve();
+
       expect(androidPost).toHaveBeenCalledTimes(1);
       expect(iosPost).not.toHaveBeenCalled();
 
       const sentMessage = JSON.parse(androidPost.mock.calls[0][0]);
       window.gyoBridge!.resolve(sentMessage.callbackId, null);
       await invokePromise;
+    });
+
+    it('should run beforeInvoke interceptors', async () => {
+      const interceptor = {
+        beforeInvoke: jest.fn((req) => ({
+          ...req,
+          data: { ...req.data, injected: true },
+        })),
+      };
+      const interceptBridge = new Bridge('intercept-test', {
+        interceptors: [interceptor],
+      });
+      window.androidBridge = { postMessage: jest.fn() };
+
+      const invokePromise = interceptBridge.invoke('testMethod', { original: true });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(interceptor.beforeInvoke).toHaveBeenCalledTimes(1);
+
+      const sentMessage = JSON.parse(
+        (window.androidBridge.postMessage as jest.Mock).mock.calls[0][0]
+      );
+      expect(sentMessage.data).toEqual({ original: true, injected: true });
+
+      window.gyoBridge!.resolve(sentMessage.callbackId, 'ok');
+      await invokePromise;
+      interceptBridge.destroy();
+    });
+
+    it('should run onError interceptors on timeout', async () => {
+      const onError = jest.fn();
+      const interceptBridge = new Bridge('error-test', {
+        timeout: 50,
+        interceptors: [{ onError }],
+      });
+      window.androidBridge = { postMessage: jest.fn() };
+
+      jest.useFakeTimers();
+
+      const promise = interceptBridge.invoke('failMethod');
+
+      await Promise.resolve();
+      jest.advanceTimersByTime(100);
+      await Promise.resolve();
+
+      try {
+        await promise;
+      } catch {
+        // expected
+      }
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].methodName).toBe('failMethod');
+
+      interceptBridge.destroy();
+      jest.useRealTimers();
     });
   });
 
@@ -225,6 +321,20 @@ describe('Bridge', () => {
       expect(callback1).toHaveBeenCalledWith({ event: 'data' });
       expect(callback2).toHaveBeenCalledWith({ event: 'data' });
     });
+
+    it('should not block other listeners when one throws', () => {
+      const callback1 = jest.fn(() => {
+        throw new Error('listener error');
+      });
+      const callback2 = jest.fn();
+
+      bridge.listen(callback1);
+      bridge.listen(callback2);
+
+      window.gyoBridge!.publish('test-bridge', { event: 'data' });
+
+      expect(callback2).toHaveBeenCalledWith({ event: 'data' });
+    });
   });
 
   describe('destroy', () => {
@@ -232,6 +342,8 @@ describe('Bridge', () => {
       window.androidBridge = { postMessage: jest.fn() };
 
       const invokePromise = bridge.invoke('pendingMethod');
+
+      await Promise.resolve();
 
       const sentMessage = JSON.parse(
         (window.androidBridge.postMessage as jest.Mock).mock.calls[0][0]
@@ -274,6 +386,18 @@ describe('Bridge', () => {
 
       await expect(bridge.invoke('anyMethod')).rejects.toThrow('Bridge has been destroyed');
     });
+
+    it('should be idempotent', () => {
+      bridge.destroy();
+      bridge.destroy();
+    });
+
+    it('should remove instance from static instances array', () => {
+      const b = new Bridge('removal-test');
+      b.destroy();
+
+      window.gyoBridge!.publish('removal-test', { event: 'data' });
+    });
   });
 
   describe('multiple bridge instances', () => {
@@ -298,6 +422,27 @@ describe('Bridge', () => {
 
       bridge1.destroy();
       bridge2.destroy();
+    });
+
+    it('should not receive events for destroyed instance', () => {
+      const bridge1 = new Bridge('alive-bridge');
+      const bridge2 = new Bridge('dead-bridge');
+
+      const callback1 = jest.fn();
+      const callback2 = jest.fn();
+
+      bridge1.listen(callback1);
+      bridge2.listen(callback2);
+
+      bridge2.destroy();
+
+      window.gyoBridge!.publish('dead-bridge', { event: 'should-not-receive' });
+      window.gyoBridge!.publish('alive-bridge', { event: 'should-receive' });
+
+      expect(callback1).toHaveBeenCalledWith({ event: 'should-receive' });
+      expect(callback2).not.toHaveBeenCalled();
+
+      bridge1.destroy();
     });
   });
 });

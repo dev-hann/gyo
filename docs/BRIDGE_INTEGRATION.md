@@ -38,7 +38,7 @@ interface BridgeHandler {
 }
 ```
 
-> See `plugins/bridge/android/src/main/kotlin/gyo/plugins/bridge/BridgeHandler.kt`
+> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeHandler.kt`
 
 ### Registry
 
@@ -46,13 +46,13 @@ interface BridgeHandler {
 BridgeRegistry.register(name: String, handler: BridgeHandler)
 ```
 
-> See `plugins/bridge/android/src/main/kotlin/gyo/plugins/bridge/BridgeRegistry.kt`
+> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeRegistry.kt`
 
 ### AndroidBridgeInterface
 
 Receives messages from WebView via `@JavascriptInterface`, dispatches to registered handlers.
 
-> See `plugins/bridge/android/src/main/kotlin/gyo/plugins/bridge/AndroidBridgeInterface.kt`
+> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/AndroidBridgeInterface.kt`
 
 ### Setup
 
@@ -71,7 +71,7 @@ protocol BridgeHandler {
 }
 ```
 
-> See `plugins/bridge/ios/Sources/GyoBridge/BridgeHandler.swift`
+> See `cli/templates/ios/Sources/GyoBridge/BridgeHandler.swift`
 
 ### Registry
 
@@ -79,13 +79,13 @@ protocol BridgeHandler {
 BridgeRegistry.shared.register(name: String, handler: BridgeHandler)
 ```
 
-> See `plugins/bridge/ios/Sources/GyoBridge/BridgeRegistry.swift`
+> See `cli/templates/ios/Sources/GyoBridge/BridgeRegistry.swift`
 
 ### IOSBridgeInterface
 
 WKWebView script message handler that dispatches to registered handlers.
 
-> See `plugins/bridge/ios/Sources/GyoBridge/IOSBridgeInterface.swift`
+> See `cli/templates/ios/Sources/GyoBridge/IOSBridgeInterface.swift`
 
 ### Setup
 

@@ -26,7 +26,10 @@
     "format:check": "prettier --check src/**/*.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e": "jest --config e2e/jest.config.cjs --runInBand --verbose"
+    "test:e2e": "npm run test:e2e:local && npm run test:e2e:device",
+    "test:e2e:local": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPattern='local-pipeline'",
+    "test:e2e:device": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPattern='device-pipeline'",
+    "test:all": "npm run test && npm run test:e2e:local"
   },
   "keywords": [
     "gyo",
@@ -40,7 +43,7 @@
   "author": "Gyo Framework",
   "license": "MIT",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   },
   "repository": {
     "type": "git",
@@ -56,6 +59,7 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.9",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.10.0",
     "jest": "^29.7.0",
@@ -64,7 +68,6 @@
     "tsup": "^8.5.1"
   },
   "dependencies": {
-    "@types/inquirer": "^9.0.9",
     "chalk": "^4.1.2",
     "commander": "^12.0.0",
     "fs-extra": "^11.2.0",

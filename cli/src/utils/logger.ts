@@ -11,43 +11,76 @@ const EMOJI = {
 
 export { EMOJI };
 
-let verboseMode = false;
+type LogLevel = 'error' | 'warn' | 'info' | 'verbose' | 'debug';
+
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
+  error: 0,
+  warn: 1,
+  info: 2,
+  verbose: 3,
+  debug: 4,
+};
+
+let currentLevel: LogLevel = 'info';
+
+function resolveLevel(): LogLevel {
+  if (process.env.DEBUG) return 'debug';
+  return currentLevel;
+}
+
+function shouldLog(level: LogLevel): boolean {
+  return LOG_LEVEL_PRIORITY[level] <= LOG_LEVEL_PRIORITY[resolveLevel()];
+}
 
 export const logger = {
   setVerbose: (verbose: boolean): void => {
-    verboseMode = verbose;
+    currentLevel = verbose ? 'verbose' : 'info';
   },
 
   resetVerbose: (): void => {
-    verboseMode = false;
+    currentLevel = 'info';
   },
 
-  isVerbose: (): boolean => verboseMode,
+  isVerbose: (): boolean => LOG_LEVEL_PRIORITY[resolveLevel()] >= LOG_LEVEL_PRIORITY['verbose'],
+
+  setLevel: (level: LogLevel): void => {
+    currentLevel = level;
+  },
+
+  getLevel: (): LogLevel => resolveLevel(),
 
   info: (message: string): void => {
-    console.log(chalk.blue(EMOJI.INFO), message);
+    if (shouldLog('info')) {
+      console.log(chalk.blue(EMOJI.INFO), message);
+    }
   },
 
   success: (message: string): void => {
-    console.log(chalk.green(EMOJI.SUCCESS), message);
+    if (shouldLog('info')) {
+      console.log(chalk.green(EMOJI.SUCCESS), message);
+    }
   },
 
   warn: (message: string): void => {
-    console.log(chalk.yellow(EMOJI.WARNING), message);
+    if (shouldLog('warn')) {
+      console.log(chalk.yellow(EMOJI.WARNING), message);
+    }
   },
 
   error: (message: string): void => {
-    console.log(chalk.red(EMOJI.ERROR), message);
+    if (shouldLog('error')) {
+      console.log(chalk.red(EMOJI.ERROR), message);
+    }
   },
 
   debug: (message: string): void => {
-    if (process.env.DEBUG) {
+    if (shouldLog('debug')) {
       console.log(chalk.gray(EMOJI.DEBUG), message);
     }
   },
 
   verbose: (message: string): void => {
-    if (verboseMode) {
+    if (shouldLog('verbose')) {
       console.log(chalk.gray(message));
     }
   },

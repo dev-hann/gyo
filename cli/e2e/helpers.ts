@@ -156,3 +156,35 @@ export function getBridgePath(): string {
 export function stripAnsi(str: string): string {
   return str.replace(/\x1b\[[0-9;]*m/g, '');
 }
+
+interface SharedState {
+  tempDir: string;
+  projectDir: string;
+  androidDeviceId: string | null;
+  iosDeviceId: string | null;
+}
+
+let sharedState: SharedState | null = null;
+
+export function setSharedState(state: SharedState): void {
+  sharedState = state;
+}
+
+export function getSharedState(): SharedState {
+  if (!sharedState) throw new Error('Shared state not initialized');
+  return sharedState;
+}
+
+function skipIf(condition: boolean, reason: string): jest.It {
+  return condition ? it.skip(reason) : it;
+}
+
+export function itIfAndroid(): jest.It {
+  const state = sharedState;
+  return skipIf(!state?.androidDeviceId, 'No Android device connected');
+}
+
+export function itIfIOS(): jest.It {
+  const state = sharedState;
+  return skipIf(!state?.iosDeviceId, 'No iOS device connected');
+}

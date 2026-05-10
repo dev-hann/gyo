@@ -125,11 +125,115 @@ function mockExecResult(overrides = {}) {
 
 Run with coverage: `npx jest --coverage`
 
+## E2E Tests
+
+## App Testing with @gyo-framework/test-utils
+
+Apps created with `gyo create` can use `@gyo-framework/test-utils` to mock bridge interactions.
+
+### Installation
+
+```bash
+npm install -D @gyo-framework/test-utils
+```
+
+### Bridge Mocking
+
+```typescript
+import { createBridgeMock } from '@gyo-framework/test-utils';
+
+describe('BarcodeScanner', () => {
+  let mock: ReturnType<typeof createBridgeMock>;
+
+  beforeEach(() => {
+    mock = createBridgeMock('barcode');
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('should handle scan result', async () => {
+    mock.mockInvoke('scan').mockResolvedValue({ data: '1234' });
+    // ...
+  });
+
+  it('should handle native events', () => {
+    const callback = jest.fn();
+    mock.mockListen(callback);
+    mock.simulateEvent({ type: 'onDetected', value: 'xxx' });
+    expect(callback).toHaveBeenCalled();
+  });
+});
+```
+
+### Platform Simulation
+
+```typescript
+import { setPlatform, cleanupPlatform } from '@gyo-framework/test-utils';
+
+describe('Android-specific test', () => {
+  beforeEach(() => setPlatform('android'));
+  afterEach(() => cleanupPlatform());
+
+  // window.androidBridge is now available
+});
+```
+
+### Combining with Bridge
+
+```typescript
+import { Bridge } from '@gyo-framework/bridge';
+import { setPlatform, cleanupPlatform } from '@gyo-framework/test-utils';
+
+beforeEach(() => {
+  setPlatform('android');
+  // Bridge constructor will now find window.androidBridge
+});
+
+afterEach(() => {
+  cleanupPlatform();
+});
+```
+
+## E2E Tests
+
+E2E tests validate the full CLI pipeline against real file system and build tools.
+
+| Suite | File | Device Required | Description |
+|-------|------|:---:|-------------|
+| Local | `cli/e2e/local-pipeline.e2e.test.ts` | No | `gyo create` → file structure validation → lib build → bridge integration |
+| Device | `cli/e2e/device-pipeline.e2e.test.ts` | Yes | Android APK build/install/run, iOS xtool build/install |
+
+### Device Skip Handling
+
+Device tests use `itIfAndroid()` / `itIfIOS()` helpers that automatically skip when no device is connected. Skipped tests appear as `skipped` in the report instead of false positives.
+
+```typescript
+import { itIfAndroid } from './helpers';
+
+itIfAndroid()('should build Android APK', async () => {
+  // only runs when Android device is connected
+});
+```
+
+### Commands
+
+| Command | Purpose |
+|---------|---------|
+| `npm run test` | Unit tests only |
+| `npm run test:e2e:local` | Local E2E (no device needed) |
+| `npm run test:e2e:device` | Device E2E (requires connected device) |
+| `npm run test:e2e` | All E2E tests (local + device) |
+| `npm run test:all` | Unit tests + local E2E |
+| `npm run verify` | lint + typecheck + unit tests + build |
+
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
-| `npm run test` | Run all tests |
-| `npm run test:cli` | CLI tests only |
-| `npm run test:watch` | Watch mode (in cli/) |
-| `npm run verify` | lint + typecheck + test + build |
+| `npm run test` | Run unit tests |
+| `npm run test:e2e:local` | Local E2E tests (no device) |
+| `npm run test:e2e:device` | Device E2E tests |
+| `npm run test:all` | Unit tests + local E2E |
+| `npm run verify` | lint + typecheck + unit tests + build |

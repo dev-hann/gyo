@@ -6,8 +6,8 @@ Cross-platform mobile app framework: React + Vite + TypeScript for Android and i
 
 | Dependency | Minimum | Platform |
 |------------|---------|----------|
-| Node.js | 18.0 | All |
-| npm | 9.0 | All |
+| Node.js | 24.0 | All |
+| npm | 11.0 | All |
 | Android Studio | Hedgehog | Android |
 | Android SDK | API 24 | Android |
 | JDK | 11 | Android |

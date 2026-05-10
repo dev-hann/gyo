@@ -1,6 +1,5 @@
 import UIKit
 import WebKit
-import GyoBridge
 
 class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     

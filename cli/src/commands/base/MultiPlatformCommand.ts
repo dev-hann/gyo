@@ -17,13 +17,8 @@ export abstract class MultiPlatformCommand<
     this.platform = platform;
   }
 
-  async execute(): Promise<void> {
-    try {
-      this.validatePlatform();
-      await this.run();
-    } catch (error) {
-      await this.handleError(error);
-    }
+  protected async beforeRun(): Promise<void> {
+    this.validatePlatform();
   }
 
   protected validatePlatform(): void {

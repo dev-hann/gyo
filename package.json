@@ -5,18 +5,24 @@
   "description": "Cross-platform mobile app framework built with React + Vite + TypeScript",
   "workspaces": [
     "cli",
-    "plugins/bridge"
+    "plugins/bridge",
+    "plugins/test-utils"
   ],
   "scripts": {
-    "build": "npm run build:bridge && npm run build:cli",
+    "build": "npm run build:bridge && npm run build:test-utils && npm run build:cli",
     "build:cli": "npm run build -w @gyo-framework/cli",
     "build:bridge": "npm run build -w @gyo-framework/bridge",
+    "build:test-utils": "npm run build -w @gyo-framework/test-utils",
     "test": "npm run test --workspaces",
     "test:cli": "npm run test -w @gyo-framework/cli",
+    "test:e2e": "npm run test:e2e -w @gyo-framework/cli",
+    "test:e2e:local": "npm run test:e2e:local -w @gyo-framework/cli",
+    "test:e2e:device": "npm run test:e2e:device -w @gyo-framework/cli",
+    "test:all": "npm run test && npm run test:e2e:local",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts'",
-    "format:check": "prettier --check 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts'",
+    "format": "prettier --write 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts' 'plugins/test-utils/src/**/*.ts'",
+    "format:check": "prettier --check 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts' 'plugins/test-utils/src/**/*.ts'",
     "typecheck": "npm run typecheck --workspaces",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "prepare": "husky"

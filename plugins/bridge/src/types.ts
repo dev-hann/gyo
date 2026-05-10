@@ -37,6 +37,14 @@ export type EventCallback = (data: unknown) => void;
 export type Unsubscribe = () => void;
 
 /**
+ * Bridge interceptor for cross-cutting concerns
+ */
+export interface BridgeInterceptor {
+  beforeInvoke?(request: BridgeRequest): BridgeRequest | Promise<BridgeRequest>;
+  onError?(request: BridgeRequest, error: Error): void;
+}
+
+/**
  * Bridge configuration options
  */
 export interface BridgeOptions {
@@ -45,6 +53,10 @@ export interface BridgeOptions {
    * @default 30000
    */
   timeout?: number;
+  /**
+   * Interceptors for cross-cutting concerns (logging, auth, error reporting)
+   */
+  interceptors?: BridgeInterceptor[];
 }
 
 /**

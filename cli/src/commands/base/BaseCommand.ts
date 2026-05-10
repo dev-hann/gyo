@@ -50,13 +50,20 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
 
   async execute(): Promise<void> {
     try {
+      await this.beforeRun();
       await this.run();
     } catch (error) {
       await this.handleError(error);
+    } finally {
+      await this.afterRun();
     }
   }
 
   protected abstract run(): Promise<void>;
+
+  protected async beforeRun(): Promise<void> {}
+
+  protected async afterRun(): Promise<void> {}
 
   protected async loadConfiguration(): Promise<void> {
     try {

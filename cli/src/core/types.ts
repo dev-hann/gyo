@@ -4,6 +4,18 @@ export interface ProfileConfig {
   serverUrl: string;
 }
 
+export interface BasePlatformConfig {
+  enabled: boolean;
+}
+
+export interface AndroidPlatformConfig extends BasePlatformConfig {
+  packageName?: string;
+}
+
+export interface IOSPlatformConfig extends BasePlatformConfig {
+  bundleId?: string;
+}
+
 export interface GyoConfig {
   name: string;
   version: string;
@@ -12,14 +24,9 @@ export interface GyoConfig {
     [key: string]: ProfileConfig;
   };
   platforms: {
-    android?: {
-      enabled: boolean;
-      packageName?: string;
-    };
-    ios?: {
-      enabled: boolean;
-      bundleId?: string;
-    };
+    android?: AndroidPlatformConfig;
+    ios?: IOSPlatformConfig;
+    [key: string]: BasePlatformConfig | undefined;
   };
   webview?: {
     allowFileAccess?: boolean;
