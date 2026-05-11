@@ -7,7 +7,15 @@
     "cli",
     "plugins/bridge",
     "plugins/test-utils",
-    "plugins/app-launcher"
+    "plugins/app-launcher",
+    "plugins/device-info",
+    "plugins/contact-search",
+    "plugins/notification-reader",
+    "plugins/sms-sender",
+    "plugins/phone-caller",
+    "plugins/screen-reader",
+    "plugins/screen-action",
+    "plugins/screen-find"
   ],
   "scripts": {
     "build": "npm run build:bridge && npm run build:test-utils && npm run build:cli",
