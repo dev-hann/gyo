@@ -1,21 +1,16 @@
 import * as path from 'path';
-import os from 'os';
 import type { ChildProcess } from 'child_process';
-import { spawn } from 'child_process';
-import * as fs from 'fs-extra';
 import type { Platform, PlatformCommandOptions } from '../base/index';
 import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
-import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
 import { saveConfig, shouldStartLocalServer } from '../../services/config.service';
+import { WebServerService } from '../../services/web-server.service';
 import {
   ServerStartError,
   GyoError,
   DEFAULT_PORT,
-  WEB_SERVER_TIMEOUT_MS,
   PROCESS_KILL_TIMEOUT_MS,
-  LOCALHOST,
   getErrorMessage,
 } from '../../core/index';
 
@@ -30,6 +25,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = '';
   protected isCleaningUp: boolean = false;
+
+  protected readonly webServerService = new WebServerService();
 
   protected getValidPlatforms(): Platform[] {
     return ['android', 'ios'];
@@ -156,189 +153,32 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected async startWebServer(webPath: string, port: number): Promise<string> {
-    const nodeModulesPath = path.join(webPath, 'node_modules');
-    if (!(await pathExists(nodeModulesPath))) {
-      this.stopSpinner();
-      logger.info('node_modules not found. Installing dependencies (this may take a minute)...');
-      const installResult = await executeCommand('npm', ['install'], {
-        cwd: webPath,
-        stdio: 'inherit',
-      });
-
-      if (!installResult.success) {
-        throw new ServerStartError('Failed to install web dependencies');
-      }
-      this.startSpinner('Starting web server...');
-    }
-
-    const lockFile = path.join(webPath, '.next/dev/lock');
-    if (await pathExists(lockFile)) {
-      try {
-        await fs.remove(lockFile);
-      } catch (error) {
-        logger.warn(`Could not remove lock file: ${getErrorMessage(error)}`);
-      }
-    }
-
     const startCommand = this.getStartCommand();
-    const isVite = /\bvite\b/.test(startCommand);
-    const finalCommand = isVite ? `${startCommand} -- --host 0.0.0.0` : startCommand;
 
-    this.webServerProcess = spawn(finalCommand, [], {
-      cwd: webPath,
-      stdio: 'pipe',
-      shell: true,
-      detached: true,
+    const handle = await this.webServerService.start({
+      webPath,
+      port,
+      startCommand,
     });
 
-    const serverUrl = await this.waitForServerReady(port);
-    return serverUrl;
+    this.webServerProcess = handle.process;
+    this.registerServerExitHandler();
+
+    return handle.url;
   }
 
-  private extractServerUrl(output: string): string | null {
-    const nextLocalMatch = output.match(
-      /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
-    );
-    if (nextLocalMatch) {
-      return `http://${LOCALHOST}:${nextLocalMatch[1]}`;
-    }
+  private registerServerExitHandler(): void {
+    if (!this.webServerProcess) return;
 
-    const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
-    if (viteMatch) {
-      return viteMatch[1];
-    }
-
-    const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
-    if (genericMatch) {
-      return `http://${LOCALHOST}:${genericMatch[1]}`;
-    }
-
-    return null;
-  }
-
-  private resolveServerUrl(detectedUrl: string): Promise<string> {
-    const urlObj = new URL(detectedUrl);
-    const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
-
-    return this.getLocalIP()
-      .then((ip) => {
-        return `http://${ip}:${port}`;
-      })
-      .catch((error) => {
-        logger.warn(`Failed to get local IP, using localhost: ${getErrorMessage(error)}`);
-        return `http://${LOCALHOST}:${port}`;
-      });
-  }
-
-  protected async waitForServerReady(expectedPort: number): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(
-          new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`)
+    this.webServerProcess.on('exit', (code) => {
+      if (code !== 0 && !this.isCleaningUp) {
+        logger.error(`\n⚠️  Web server unexpectedly stopped with code ${code}`);
+        logger.error(
+          'Check if another development server is running or if there are any errors above.'
         );
-      }, WEB_SERVER_TIMEOUT_MS);
-      timeout.unref();
-
-      let serverReady = false;
-      let resolved = false;
-
-      const doResolve = (url: string): void => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        removeListeners();
-        resolve(url);
-      };
-
-      const doReject = (error: Error): void => {
-        if (resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        removeListeners();
-        reject(error);
-      };
-
-      let onStdoutData: ((data: Buffer) => void) | null = null;
-      let onStderrData: ((data: Buffer) => void) | null = null;
-      let onError: ((error: Error) => void) | null = null;
-      let onExit: ((code: number | null) => void) | null = null;
-
-      const removeListeners = (): void => {
-        if (onStdoutData) {
-          this.webServerProcess?.stdout?.off('data', onStdoutData);
-        }
-        if (onStderrData) {
-          this.webServerProcess?.stderr?.off('data', onStderrData);
-        }
-        if (onError) {
-          this.webServerProcess?.off('error', onError);
-        }
-        if (onExit) {
-          this.webServerProcess?.off('exit', onExit);
-        }
-      };
-
-      onStdoutData = (data: Buffer): void => {
-        if (serverReady) return;
-        const output = data.toString();
-        const detectedUrl = this.extractServerUrl(output);
-        if (detectedUrl) {
-          serverReady = true;
-          this.resolveServerUrl(detectedUrl).then(doResolve).catch(doReject);
-        }
-      };
-
-      onStderrData = (data: Buffer): void => {
-        const output = data.toString();
-        if (output.match(/error|EADDRINUSE|EACCES/i)) {
-          logger.error(`[web server] ${output.trim()}`);
-        }
-        if (!serverReady && output.match(/ready|listening|started/i)) {
-          serverReady = true;
-          this.resolveServerUrl(`http://${LOCALHOST}:${expectedPort}`)
-            .then(doResolve)
-            .catch(doReject);
-        }
-      };
-
-      onError = (error: Error): void => {
-        doReject(new Error(`Failed to start web server: ${error.message}`));
-      };
-
-      onExit = (code: number | null): void => {
-        if (!serverReady) {
-          doReject(new Error(`Web server exited with code ${code}`));
-        } else if (code !== 0 && !this.isCleaningUp) {
-          logger.error(`\n⚠️  Web server unexpectedly stopped with code ${code}`);
-          logger.error(
-            'Check if another development server is running or if there are any errors above.'
-          );
-          logger.info(
-            'The app will continue running but may not be able to connect to the server.'
-          );
-        }
-      };
-
-      this.webServerProcess?.stdout?.on('data', onStdoutData);
-      this.webServerProcess?.stderr?.on('data', onStderrData);
-      this.webServerProcess?.on('error', onError);
-      this.webServerProcess?.on('exit', onExit);
-    });
-  }
-
-  protected async getLocalIP(): Promise<string> {
-    const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      const iface = interfaces[name];
-      if (iface) {
-        for (const alias of iface) {
-          if (alias.family === 'IPv4' && !alias.internal) {
-            return alias.address;
-          }
-        }
+        logger.info('The app will continue running but may not be able to connect to the server.');
       }
-    }
-    return LOCALHOST;
+    });
   }
 
   protected setupSignalHandlers(): void {

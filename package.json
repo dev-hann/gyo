@@ -6,7 +6,8 @@
   "workspaces": [
     "cli",
     "plugins/bridge",
-    "plugins/test-utils"
+    "plugins/test-utils",
+    "plugins/app-launcher"
   ],
   "scripts": {
     "build": "npm run build:bridge && npm run build:test-utils && npm run build:cli",

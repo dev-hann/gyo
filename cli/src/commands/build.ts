@@ -41,13 +41,20 @@ export class BuildCommand extends BaseCommand<BuildCommandOptions> {
   }
 
   private createCommand(platform: Platform): AndroidBuildCommand | IOSBuildCommand {
+    let command: AndroidBuildCommand | IOSBuildCommand;
+
     switch (platform) {
       case 'android':
-        return new AndroidBuildCommand();
+        command = new AndroidBuildCommand();
+        break;
       case 'ios':
-        return new IOSBuildCommand();
+        command = new IOSBuildCommand();
+        break;
       default:
         throw new InvalidPlatformError(platform, ['android', 'ios']);
     }
+
+    command.setPlatform(platform);
+    return command;
   }
 }

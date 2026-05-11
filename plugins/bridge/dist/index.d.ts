@@ -32,6 +32,13 @@ type EventCallback = (data: unknown) => void;
  */
 type Unsubscribe = () => void;
 /**
+ * Bridge interceptor for cross-cutting concerns
+ */
+interface BridgeInterceptor {
+    beforeInvoke?(request: BridgeRequest): BridgeRequest | Promise<BridgeRequest>;
+    onError?(request: BridgeRequest, error: Error): void;
+}
+/**
  * Bridge configuration options
  */
 interface BridgeOptions {
@@ -40,6 +47,10 @@ interface BridgeOptions {
      * @default 30000
      */
     timeout?: number;
+    /**
+     * Interceptors for cross-cutting concerns (logging, auth, error reporting)
+     */
+    interceptors?: BridgeInterceptor[];
 }
 /**
  * Android bridge interface
@@ -72,50 +83,30 @@ declare global {
     }
 }
 
-/**
- * Bridge class for web-native communication
- */
 declare class Bridge {
     private static instances;
+    private static callbackMap;
     private name;
     private timeout;
-    private pendingCallbacks;
+    private interceptors;
+    private pendingCallbackIds;
     private callbackCounter;
     private eventListeners;
     private activeTimers;
     private destroyed;
     constructor(name: string, options?: BridgeOptions);
+    private static removeInstance;
     private static findCallback;
     private setupGlobalBridge;
-    /**
-     * Generate unique callback ID
-     */
     private generateCallbackId;
-    /**
-     * Detect platform and send message to native
-     */
     private sendToNative;
-    /**
-     * Invoke a method on the native side
-     * @param method - Method name to invoke
-     * @param data - Optional data to send
-     * @returns Promise that resolves with the native response
-     */
+    private runBeforeInvoke;
     invoke<T = unknown>(method: string, data?: unknown): Promise<T>;
-    /**
-     * Listen to events from native
-     * @param callback - Function to call when event is received
-     * @returns Unsubscribe function
-     */
     listen(callback: EventCallback): Unsubscribe;
-    /**
-     * Get the bridge name
-     */
     getName(): string;
-    /**
-     * Clean up all pending callbacks and listeners
-     */
+    isAvailable(): boolean;
+    private runOnError;
     destroy(): void;
 }
 
-export { Bridge, type BridgeEvent, type BridgeOptions, type BridgeRequest, type BridgeResponse, type EventCallback, type Unsubscribe };
+export { type AndroidBridge, Bridge, type BridgeEvent, type BridgeInterceptor, type BridgeOptions, type BridgeRequest, type BridgeResponse, type EventCallback, type IOSMessageHandler, type Unsubscribe };

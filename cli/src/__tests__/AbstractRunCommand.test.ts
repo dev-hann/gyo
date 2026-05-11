@@ -38,6 +38,12 @@ jest.mock('../services/config.service', () => ({
   shouldStartLocalServer: jest.fn(),
 }));
 
+jest.mock('../services/web-server.service', () => ({
+  WebServerService: jest.fn().mockImplementation(() => ({
+    start: jest.fn(),
+  })),
+}));
+
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import { saveConfig } from '../services/config.service';
@@ -60,10 +66,6 @@ class TestableRunCommand extends AbstractRunCommand {
 
   public testUpdateProfileUrl(profile: string, serverUrl: string): Promise<void> {
     return this.updateProfileUrl(profile, serverUrl);
-  }
-
-  public testGetLocalIP(): Promise<string> {
-    return this.getLocalIP();
   }
 
   protected runPlatform(): Promise<void> {
@@ -261,12 +263,46 @@ describe('AbstractRunCommand', () => {
     });
   });
 
-  describe('getLocalIP', () => {
-    it('should return localhost when no external interface found', async () => {
-      const ip = await command.testGetLocalIP();
+  describe('monitorLogs stdout', () => {
+    it('should log non-empty lines from stdout', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const { logger } = jest.requireMock('../utils/logger');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = false;
 
-      expect(typeof ip).toBe('string');
-      expect(ip.length).toBeGreaterThan(0);
+      const promise = (command as any)['monitorLogs']('test');
+
+      mockProcess.stdout.emit('data', Buffer.from('line1\n\nline2\n'));
+
+      mockProcess.emit('exit', 0);
+
+      await promise;
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line1'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line2'));
+    });
+  });
+
+  describe('monitorLogs exit', () => {
+    it('should warn on non-zero exit when not cleaning up', async () => {
+      const { EventEmitter } = jest.requireActual('events');
+      const { logger } = jest.requireMock('../utils/logger');
+      const mockProcess = new EventEmitter();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      (command as any).platformProcess = mockProcess;
+      (command as any).isCleaningUp = false;
+
+      const promise = (command as any)['monitorLogs']('test');
+
+      mockProcess.emit('exit', 1);
+
+      await promise;
+
+      expect(logger.warn).toHaveBeenCalledWith('Log monitoring stopped');
     });
   });
 
@@ -353,6 +389,20 @@ describe('AbstractRunCommand', () => {
 
       expect(() => (command as any)['cleanupPlatformOnly']()).not.toThrow();
     });
+
+    it('should not kill when pid is undefined', () => {
+      const mockKill = jest.fn();
+      const mockProcess = {
+        killed: false,
+        pid: undefined,
+        kill: mockKill,
+      };
+      (command as any).platformProcess = mockProcess;
+
+      (command as any)['cleanupPlatformOnly']();
+
+      expect(mockKill).not.toHaveBeenCalled();
+    });
   });
 
   describe('showSuccessMessage', () => {
@@ -435,65 +485,6 @@ describe('AbstractRunCommand', () => {
       }
 
       expect((command as any).failSpinner).toHaveBeenCalledWith('Run failed');
-    });
-  });
-
-  describe('monitorLogs stdout', () => {
-    it('should log non-empty lines from stdout', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const { logger } = jest.requireMock('../utils/logger');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = (command as any)['monitorLogs']('test');
-
-      mockProcess.stdout.emit('data', Buffer.from('line1\n\nline2\n'));
-
-      mockProcess.emit('exit', 0);
-
-      await promise;
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line1'));
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line2'));
-    });
-  });
-
-  describe('monitorLogs exit', () => {
-    it('should warn on non-zero exit when not cleaning up', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const { logger } = jest.requireMock('../utils/logger');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = (command as any)['monitorLogs']('test');
-
-      mockProcess.emit('exit', 1);
-
-      await promise;
-
-      expect(logger.warn).toHaveBeenCalledWith('Log monitoring stopped');
-    });
-  });
-
-  describe('cleanupPlatformOnly without pid', () => {
-    it('should not kill when pid is undefined', () => {
-      const mockKill = jest.fn();
-      const mockProcess = {
-        killed: false,
-        pid: undefined,
-        kill: mockKill,
-      };
-      (command as any).platformProcess = mockProcess;
-
-      (command as any)['cleanupPlatformOnly']();
-
-      expect(mockKill).not.toHaveBeenCalled();
     });
   });
 });

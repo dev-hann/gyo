@@ -12,6 +12,7 @@ import { DoctorCommand } from './commands/doctor';
 import { DevicesCommand } from './commands/devices';
 import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
+import { InstallCommand } from './commands/install';
 import { GyoError, getErrorMessage } from './core/index';
 import { logger } from './utils/logger';
 
@@ -104,6 +105,7 @@ registerCommand(new DoctorCommand());
 registerCommand(new DevicesCommand());
 registerCommand(new UpgradeCommand());
 registerCommand(new DebugCommand());
+registerCommand(new InstallCommand());
 registerConfigCommand();
 
 function handleUnhandledRejection(error: unknown): void {

@@ -11,7 +11,23 @@ const EMOJI = {
 
 export { EMOJI };
 
-type LogLevel = 'error' | 'warn' | 'info' | 'verbose' | 'debug';
+export type LogLevel = 'error' | 'warn' | 'info' | 'verbose' | 'debug';
+
+export interface ILogger {
+  setVerbose(verbose: boolean): void;
+  resetVerbose(): void;
+  isVerbose(): boolean;
+  setLevel(level: LogLevel): void;
+  getLevel(): LogLevel;
+  info(message: string): void;
+  success(message: string): void;
+  warn(message: string): void;
+  error(message: string): void;
+  debug(message: string): void;
+  verbose(message: string): void;
+  log(message: string): void;
+  suggestNextSteps(steps: string[]): void;
+}
 
 const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 0,

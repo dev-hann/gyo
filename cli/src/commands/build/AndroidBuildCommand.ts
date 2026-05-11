@@ -5,6 +5,15 @@ import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
 import { readFile, pathExists } from '../../utils/fs';
+import {
+  discoverPlugins,
+  syncAndroidPlugins,
+  generatePluginRegistry,
+  updateMainActivity,
+  writeManifest,
+  readManifest,
+  needsSync,
+} from '../../services/plugin.service';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -16,11 +25,42 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
 
     await this.checkPlatformDirectoryExists();
 
+    await this.syncPluginsIfNeeded(androidPath);
+
     const serverUrl = this.getServerUrl();
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
     await this.writeConfigFile(configPath, serverUrl);
 
     await this.buildApp(androidPath);
+  }
+
+  private async syncPluginsIfNeeded(androidPath: string): Promise<void> {
+    try {
+      const plugins = await discoverPlugins(this.projectPath);
+      const manifest = await readManifest(this.projectPath);
+
+      if (!needsSync(manifest, plugins)) {
+        logger.verbose('Plugins up to date, skipping sync');
+        return;
+      }
+
+      if (plugins.length > 0) {
+        logger.info('Plugin changes detected, re-syncing...');
+        await syncAndroidPlugins(androidPath, plugins);
+        await generatePluginRegistry(androidPath, plugins);
+
+        const config = this.config;
+        if (config?.platforms.android?.packageName) {
+          await updateMainActivity(androidPath, config.platforms.android.packageName, plugins);
+        }
+
+        await writeManifest(this.projectPath, plugins);
+        logger.verbose(`Synced ${plugins.length} plugin(s)`);
+      }
+    } catch (e) {
+      logger.warn(`Plugin sync failed: ${e instanceof Error ? e.message : String(e)}`);
+      logger.warn('Continuing build without plugin sync...');
+    }
   }
 
   private async checkSigningConfig(androidPath: string): Promise<void> {

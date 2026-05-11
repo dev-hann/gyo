@@ -117,13 +117,20 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
   }
 
   private createCommand(device: Device): AndroidRunCommand | IOSRunCommand {
+    let command: AndroidRunCommand | IOSRunCommand;
+
     switch (device.platform) {
       case 'android':
-        return new AndroidRunCommand();
+        command = new AndroidRunCommand();
+        break;
       case 'ios':
-        return new IOSRunCommand();
+        command = new IOSRunCommand();
+        break;
       default:
         throw new InvalidPlatformError(device.platform, ['android', 'ios']);
     }
+
+    command.setPlatform(device.platform);
+    return command;
   }
 }

@@ -13,7 +13,7 @@ const projectConfigs = [
   { files: 'cli/src/**/*.ts', tsconfig: 'cli/tsconfig.json' },
   { files: 'plugins/bridge/src/**/*.ts', tsconfig: 'plugins/bridge/tsconfig.json' },
   { files: 'plugins/test-utils/src/**/*.ts', tsconfig: 'plugins/test-utils/tsconfig.json' },
-
+  { files: 'plugins/app-launcher/src/**/*.ts', tsconfig: 'plugins/app-launcher/tsconfig.json' },
 ];
 
 export default [
@@ -94,7 +94,7 @@ export default [
     },
   },
   {
-    files: ['plugins/bridge/src/**/*.ts', 'plugins/test-utils/src/**/*.ts'],
+    files: ['plugins/bridge/src/**/*.ts', 'plugins/test-utils/src/**/*.ts', 'plugins/app-launcher/src/**/*.ts'],
     languageOptions: {
       globals: {
         ...globals.browser,
