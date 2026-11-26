@@ -24,3 +24,4 @@
 - New projects ignore `android/app/src/main/assets/gyo-config.json`, which `gyo run` and `gyo build` generate
 - `gyo run` kills the dev server's whole process group and the log process on every exit path, including crashes
 - Android: bridge callbacks and events embed ids and messages as JSON strings, like iOS; an error message with a quote, a backslash or a newline no longer leaves the web promise pending
+- Android: debug builds permit cleartext traffic, so a real device can load the dev server that `gyo run` starts on the LAN; release builds stay strict

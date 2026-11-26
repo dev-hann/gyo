@@ -68,6 +68,19 @@ describe('E2E Local: Project Creation & Build', () => {
     expect(await fs.pathExists(path.join(projectDir, 'android/.gradle'))).toBe(false);
   });
 
+  it('should let debug builds load the dev server over plain http', async () => {
+    const { projectDir } = getSharedState();
+    const debugConfig = await fs.readFile(
+      path.join(
+        projectDir,
+        'android/app/src/debug/res/xml/network_security_config.xml'
+      ),
+      'utf-8'
+    );
+
+    expect(debugConfig).toContain('cleartextTrafficPermitted="true"');
+  });
+
   it('should have valid gyo.config.json', async () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));

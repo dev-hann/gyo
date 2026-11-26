@@ -93,6 +93,11 @@ The detected LAN address is never written to `gyo.config.json`.
 
 The native bridge is origin-restricted: only the host of the configured `serverUrl` may invoke bridge handlers. External navigation is blocked in the WebView and opened in the system browser.
 
+| Build | Cleartext traffic | Reason |
+|-------|-------------------|--------|
+| debug | permitted | `gyo run` serves the web app over plain http from the developer machine's LAN address |
+| release | denied, except `localhost` and `10.0.2.2` | — |
+
 > See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for details.
 
 ## Communication Flow
