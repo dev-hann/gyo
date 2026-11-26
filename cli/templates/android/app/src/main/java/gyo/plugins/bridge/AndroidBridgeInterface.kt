@@ -96,8 +96,7 @@ class AndroidBridgeInterface(
         }
 
         handler.post {
-            val script = "window.gyoBridge.resolve('$callbackId', $resultJson);"
-            webView.evaluateJavascript(script, null)
+            webView.evaluateJavascript(BridgeScripts.resolve(callbackId, resultJson), null)
         }
     }
 
@@ -105,10 +104,8 @@ class AndroidBridgeInterface(
      * Reject a promise on the web side
      */
     private fun rejectCallback(callbackId: String, error: String) {
-        val escapedError = error.replace("'", "\\'")
         handler.post {
-            val script = "window.gyoBridge.reject('$callbackId', '$escapedError');"
-            webView.evaluateJavascript(script, null)
+            webView.evaluateJavascript(BridgeScripts.reject(callbackId, error), null)
         }
     }
 
@@ -126,8 +123,7 @@ class AndroidBridgeInterface(
         }
 
         handler.post {
-            val script = "window.gyoBridge.publish('$bridgeName', $dataJson);"
-            webView.evaluateJavascript(script, null)
+            webView.evaluateJavascript(BridgeScripts.publish(bridgeName, dataJson), null)
         }
     }
 }

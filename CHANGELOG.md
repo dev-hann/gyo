@@ -23,3 +23,4 @@
 - `gyo run` no longer writes the detected LAN address into `gyo.config.json`; `gyo build` resolves a `localhost` development profile to the LAN address itself
 - New projects ignore `android/app/src/main/assets/gyo-config.json`, which `gyo run` and `gyo build` generate
 - `gyo run` kills the dev server's whole process group and the log process on every exit path, including crashes
+- Android: bridge callbacks and events embed ids and messages as JSON strings, like iOS; an error message with a quote, a backslash or a newline no longer leaves the web promise pending

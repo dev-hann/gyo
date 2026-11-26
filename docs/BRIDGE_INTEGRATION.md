@@ -28,6 +28,15 @@ window.gyoBridge.reject(callbackId: string, error: string): void
 window.gyoBridge.publish(bridgeName: string, data: unknown): void
 ```
 
+### Encoding
+
+| Embedded value | Encoding |
+|----------------|----------|
+| `callbackId`, `bridgeName`, `error` | JSON string literal |
+| `data` | JSON value |
+
+A quote, a backslash or a newline inside an embedded value must not break the statement.
+
 ## Android (Kotlin)
 
 ### Handler Interface
