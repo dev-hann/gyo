@@ -9,7 +9,7 @@
   "platforms": {
     "android": {
       "enabled": true,
-      "packageName": "com.example.{{PROJECT_NAME_LOWER}}"
+      "packageName": "{{PACKAGE_NAME}}"
     },
     "ios": {
       "enabled": true,

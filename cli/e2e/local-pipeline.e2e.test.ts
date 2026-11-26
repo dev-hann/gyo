@@ -82,7 +82,9 @@ describe('E2E Local: Project Creation & Build', () => {
   it('should have replaced placeholders', async () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));
-    expect(config.platforms.android.packageName).toContain('com.example.');
+    expect(config.platforms.android.packageName).toMatch(
+      /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/
+    );
     expect(config.platforms.ios.bundleId).toContain('com.example.');
 
     const androidManifest = await fs.readFile(

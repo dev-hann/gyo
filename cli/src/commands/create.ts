@@ -4,7 +4,12 @@ import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from '../utils/fs';
-import { GyoError, DirectoryExistsError, getErrorMessage } from '../core/index';
+import {
+  GyoError,
+  DirectoryExistsError,
+  getErrorMessage,
+  toDefaultPackageName,
+} from '../core/index';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName?: string;
@@ -104,7 +109,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   }
 
   private createPlaceholderContext(): PlaceholderContext {
-    const packageName = `com.example.${this.validatedName.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+    const packageName = toDefaultPackageName(this.validatedName);
     return {
       projectName: this.validatedName,
       projectNameLower: this.validatedName.toLowerCase(),

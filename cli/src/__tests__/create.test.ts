@@ -228,6 +228,24 @@ describe('CreateCommand', () => {
     }
   });
 
+  it('should render a valid package name into gyo.config.json', async () => {
+    mockedPathExists.mockImplementation(async (target: string) =>
+      target.endsWith('gyo.config.json')
+    );
+    mockedReadFile.mockResolvedValue(
+      '{"platforms":{"android":{"packageName":"{{PACKAGE_NAME}}"}}}'
+    );
+    command.setProjectName('gyo-shell');
+
+    await command.testRun().catch(() => {});
+
+    const configCall = mockedWriteFile.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].endsWith('gyo.config.json')
+    );
+    expect(configCall).toBeDefined();
+    expect(configCall![1]).toContain('"packageName":"com.example.gyo_shell"');
+  });
+
   it('should write README.md', async () => {
     mockedPathExists.mockResolvedValue(false);
     mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
