@@ -49,29 +49,31 @@ jest.mock('fs-extra', () => ({
   remove: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../services/android-shell.service', () => ({
+  ...jest.requireActual('../services/android-shell.service'),
+  syncAndroidAppIdentity: jest.fn().mockResolvedValue(undefined),
+  prepareReleaseSigning: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { AndroidBuildCommand } from '../commands/build/AndroidBuildCommand';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { logger } from '../utils/logger';
+import { prepareReleaseSigning, syncAndroidAppIdentity } from '../services/android-shell.service';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
+const mockedSyncIdentity = syncAndroidAppIdentity as jest.MockedFunction<
+  typeof syncAndroidAppIdentity
+>;
+const mockedPrepareSigning = prepareReleaseSigning as jest.MockedFunction<
+  typeof prepareReleaseSigning
+>;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
   return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
-}
-
-function setupReleaseSigningMock(hasSigning: boolean): void {
-  const { readFile } = jest.requireMock('../utils/fs');
-  readFile.mockResolvedValue(
-    hasSigning ? 'android { signingConfigs { release { storeFile file("ks") } } }' : 'android { }'
-  );
-  mockedPathExists.mockImplementation(async (p: string) => {
-    if (p.endsWith('build.gradle')) return true;
-    return false;
-  });
 }
 
 describe('AndroidBuildCommand', () => {
@@ -202,32 +204,64 @@ describe('AndroidBuildCommand', () => {
         webview: { userAgent: 'MyApp/1.0' },
       });
     });
+
+    it('should sync the app identity from gyo.config.json before building', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+      (command as any).serverUrl = 'http://localhost:3000';
+      (command as any).config = {
+        name: 'test',
+        version: '3.15.0',
+        displayName: '킥뉴스',
+        platforms: { android: { enabled: true, versionCode: 73 } },
+      };
+
+      await command['buildPlatform']();
+
+      expect(mockedExec).toHaveBeenCalled();
+      expect(mockedSyncIdentity).toHaveBeenCalledWith('/project/android', {
+        versionName: '3.15.0',
+        versionCode: 73,
+        displayName: '킥뉴스',
+        iconPath: undefined,
+      });
+    });
   });
 
-  describe('checkSigningConfig', () => {
-    it('should throw BuildFailedError when storeFile not in build.gradle', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      setupReleaseSigningMock(false);
-
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(BuildFailedError);
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(
-        'Release signing config not found'
+  describe('release signing', () => {
+    beforeEach(() => {
+      mockedPathExists.mockImplementation(async (target: string) =>
+        target.endsWith('build.gradle')
       );
     });
 
-    it('should pass when storeFile exists in build.gradle', async () => {
+    it('should prepare signing for release builds', async () => {
       (command as any).options = { profile: 'production', release: true };
-      setupReleaseSigningMock(true);
       mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
 
       await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
+      expect(mockedPrepareSigning).toHaveBeenCalledWith('/project/android');
+      expect(mockedExec).toHaveBeenCalledWith('./gradlew', ['assembleRelease'], expect.anything());
     });
 
-    it('should skip signing check for debug builds', async () => {
-      mockedPathExists.mockResolvedValue(false);
+    it('should skip signing for debug builds', async () => {
       mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
 
-      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
+      await command['buildApp']('/project/android');
+
+      expect(mockedPrepareSigning).not.toHaveBeenCalled();
+    });
+
+    it('should fail the release build before Gradle runs when signing is missing', async () => {
+      (command as any).options = { profile: 'production', release: true };
+      mockedPrepareSigning.mockRejectedValue(
+        new BuildFailedError('Release signing is not configured')
+      );
+
+      await expect(command['buildApp']('/project/android')).rejects.toThrow(
+        'Release signing is not configured'
+      );
+      expect(mockedExec).not.toHaveBeenCalled();
     });
   });
 });

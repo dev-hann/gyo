@@ -276,6 +276,36 @@ describe('config.service', () => {
       expect(validateConfig(config)).toBe(true);
     });
 
+    it('should accept a display name, an android version code and an icon', () => {
+      const config = {
+        ...validConfig,
+        displayName: '킥뉴스',
+        platforms: {
+          android: { enabled: true, versionCode: 73, icon: './assets/icon.png' },
+        },
+      };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should reject a display name that is not a non-empty string', () => {
+      expect(validateConfig({ ...validConfig, displayName: 42 })).toBe(false);
+      expect(validateConfig({ ...validConfig, displayName: '   ' })).toBe(false);
+    });
+
+    it('should reject an android version code that is not a positive integer', () => {
+      for (const versionCode of ['73', 73.5, 0, -1]) {
+        expect(
+          validateConfig({ ...validConfig, platforms: { android: { enabled: true, versionCode } } })
+        ).toBe(false);
+      }
+    });
+
+    it('should reject an android icon that is not a string', () => {
+      expect(
+        validateConfig({ ...validConfig, platforms: { android: { enabled: true, icon: true } } })
+      ).toBe(false);
+    });
+
     it('should reject ios platform with non-boolean enabled', () => {
       const config = {
         ...validConfig,

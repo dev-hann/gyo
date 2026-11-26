@@ -10,6 +10,10 @@ export interface BasePlatformConfig {
 
 export interface AndroidPlatformConfig extends BasePlatformConfig {
   packageName?: string;
+  /** Android `versionCode`. Must grow for every release installed over an older one. */
+  versionCode?: number;
+  /** Launcher icon (PNG), relative to gyo.config.json. */
+  icon?: string;
 }
 
 export interface IOSPlatformConfig extends BasePlatformConfig {
@@ -19,6 +23,8 @@ export interface IOSPlatformConfig extends BasePlatformConfig {
 export interface GyoConfig {
   name: string;
   version: string;
+  /** Name shown under the launcher icon. Defaults to `name`. */
+  displayName?: string;
   framework?: string;
   serverUrl?: string;
   profiles?: {

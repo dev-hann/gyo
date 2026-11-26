@@ -40,6 +40,22 @@ function validatePlatform(
   }
 }
 
+function validateAndroidExtras(android: unknown, errors: string[]): void {
+  if (typeof android !== 'object' || android === null) {
+    return;
+  }
+  const { versionCode, icon } = android as Record<string, unknown>;
+  if (
+    versionCode !== undefined &&
+    (typeof versionCode !== 'number' || !Number.isInteger(versionCode) || versionCode < 1)
+  ) {
+    errors.push("'platforms.android.versionCode' must be a positive integer");
+  }
+  if (icon !== undefined && typeof icon !== 'string') {
+    errors.push("'platforms.android.icon' must be a string");
+  }
+}
+
 function collectConfigErrors(raw: unknown): string[] {
   const errors: string[] = [];
   if (typeof raw !== 'object' || raw === null) {
@@ -54,6 +70,12 @@ function collectConfigErrors(raw: unknown): string[] {
   if (typeof obj.version !== 'string' || obj.version.trim() === '') {
     errors.push("'version' must be a non-empty string");
   }
+  if (
+    obj.displayName !== undefined &&
+    (typeof obj.displayName !== 'string' || obj.displayName.trim() === '')
+  ) {
+    errors.push("'displayName' must be a non-empty string");
+  }
 
   if (typeof obj.platforms !== 'object' || obj.platforms === null) {
     errors.push("'platforms' must be an object");
@@ -61,6 +83,7 @@ function collectConfigErrors(raw: unknown): string[] {
     const platforms = obj.platforms as Record<string, unknown>;
     if (platforms.android !== undefined) {
       validatePlatform(platforms.android, 'android', 'packageName', errors);
+      validateAndroidExtras(platforms.android, errors);
     }
     if (platforms.ios !== undefined) {
       validatePlatform(platforms.ios, 'ios', 'bundleId', errors);

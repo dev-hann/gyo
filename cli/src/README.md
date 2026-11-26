@@ -8,10 +8,13 @@ src/
 ├── core/                 # Domain core (no dependencies)
 │   ├── types.ts          # Platform, GyoConfig, ProfileConfig
 │   ├── errors.ts         # GyoError, BuildFailedError, etc.
-│   └── constants.ts      # DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, etc.
+│   ├── constants.ts      # DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS, etc.
+│   ├── package-name.ts   # Project name → Android package name
+│   ├── webview-config.ts # webview settings the shell has to apply
 ├── services/             # Business logic (depends on: core, utils)
 │   ├── config.service.ts # loadConfig, saveConfig, getProfileUrl
-│   └── device.service.ts # getAndroidDevices, getIOSDevices, getAllDevices
+│   ├── device.service.ts # getAndroidDevices, getIOSDevices, getAllDevices
+│   ├── android-shell.service.ts # App identity sync, release signing
 ├── utils/                # Pure utilities (no dependencies)
 │   ├── logger.ts         # Console logging with chalk
 │   ├── exec.ts           # child_process spawn wrapper

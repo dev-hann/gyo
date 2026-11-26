@@ -377,6 +377,10 @@ local.properties
 android/build/
 android/.gradle/
 android/app/src/main/assets/gyo-config.json
+# Release signing: secrets, never committed.
+android/keystore.properties
+*.jks
+*.keystore
 ios/build/
 ios/Pods/
 ios/*.xcworkspace

@@ -55,6 +55,17 @@ import { executeCommand, requireTool } from '../utils/exec';
 import { pathExists, readFile } from '../utils/fs';
 import { BuildFailedError } from '../core/errors';
 import { spawn } from 'child_process';
+import { syncAndroidAppIdentity } from '../services/android-shell.service';
+
+jest.mock('../services/android-shell.service', () => ({
+  ...jest.requireActual('../services/android-shell.service'),
+  syncAndroidAppIdentity: jest.fn().mockResolvedValue(undefined),
+  prepareReleaseSigning: jest.fn().mockResolvedValue(undefined),
+}));
+
+const mockedSyncIdentity = syncAndroidAppIdentity as jest.MockedFunction<
+  typeof syncAndroidAppIdentity
+>;
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedRequireTool = requireTool as jest.MockedFunction<typeof requireTool>;
@@ -84,6 +95,33 @@ describe('AndroidRunCommand', () => {
         }
       });
     }
+  });
+
+  describe('runPlatform', () => {
+    it('should sync the app identity from gyo.config.json before building', async () => {
+      (command as any).config = {
+        name: 'app',
+        version: '3.15.0',
+        platforms: { android: { enabled: true, versionCode: 73 } },
+      };
+      (command as any)['monitorLogs'] = jest.fn().mockResolvedValue(undefined);
+      mockedPathExists.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
+      mockedExec.mockResolvedValue(await makeExecResult(true));
+      mockedFsReadFile.mockResolvedValue(
+        'android { defaultConfig { applicationId "com.example.app" } }'
+      );
+
+      await command['runPlatform']('http://192.168.1.5:3000');
+
+      expect(mockedSyncIdentity).toHaveBeenCalledWith('/project/android', {
+        versionName: '3.15.0',
+        versionCode: 73,
+        displayName: undefined,
+        iconPath: undefined,
+      });
+      expect(mockedExec).toHaveBeenCalled();
+    });
   });
 
   describe('checkAdbAvailable', () => {

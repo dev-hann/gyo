@@ -86,6 +86,8 @@ iOS:     xtool dev → install to device
 |------|------------|---------|
 | `gyo.config.json` | `gyo create`, `gyo config set`, the one-time deploy URL prompt | yes |
 | `android/app/src/main/assets/gyo-config.json` | `gyo run`, `gyo build` | no (generated, ignored) |
+| `android/app/build.gradle` (version lines), `res/values/strings.xml`, `AndroidManifest.xml` (icon, label) | `gyo run`, `gyo build`, from the app identity settings | yes (edited in place) |
+| `android/keystore.properties` | `gyo build android --release`, from the environment | no (ignored) |
 
 The detected LAN address is never written to `gyo.config.json`.
 

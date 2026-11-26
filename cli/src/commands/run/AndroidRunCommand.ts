@@ -5,7 +5,8 @@ import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
-import { BuildFailedError, getErrorMessage } from '../../core/errors';
+import { BuildFailedError, GyoError, getErrorMessage } from '../../core/errors';
+import { syncAndroidAppIdentity, toAndroidAppIdentity } from '../../services/android-shell.service';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -18,6 +19,12 @@ export class AndroidRunCommand extends AbstractRunCommand {
     await this.checkPlatformDirectoryExists();
     await this.checkAdbAvailable();
     await this.updateServerUrl(androidPath, serverUrl);
+
+    if (!this.config) {
+      throw new GyoError('Configuration not loaded');
+    }
+    await syncAndroidAppIdentity(androidPath, toAndroidAppIdentity(this.config, this.projectPath));
+
     const selectedDevice = this.options.device || '';
     await this.buildApp(androidPath);
     await this.installApp(androidPath);

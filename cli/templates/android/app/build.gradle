@@ -3,6 +3,15 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+// Release signing. `gyo build android --release` writes keystore.properties from
+// the GYO_ANDROID_KEYSTORE_* environment variables; it can also be created by
+// hand. storeFile is resolved relative to app/. The file is ignored by git.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace '{{PACKAGE_NAME}}'
     compileSdk 34
@@ -11,16 +20,33 @@ android {
         applicationId "{{PACKAGE_NAME}}"
         minSdk 24
         targetSdk 34
+
+        // versionCode and versionName follow gyo.config.json; `gyo build` and
+        // `gyo run` rewrite these two lines.
         versionCode 1
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
     

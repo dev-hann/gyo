@@ -88,9 +88,10 @@ Upgrade CLI.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | yes | Project name |
-| `version` | string | yes | Project version |
+| `version` | string | yes | Project version; the Android `versionName` |
+| `displayName` | string | no | Launcher label; non-empty; defaults to `name` |
 | `profiles` | object | no | Profile → `{ serverUrl: string }` mapping |
-| `platforms.android` | object | no | `{ enabled: boolean, packageName?: string }` |
+| `platforms.android` | object | no | `{ enabled: boolean, packageName?: string, versionCode?: number, icon?: string }` |
 | `platforms.ios` | object | no | `{ enabled: boolean, bundleId?: string }` |
 | `webview` | object | no | `{ allowFileAccess, allowUniversalAccessFromFileURLs, userAgent }` |
 | `script.start` | string | no | Dev server start command (e.g. `npm run dev -- --host 0.0.0.0`) |
@@ -104,6 +105,39 @@ Upgrade CLI.
 | Applied by | The Android shell at WebView creation |
 | `userAgent` | Replaces the WebView's own user agent when set to a non-empty value |
 | Ignored value | `gyo-webview/1.0`: the default written by earlier versions, never applied by any shell |
+
+### Android App Identity
+
+`gyo run` and `gyo build` rewrite the generated Android project from these settings before every build.
+
+| Setting | Android | Rule |
+|---------|---------|------|
+| `version` | `versionName` | — |
+| `platforms.android.versionCode` | `versionCode` | Positive integer; left as generated when unset |
+| `displayName` | `app_name` | Left as generated when unset |
+| `platforms.android.icon` | Launcher icon | PNG, relative to `gyo.config.json`; copied to the highest-density bucket only |
+
+### Release Signing (Android)
+
+A release build signs the APK when `android/keystore.properties` exists and fails before Gradle when it does not. The file is ignored by git.
+
+| Property | Value |
+|----------|-------|
+| `storeFile` | Keystore path, relative to `android/app/` |
+| `storePassword` | Keystore password |
+| `keyAlias` | Key alias |
+| `keyPassword` | Key password |
+
+`gyo build android --release` writes the file when all four variables are set, and fails before Gradle when only some are.
+
+| Variable | Property |
+|----------|----------|
+| `GYO_ANDROID_KEYSTORE_PATH` | `storeFile` |
+| `GYO_ANDROID_KEYSTORE_PASSWORD` | `storePassword` |
+| `GYO_ANDROID_KEY_ALIAS` | `keyAlias` |
+| `GYO_ANDROID_KEY_PASSWORD` | `keyPassword` |
+
+> See [android/README.md](../cli/templates/android/README.md) for the same contract inside a generated project.
 
 ## Platform Requirements
 

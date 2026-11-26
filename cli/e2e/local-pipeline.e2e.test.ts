@@ -91,6 +91,35 @@ describe('E2E Local: Project Creation & Build', () => {
     expect(config.script.start).toMatch(/npm run dev/);
   });
 
+  it('should have the launcher label in the string resource', async () => {
+    const { projectDir } = getSharedState();
+    const manifest = await fs.readFile(
+      path.join(projectDir, 'android/app/src/main/AndroidManifest.xml'),
+      'utf-8'
+    );
+    const strings = await fs.readFile(
+      path.join(projectDir, 'android/app/src/main/res/values/strings.xml'),
+      'utf-8'
+    );
+
+    expect(manifest).toContain('android:label="@string/app_name"');
+    expect(strings).toContain(`<string name="app_name">${PROJECT_NAME}</string>`);
+  });
+
+  it('should ignore generated files and secrets in .gitignore', async () => {
+    const { projectDir } = getSharedState();
+    const gitignore = await fs.readFile(path.join(projectDir, '.gitignore'), 'utf-8');
+
+    for (const rule of [
+      'android/app/src/main/assets/gyo-config.json',
+      'android/keystore.properties',
+      '*.jks',
+      '*.keystore',
+    ]) {
+      expect(gitignore).toContain(rule);
+    }
+  });
+
   it('should have replaced placeholders', async () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));

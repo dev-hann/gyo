@@ -9,6 +9,8 @@
 - Bridge configurable timeout via `new Bridge(name, { timeout })`
 - BridgeRegistry for Android and iOS
 - Android: full-screen video; `element.requestFullscreen()` was rejected with "Fullscreen is not supported"
+- Android: `version`, `platforms.android.versionCode`, `displayName` and `platforms.android.icon` in gyo.config.json set the app's version, launcher name and icon; `gyo run` and `gyo build` sync them before every build
+- Android: release signing through `android/keystore.properties`, which `gyo build android --release` writes from the `GYO_ANDROID_KEYSTORE_*` variables
 
 ### Changed
 
