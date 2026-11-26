@@ -16,7 +16,10 @@ const PROJECT_NAME = 'e2e-local-app';
 
 beforeAll(async () => {
   console.log('[e2e:local] Building CLI...');
-  const buildResult = await exec('npm run build', { cwd: path.resolve(__dirname, '..'), timeout: 60_000 });
+  const buildResult = await exec('npm run build', {
+    cwd: path.resolve(__dirname, '..'),
+    timeout: 60_000,
+  });
   expect(buildResult.exitCode).toBe(0);
 
   const tempDir = await createTempDir('gyo-e2e-local-');
@@ -40,14 +43,13 @@ afterAll(async () => {
 describe('E2E Local: Project Creation & Build', () => {
   it('should create project with gyo create', async () => {
     const { tempDir } = getSharedState();
-    const result = await execCLI(
-      ['create', PROJECT_NAME],
-      { cwd: tempDir, timeout: 60_000 },
-    );
+    const result = await execCLI(['create', PROJECT_NAME], { cwd: tempDir, timeout: 60_000 });
 
     expect(result.exitCode).toBe(0);
     if (result.exitCode !== 0) {
-      console.error(`[e2e:local] create failed:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      console.error(
+        `[e2e:local] create failed:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`
+      );
     }
   }, 90_000);
 
@@ -71,10 +73,7 @@ describe('E2E Local: Project Creation & Build', () => {
   it('should let debug builds load the dev server over plain http', async () => {
     const { projectDir } = getSharedState();
     const debugConfig = await fs.readFile(
-      path.join(
-        projectDir,
-        'android/app/src/debug/res/xml/network_security_config.xml'
-      ),
+      path.join(projectDir, 'android/app/src/debug/res/xml/network_security_config.xml'),
       'utf-8'
     );
 
@@ -95,21 +94,16 @@ describe('E2E Local: Project Creation & Build', () => {
   it('should have replaced placeholders', async () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));
-    expect(config.platforms.android.packageName).toMatch(
-      /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/
-    );
+    expect(config.platforms.android.packageName).toMatch(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/);
     expect(config.platforms.ios.bundleId).toContain('com.example.');
 
     const androidManifest = await fs.readFile(
       path.join(projectDir, 'android/app/src/main/AndroidManifest.xml'),
-      'utf-8',
+      'utf-8'
     );
     expect(androidManifest).not.toContain('{{');
 
-    const xtoolYml = await fs.readFile(
-      path.join(projectDir, 'ios/xtool.yml'),
-      'utf-8',
-    );
+    const xtoolYml = await fs.readFile(path.join(projectDir, 'ios/xtool.yml'), 'utf-8');
     expect(xtoolYml).not.toContain('{{');
     expect(xtoolYml).toContain('com.example.');
   });

@@ -96,6 +96,15 @@ Upgrade CLI.
 | `script.start` | string | no | Dev server start command (e.g. `npm run dev -- --host 0.0.0.0`) |
 | `script.preStartCleanup` | string[] | no | Paths removed in `lib/` before the dev server starts (e.g. stale lock files) |
 
+### `webview` Settings
+
+| Rule | Value |
+|------|-------|
+| Baked by | `gyo run`, `gyo build` (Android) |
+| Applied by | The Android shell at WebView creation |
+| `userAgent` | Replaces the WebView's own user agent when set to a non-empty value |
+| Ignored value | `gyo-webview/1.0`: the default written by earlier versions, never applied by any shell |
+
 ## Platform Requirements
 
 ### Android

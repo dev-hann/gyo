@@ -191,7 +191,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       webview: {
         allowFileAccess: false,
         allowUniversalAccessFromFileURLs: false,
-        userAgent: 'gyo-webview/1.0',
       },
       script: {
         start: 'npm run dev',

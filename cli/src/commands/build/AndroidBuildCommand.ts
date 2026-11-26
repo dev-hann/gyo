@@ -29,7 +29,7 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
 
     const serverUrl = this.getServerUrl();
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
-    await this.writeConfigFile(configPath, serverUrl);
+    await this.writeConfigFile(configPath, serverUrl, this.config?.webview);
 
     await this.buildApp(androidPath);
   }

@@ -184,6 +184,24 @@ describe('AndroidBuildCommand', () => {
 
       await expect(command['buildPlatform']()).rejects.toThrow();
     });
+
+    it('should bake the webview settings next to the server URL', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+      (command as any).serverUrl = 'http://localhost:3000';
+      (command as any).config.webview = { userAgent: 'MyApp/1.0' };
+
+      await command['buildPlatform']();
+
+      const configCall = mockedWriteFile.mock.calls.find((call) =>
+        String(call[0]).endsWith('gyo-config.json')
+      );
+      expect(configCall).toBeDefined();
+      expect(JSON.parse(configCall![1] as string)).toEqual({
+        serverUrl: 'http://localhost:3000',
+        webview: { userAgent: 'MyApp/1.0' },
+      });
+    });
   });
 
   describe('checkSigningConfig', () => {

@@ -49,6 +49,7 @@ jest.mock('inquirer', () => ({
 
 import { AbstractBuildCommand } from '../commands/build/AbstractBuildCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
+import type { GyoConfig } from '../core/index';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../utils/fs';
 import { saveConfig, shouldStartLocalServer } from '../services/config.service';
@@ -78,8 +79,12 @@ class TestableBuildCommand extends AbstractBuildCommand {
     return this.resolveServerUrl();
   }
 
-  public testWriteConfigFile(configPath: string, serverUrl: string): Promise<void> {
-    return this.writeConfigFile(configPath, serverUrl);
+  public testWriteConfigFile(
+    configPath: string,
+    serverUrl: string,
+    webview?: GyoConfig['webview']
+  ): Promise<void> {
+    return this.writeConfigFile(configPath, serverUrl, webview);
   }
 
   protected buildPlatform(): Promise<void> {
@@ -268,6 +273,27 @@ describe('AbstractBuildCommand', () => {
       await command.testWriteConfigFile('/tmp/sub/gyo-config.json', 'http://localhost:3000');
 
       expect(mockedEnsureDir).toHaveBeenCalledWith('/tmp/sub');
+    });
+
+    it('should include the webview settings the shell has to apply', async () => {
+      await command.testWriteConfigFile('/tmp/gyo-config.json', 'http://localhost:3000', {
+        userAgent: 'MyApp/1.0',
+      });
+
+      const content = mockedWriteFile.mock.calls[0][1] as string;
+      expect(JSON.parse(content)).toEqual({
+        serverUrl: 'http://localhost:3000',
+        webview: { userAgent: 'MyApp/1.0' },
+      });
+    });
+
+    it('should omit webview when no setting applies', async () => {
+      await command.testWriteConfigFile('/tmp/gyo-config.json', 'http://localhost:3000', {
+        userAgent: 'gyo-webview/1.0',
+      });
+
+      const content = mockedWriteFile.mock.calls[0][1] as string;
+      expect(content).not.toContain('webview');
     });
   });
 });

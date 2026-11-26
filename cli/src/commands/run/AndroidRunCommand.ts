@@ -33,7 +33,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
   private async updateServerUrl(androidPath: string, serverUrl: string): Promise<void> {
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
-    await this.writeConfigFile(configPath, serverUrl);
+    await this.writeConfigFile(configPath, serverUrl, this.config?.webview);
   }
 
   private async buildApp(androidPath: string): Promise<void> {

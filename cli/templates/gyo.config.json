@@ -18,8 +18,7 @@
   },
   "webview": {
     "allowFileAccess": false,
-    "allowUniversalAccessFromFileURLs": false,
-    "userAgent": "gyo-webview/1.0"
+    "allowUniversalAccessFromFileURLs": false
   },
   "script": {
     "start": "npm run dev"

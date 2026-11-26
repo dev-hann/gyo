@@ -3,8 +3,8 @@ import type { BaseCommandOptions } from './BaseCommand';
 import { BaseCommand } from './BaseCommand';
 import { logger } from '../../utils/logger';
 import { pathExists, ensureDir, writeFile } from '../../utils/fs';
-import type { Platform } from '../../core/index';
-import { PlatformNotFoundError, PlatformDisabledError } from '../../core/index';
+import type { GyoConfig, Platform } from '../../core/index';
+import { PlatformNotFoundError, PlatformDisabledError, toWebViewSettings } from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -66,10 +66,23 @@ export abstract class PlatformCommand<
     }
   }
 
-  protected async writeConfigFile(configPath: string, serverUrl: string): Promise<void> {
+  /**
+   * Bakes the runtime config the native shell reads. `webview` carries only
+   * the settings the shell has to apply.
+   */
+  protected async writeConfigFile(
+    configPath: string,
+    serverUrl: string,
+    webview?: GyoConfig['webview']
+  ): Promise<void> {
     this.updateSpinner(`Configuring server URL: ${serverUrl}`);
     await ensureDir(path.dirname(configPath));
-    await writeFile(configPath, JSON.stringify({ serverUrl }, null, 2));
+    const settings = toWebViewSettings(webview);
+    const config: Record<string, unknown> = { serverUrl };
+    if (settings) {
+      config.webview = settings;
+    }
+    await writeFile(configPath, JSON.stringify(config, null, 2));
   }
 }
 
