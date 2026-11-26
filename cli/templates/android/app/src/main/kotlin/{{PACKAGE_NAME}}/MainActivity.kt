@@ -5,11 +5,14 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import gyo.plugins.bridge.AndroidBridgeInterface
@@ -19,6 +22,8 @@ import {{PACKAGE_NAME}}.BuildConfig
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var gyoConfig: GyoConfig
+    private var fullscreenView: View? = null
+    private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +114,41 @@ class MainActivity : AppCompatActivity() {
                 
                 return true
             }
+
+            // Full-screen video (`video.requestFullscreen()`). Without these
+            // two the WebView answers "Fullscreen is not supported".
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                if (fullscreenView != null) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                fullscreenView = view
+                fullscreenCallback = callback
+                // The WebView must stay alive behind the video; hiding it
+                // would tear the player down.
+                webView.visibility = View.INVISIBLE
+                addContentView(
+                    view,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+            }
+
+            override fun onHideCustomView() {
+                hideFullscreen()
+            }
         }
+    }
+
+    private fun hideFullscreen() {
+        val view = fullscreenView
+        fullscreenView = null
+        (view?.parent as? ViewGroup)?.removeView(view)
+        fullscreenCallback?.onCustomViewHidden()
+        fullscreenCallback = null
+        webView.visibility = View.VISIBLE
     }
 
     private fun loadApp() {
@@ -188,10 +227,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
+        when {
+            fullscreenView != null -> hideFullscreen()
+            webView.canGoBack() -> webView.goBack()
+            else -> super.onBackPressed()
         }
     }
     

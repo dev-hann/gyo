@@ -8,6 +8,7 @@
 - `gyo debug <platform>` command: Chrome DevTools (Android), Safari Web Inspector (iOS)
 - Bridge configurable timeout via `new Bridge(name, { timeout })`
 - BridgeRegistry for Android and iOS
+- Android: full-screen video; `element.requestFullscreen()` was rejected with "Fullscreen is not supported"
 
 ### Changed
 
