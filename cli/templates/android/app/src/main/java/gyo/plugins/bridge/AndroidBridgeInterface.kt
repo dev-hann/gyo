@@ -1,5 +1,6 @@
 package gyo.plugins.bridge
 
+import android.net.Uri
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -8,16 +9,47 @@ import org.json.JSONObject
 /**
  * Android Bridge Interface for gyo-bridge system
  * Routes messages to registered bridge handlers via BridgeRegistry
+ *
+ * Security: bridge calls are only accepted from the origin (host) of the
+ * configured serverUrl. Third-party pages loaded into the WebView must not
+ * be able to invoke native handlers.
  */
-class AndroidBridgeInterface(private val webView: WebView) {
+class AndroidBridgeInterface(
+    private val webView: WebView,
+    private val allowedHost: String
+) {
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /**
      * Main entry point from JavaScript
-     * Routes requests to registered bridge handlers
+     * Routes requests to registered bridge handlers via BridgeRegistry
      */
     @JavascriptInterface
     fun postMessage(message: String) {
+        // webView.url must be read on the main thread
+        handler.post {
+            val currentHost = try {
+                Uri.parse(webView.url ?: "").host
+            } catch (e: Exception) {
+                null
+            }
+
+            if (currentHost == null || !currentHost.equals(allowedHost, ignoreCase = true)) {
+                Log.w(
+                    "AndroidBridge",
+                    "Rejected bridge call from unauthorized origin: '$currentHost' (allowed: '$allowedHost')"
+                )
+                return@post
+            }
+
+            dispatch(message)
+        }
+    }
+
+    /**
+     * Parses and dispatches a validated bridge message
+     */
+    private fun dispatch(message: String) {
         try {
             val request = JSONObject(message)
             val bridgeName = request.getString("bridgeName")

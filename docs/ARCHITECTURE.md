@@ -2,6 +2,10 @@
 
 System architecture for the Gyo framework.
 
+## Model
+
+Framework-agnostic: the web application is deployed on a server and consumed over HTTP. The native app is a thin WebView shell that loads `serverUrl` from `gyo-config.json`. The CLI holds no web-framework knowledge — the user configures the start command and server URL in `gyo.config.json`.
+
 ## Directory Structure
 
 ```
@@ -12,9 +16,12 @@ gyo/
 │   │   ├── services/          # Business logic
 │   │   ├── utils/             # Utilities
 │   │   └── commands/          # CLI commands
-│   └── templates/             # Project scaffolding
-├── plugins/
-│   └── bridge/                # @gyo-framework/bridge (built-in)
+│   ├── templates/             # Native shell templates (android/ios)
+│   └── e2e/                   # E2E pipeline tests
+├── plugins/                   # bridge + test-utils + feature plugins
+│   ├── bridge/                # @gyo-framework/bridge
+│   ├── test-utils/            # @gyo-framework/test-utils
+│   └── <name>/                # Feature plugins (Android Kotlin handlers)
 └── docs/                      # Specifications
 ```
 
@@ -48,19 +55,33 @@ BaseCommand
 
 ## Runtime Components
 
-### Development (`gyo run`)
+### Development (`gyo run`, default profile: `development`)
 
 ```
-Android: Vite server → gradlew assembleDebug → installDebug → adb shell am start → adb logcat
-iOS:     Vite server → xtool dev → idevicesyslog
+script.start from gyo.config.json → dev server spawned in lib/
+  → readiness detected by TCP port probe (profiles.<profile>.serverUrl port)
+  → detected LAN URL saved back to the profile
+Android: gyo-config.json (serverUrl) → gradlew assembleDebug → install → launch → logcat
+iOS:     gyo-config.json (serverUrl) → xtool dev → idevicesyslog
 ```
+
+The dev server must listen on `0.0.0.0` (set the host flag in `script.start`, e.g. `npm run dev -- --host 0.0.0.0`) so devices on the LAN can connect.
 
 ### Production (`gyo build`)
 
 ```
-Android: npm run build (lib) → gradlew assembleRelease/Debug → APK
-iOS:     npm run build (lib) → xtool dev → install to device
+Deploy web app to a server
+  → profiles.<profile>.serverUrl (prompted once and saved if missing)
+  → gyo-config.json (serverUrl) baked into native assets
+Android: gradlew assembleRelease/Debug → APK
+iOS:     xtool dev → install to device
 ```
+
+### WebView Security
+
+The native bridge is origin-restricted: only the host of the configured `serverUrl` may invoke bridge handlers. External navigation is blocked in the WebView and opened in the system browser.
+
+> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for details.
 
 ## Communication Flow
 

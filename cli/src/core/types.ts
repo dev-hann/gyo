@@ -19,6 +19,7 @@ export interface IOSPlatformConfig extends BasePlatformConfig {
 export interface GyoConfig {
   name: string;
   version: string;
+  framework?: string;
   serverUrl?: string;
   profiles?: {
     [key: string]: ProfileConfig;
@@ -35,5 +36,6 @@ export interface GyoConfig {
   };
   script?: {
     start?: string;
+    preStartCleanup?: string[];
   };
 }

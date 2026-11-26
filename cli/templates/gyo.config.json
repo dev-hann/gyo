@@ -4,9 +4,6 @@
   "profiles": {
     "development": {
       "serverUrl": "http://localhost:3000"
-    },
-    "production": {
-      "serverUrl": "https://your-production-url.com"
     }
   },
   "platforms": {
@@ -25,6 +22,6 @@
     "userAgent": "gyo-webview/1.0"
   },
   "script": {
-    "start": "YOUR_WEB_SERVER_START_COMMAND (e.g., npm run dev, yarn dev, pnpm dev)"
+    "start": "npm run dev"
   }
 }

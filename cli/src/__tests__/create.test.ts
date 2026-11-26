@@ -67,13 +67,13 @@ describe('CreateCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     command = new TestableCreateCommand();
-    command.setOptions({ template: 'react' });
+    command.setOptions({});
     command.setProjectName('my-app');
   });
 
   it('should throw GyoError for empty project name', async () => {
     const emptyCommand = new TestableCreateCommand();
-    emptyCommand.setOptions({ template: 'react' });
+    emptyCommand.setOptions({});
     emptyCommand.setProjectName('');
 
     await expect(emptyCommand.testRun()).rejects.toThrow(GyoError);
@@ -81,7 +81,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for whitespace-only project name', async () => {
     const wsCommand = new TestableCreateCommand();
-    wsCommand.setOptions({ template: 'react' });
+    wsCommand.setOptions({});
     wsCommand.setProjectName('   ');
 
     await expect(wsCommand.testRun()).rejects.toThrow(GyoError);
@@ -89,7 +89,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name with path separator /', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('evil/path');
 
     await expect(cmd.testRun()).rejects.toThrow('path separators');
@@ -97,7 +97,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name with path separator \\', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('evil\\path');
 
     await expect(cmd.testRun()).rejects.toThrow('path separators');
@@ -105,7 +105,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name with ..', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('..');
 
     await expect(cmd.testRun()).rejects.toThrow('path separators');
@@ -113,7 +113,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name with spaces', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('my app');
 
     await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
@@ -121,7 +121,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name with special characters', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('my@app');
 
     await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
@@ -129,7 +129,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for project name starting with hyphen', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('-my-app');
 
     await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
@@ -137,7 +137,7 @@ describe('CreateCommand', () => {
 
   it('should throw GyoError for uppercase project name', async () => {
     const cmd = new TestableCreateCommand();
-    cmd.setOptions({ template: 'react' });
+    cmd.setOptions({});
     cmd.setProjectName('MyApp');
 
     await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
@@ -180,7 +180,7 @@ describe('CreateCommand', () => {
   it('should remove existing directory and proceed when force is true', async () => {
     mockedPathExists.mockResolvedValueOnce(true).mockResolvedValue(false);
     mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
-    command.setOptions({ template: 'react', force: true });
+    command.setOptions({ force: true });
     command.setProjectName('my-app');
 
     try {
@@ -208,7 +208,7 @@ describe('CreateCommand', () => {
   it('should write gyo.config.json with project name and start script', async () => {
     mockedPathExists.mockResolvedValueOnce(false).mockResolvedValue(false);
     mockedReadFile.mockResolvedValue(
-      '{"name":"{{PROJECT_NAME}}","script":{"start":"placeholder"}}'
+      '{"name":"{{PROJECT_NAME}}","script":{"start":"npm run dev"}}'
     );
     mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
 

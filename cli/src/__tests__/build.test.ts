@@ -1,3 +1,8 @@
+jest.mock('inquirer', () => ({
+  prompt: jest.fn(),
+  default: { prompt: jest.fn() },
+}));
+
 jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
   getGradlew: jest.fn().mockReturnValue('./gradlew'),

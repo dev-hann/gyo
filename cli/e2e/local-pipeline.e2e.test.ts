@@ -41,15 +41,15 @@ describe('E2E Local: Project Creation & Build', () => {
   it('should create project with gyo create', async () => {
     const { tempDir } = getSharedState();
     const result = await execCLI(
-      ['create', PROJECT_NAME, '--template', 'react'],
-      { cwd: tempDir, timeout: 180_000 },
+      ['create', PROJECT_NAME],
+      { cwd: tempDir, timeout: 60_000 },
     );
 
     expect(result.exitCode).toBe(0);
     if (result.exitCode !== 0) {
       console.error(`[e2e:local] create failed:\nstdout: ${result.stdout}\nstderr: ${result.stderr}`);
     }
-  }, 200_000);
+  }, 90_000);
 
   it('should have correct directory structure', async () => {
     const { projectDir } = getSharedState();
@@ -69,7 +69,7 @@ describe('E2E Local: Project Creation & Build', () => {
     expect(config.version).toBe('1.0.0');
     expect(config.profiles).toBeDefined();
     expect(config.profiles.development).toBeDefined();
-    expect(config.profiles.production).toBeDefined();
+    expect(config.profiles.development.serverUrl).toMatch(/^https?:\/\//);
     expect(config.script.start).toMatch(/npm run dev/);
   });
 
@@ -93,13 +93,46 @@ describe('E2E Local: Project Creation & Build', () => {
     expect(xtoolYml).toContain('com.example.');
   });
 
-  it('should have scaffolded React app in lib/', async () => {
+  it('should scaffold a web app in lib/ as the user would', async () => {
     const { projectDir } = getSharedState();
-    const pkgPath = path.join(projectDir, 'lib/package.json');
-    expect(await fs.pathExists(pkgPath)).toBe(true);
+    const libPath = path.join(projectDir, 'lib');
 
-    const pkg = await fs.readJson(pkgPath);
-    expect(pkg.scripts.dev).toBeDefined();
+    // gyo is framework-agnostic: the user brings their own web app.
+    // Simulate a user scaffolding a minimal TypeScript web app in lib/.
+    await fs.writeJson(path.join(libPath, 'package.json'), {
+      name: 'e2e-lib',
+      version: '1.0.0',
+      scripts: {
+        dev: 'npx --yes serve src -l 3000 --no-clipboard',
+        build: 'tsc -p tsconfig.json',
+      },
+      devDependencies: {
+        typescript: '^5.0.0',
+      },
+    });
+
+    await fs.writeJson(path.join(libPath, 'tsconfig.json'), {
+      compilerOptions: {
+        target: 'ES2020',
+        module: 'ESNext',
+        moduleResolution: 'bundler',
+        outDir: 'dist',
+        rootDir: 'src',
+        strict: true,
+        skipLibCheck: true,
+        lib: ['ES2020', 'DOM'],
+      },
+      include: ['src/**/*.ts'],
+    });
+
+    await fs.ensureDir(path.join(libPath, 'src'));
+    await fs.writeFile(
+      path.join(libPath, 'src/main.ts'),
+      'console.log("hello from lib");\nexport {};\n'
+    );
+
+    const pkg = await fs.readJson(path.join(libPath, 'package.json'));
+    expect(pkg.scripts.build).toBeDefined();
   });
 
   it('should install dependencies and build lib/', async () => {
@@ -134,34 +167,19 @@ describe('E2E Local: Project Creation & Build', () => {
   it('should create minimal Bridge example and build successfully', async () => {
     const { projectDir } = getSharedState();
     const libPath = path.join(projectDir, 'lib');
-    const appPath = path.join(libPath, 'src/App.tsx');
+    const mainPath = path.join(libPath, 'src/main.ts');
 
-    const bridgeExample = `import { useState, useEffect } from 'react';
-import { Bridge } from '@gyo-framework/bridge';
+    const bridgeExample = `import { Bridge } from '@gyo-framework/bridge';
 
 const bridge = new Bridge('e2e-test');
 
-function App() {
-  const [status, setStatus] = useState('Bridge init...');
+bridge.invoke('ping').catch(() => {
+  // No native bridge in a plain browser context (expected)
+});
 
-  useEffect(() => {
-    bridge.invoke('ping')
-      .then(() => setStatus('Bridge OK'))
-      .catch(() => setStatus('No native bridge (expected)'));
-  }, []);
-
-  return (
-    <div>
-      <h1>E2E Test App</h1>
-      <p>{status}</p>
-      <p>Bridge name: {bridge.getName()}</p>
-    </div>
-  );
-}
-
-export default App;
+console.log('Bridge name:', bridge.getName());
 `;
-    await fs.writeFile(appPath, bridgeExample);
+    await fs.writeFile(mainPath, bridgeExample);
 
     console.log('[e2e:local] Building lib with Bridge...');
     const buildResult = await exec('npm run build', { cwd: libPath, timeout: 60_000 });

@@ -108,7 +108,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
     if (!command || command.trim() === '') {
       throw new ServerStartError(
-        "Start command is not configured. Please set 'script.start' in gyo.config.json (e.g., 'npm run dev' for Vite/Next.js)"
+        "Start command is not configured. Please set 'script.start' in gyo.config.json (e.g., 'npm run dev -- --host 0.0.0.0')"
       );
     }
 
@@ -159,6 +159,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       webPath,
       port,
       startCommand,
+      preStartCleanup: this.config?.script?.preStartCleanup,
     });
 
     this.webServerProcess = handle.process;

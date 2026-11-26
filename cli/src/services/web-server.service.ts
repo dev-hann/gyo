@@ -1,5 +1,6 @@
 import * as path from 'path';
-import os from 'os';
+import * as net from 'net';
+import * as os from 'os';
 import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
 import * as fs from 'fs-extra';
@@ -10,6 +11,7 @@ import {
   ServerStartError,
   getErrorMessage,
   WEB_SERVER_TIMEOUT_MS,
+  PROBE_INTERVAL_MS,
   LOCALHOST,
   DEFAULT_PORT,
 } from '../core/index';
@@ -18,6 +20,7 @@ export interface StartServerOptions {
   webPath: string;
   port: number;
   startCommand: string;
+  preStartCleanup?: string[];
 }
 
 export interface ServerHandle {
@@ -27,15 +30,12 @@ export interface ServerHandle {
 
 export class WebServerService {
   async start(options: StartServerOptions): Promise<ServerHandle> {
-    const { webPath, port, startCommand } = options;
+    const { webPath, port, startCommand, preStartCleanup } = options;
 
     await this.ensureNodeModules(webPath);
-    await this.removeNextLockFile(webPath);
+    await this.cleanupPaths(webPath, preStartCleanup ?? []);
 
-    const isVite = /\bvite\b/.test(startCommand);
-    const finalCommand = isVite ? `${startCommand} -- --host 0.0.0.0` : startCommand;
-
-    const serverProcess = spawn(finalCommand, [], {
+    const serverProcess = spawn(startCommand, [], {
       cwd: webPath,
       stdio: 'pipe',
       shell: true,
@@ -62,13 +62,16 @@ export class WebServerService {
     }
   }
 
-  private async removeNextLockFile(webPath: string): Promise<void> {
-    const lockFile = path.join(webPath, '.next/dev/lock');
-    if (await pathExists(lockFile)) {
-      try {
-        await fs.remove(lockFile);
-      } catch (error) {
-        logger.warn(`Could not remove lock file: ${getErrorMessage(error)}`);
+  private async cleanupPaths(webPath: string, relativePaths: string[]): Promise<void> {
+    for (const relativePath of relativePaths) {
+      const target = path.join(webPath, relativePath);
+      if (await pathExists(target)) {
+        try {
+          await fs.remove(target);
+          logger.debug(`Removed stale file before server start: ${target}`);
+        } catch (error) {
+          logger.warn(`Could not remove ${relativePath}: ${getErrorMessage(error)}`);
+        }
       }
     }
   }
@@ -79,102 +82,85 @@ export class WebServerService {
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(
+        doReject(
           new Error(`Web server failed to start within ${WEB_SERVER_TIMEOUT_MS / 1000} seconds`)
         );
       }, WEB_SERVER_TIMEOUT_MS);
       timeout.unref();
 
-      let serverReady = false;
-      let resolved = false;
+      let settled = false;
+      let probeTimer: ReturnType<typeof setTimeout> | null = null;
+      let probeSocket: net.Socket | null = null;
+
+      const clearProbe = (): void => {
+        if (probeTimer) clearTimeout(probeTimer);
+        probeSocket?.destroy();
+      };
 
       const doResolve = (url: string): void => {
-        if (resolved) return;
-        resolved = true;
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
-        removeListeners();
+        clearProbe();
+        detachProcessListeners();
         resolve(url);
       };
 
       const doReject = (error: Error): void => {
-        if (resolved) return;
-        resolved = true;
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
-        removeListeners();
+        clearProbe();
+        detachProcessListeners();
         reject(error);
       };
 
-      let onStdoutData: ((data: Buffer) => void) | null = null;
-      let onStderrData: ((data: Buffer) => void) | null = null;
-      let onError: ((error: Error) => void) | null = null;
-      let onExit: ((code: number | null) => void) | null = null;
-
-      const removeListeners = (): void => {
-        if (onStdoutData) serverProcess.stdout?.off('data', onStdoutData);
-        if (onStderrData) serverProcess.stderr?.off('data', onStderrData);
-        if (onError) serverProcess.off('error', onError);
-        if (onExit) serverProcess.off('exit', onExit);
+      const onError = (error: Error): void => {
+        doReject(new Error(`Failed to start web server: ${error.message}`));
       };
 
-      onStdoutData = (data: Buffer): void => {
-        if (serverReady) return;
-        const output = data.toString();
-        const detectedUrl = this.extractServerUrl(output);
-        if (detectedUrl) {
-          serverReady = true;
-          this.resolveServerUrl(detectedUrl).then(doResolve).catch(doReject);
-        }
+      const onExit = (code: number | null): void => {
+        doReject(new Error(`Web server exited with code ${code}`));
       };
 
-      onStderrData = (data: Buffer): void => {
+      const detachProcessListeners = (): void => {
+        serverProcess.off('error', onError);
+        serverProcess.off('exit', onExit);
+      };
+
+      // Surface server errors from output (port in use, permission, ...)
+      serverProcess.stderr?.on('data', (data: Buffer) => {
         const output = data.toString();
         if (output.match(/error|EADDRINUSE|EACCES/i)) {
           logger.error(`[web server] ${output.trim()}`);
         }
-        if (!serverReady && output.match(/ready|listening|started/i)) {
-          serverReady = true;
+      });
+
+      serverProcess.on('error', onError);
+      serverProcess.on('exit', onExit);
+
+      // Framework-agnostic readiness detection: poll the expected port
+      // until it accepts TCP connections.
+      const attemptProbe = (): void => {
+        if (settled) return;
+
+        probeSocket = net.connect({ host: LOCALHOST, port: expectedPort });
+        probeSocket.once('connect', () => {
+          probeSocket?.destroy();
           this.resolveServerUrl(`http://${LOCALHOST}:${expectedPort}`)
             .then(doResolve)
             .catch(doReject);
-        }
+        });
+        probeSocket.once('error', () => {
+          probeSocket?.destroy();
+          if (!settled) {
+            probeTimer = setTimeout(attemptProbe, PROBE_INTERVAL_MS);
+          }
+        });
       };
 
-      onError = (error: Error): void => {
-        doReject(new Error(`Failed to start web server: ${error.message}`));
-      };
-
-      onExit = (code: number | null): void => {
-        if (!serverReady) {
-          doReject(new Error(`Web server exited with code ${code}`));
-        }
-      };
-
-      serverProcess.stdout?.on('data', onStdoutData);
-      serverProcess.stderr?.on('data', onStderrData);
-      serverProcess.on('error', onError);
-      serverProcess.on('exit', onExit);
+      attemptProbe();
     });
-  }
-
-  extractServerUrl(output: string): string | null {
-    const nextLocalMatch = output.match(
-      /(?:Local:|started server on)\s+(?:0\.0\.0\.0|localhost|https?:\/\/(?:0\.0\.0\.0|localhost)):(\d+)/i
-    );
-    if (nextLocalMatch) {
-      return `http://${LOCALHOST}:${nextLocalMatch[1]}`;
-    }
-
-    const viteMatch = output.match(/Local:\s+(http:\/\/localhost:\d+)/i);
-    if (viteMatch) {
-      return viteMatch[1];
-    }
-
-    const genericMatch = output.match(/https?:\/\/(?:localhost|0\.0\.0\.0):(\d+)/i);
-    if (genericMatch) {
-      return `http://${LOCALHOST}:${genericMatch[1]}`;
-    }
-
-    return null;
   }
 
   async resolveServerUrl(detectedUrl: string): Promise<string> {

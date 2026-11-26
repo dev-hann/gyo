@@ -36,13 +36,44 @@ jest.mock('child_process', () => ({
   spawn: jest.fn(),
 }));
 
+jest.mock('net', () => ({
+  connect: jest.fn(),
+}));
+
 import { WebServerService } from '../services/web-server.service';
 import { executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
+import { connect } from 'net';
 import { LOCALHOST, DEFAULT_PORT } from '../core/index';
+import { EventEmitter } from 'events';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
+const mockedConnect = connect as unknown as jest.MockedFunction<typeof connect>;
+
+interface MockSocket extends EventEmitter {
+  destroy: jest.Mock;
+}
+
+function createMockSocket(): MockSocket {
+  const socket = new EventEmitter() as MockSocket;
+  socket.destroy = jest.fn();
+  return socket;
+}
+
+function createMockProcess(): any {
+  const { EventEmitter } = jest.requireActual('events');
+  const mockProcess = new EventEmitter();
+  mockProcess.stdout = new EventEmitter();
+  mockProcess.stderr = new EventEmitter();
+  mockProcess.killed = false;
+  return mockProcess;
+}
+
+function getSpawnedProcess(): any {
+  const { spawn } = jest.requireMock('child_process');
+  return spawn.mock.results[0].value;
+}
 
 describe('WebServerService', () => {
   let service: WebServerService;
@@ -50,51 +81,6 @@ describe('WebServerService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new WebServerService();
-  });
-
-  describe('extractServerUrl', () => {
-    it('should extract URL from Next.js local output', () => {
-      const output = '  Local:        http://0.0.0.0:3000';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:3000`);
-    });
-
-    it('should extract URL from Next.js localhost output', () => {
-      const output = '  Local:   http://localhost:3000';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:3000`);
-    });
-
-    it('should extract URL from "started server on" output', () => {
-      const output = 'started server on 0.0.0.0:8080';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:8080`);
-    });
-
-    it('should extract URL from Vite Local output', () => {
-      const output = '  Local:   http://localhost:5173/';
-      expect(service.extractServerUrl(output)).toBe('http://localhost:5173');
-    });
-
-    it('should extract URL from generic http://localhost output', () => {
-      const output = 'Server ready at http://localhost:4200';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:4200`);
-    });
-
-    it('should extract URL from generic http://0.0.0.0 output', () => {
-      const output = 'Listening on http://0.0.0.0:9000';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:9000`);
-    });
-
-    it('should extract URL from https output', () => {
-      const output = 'Server at https://localhost:443';
-      expect(service.extractServerUrl(output)).toBe(`http://${LOCALHOST}:443`);
-    });
-
-    it('should return null when no URL pattern matches', () => {
-      expect(service.extractServerUrl('no url here')).toBeNull();
-    });
-
-    it('should return null for empty string', () => {
-      expect(service.extractServerUrl('')).toBeNull();
-    });
   });
 
   describe('getLocalIP', () => {
@@ -142,7 +128,7 @@ describe('WebServerService', () => {
       ).rejects.toThrow('Failed to install web dependencies');
     });
 
-    it('should install node_modules when not found', async () => {
+    it('should install node_modules when not found and resolve on port probe', async () => {
       mockedPathExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
       mockedExec.mockResolvedValueOnce({
         success: true,
@@ -151,14 +137,12 @@ describe('WebServerService', () => {
         code: 0,
       });
 
-      const { EventEmitter } = jest.requireActual('events');
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      mockProcess.killed = false;
-
       const { spawn } = jest.requireMock('child_process');
+      const mockProcess = createMockProcess();
       spawn.mockReturnValue(mockProcess);
+
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
 
       const startPromise = service.start({
         webPath: '/project/lib',
@@ -167,11 +151,114 @@ describe('WebServerService', () => {
       });
 
       await new Promise((r) => setImmediate(r));
-      mockProcess.stdout.emit('data', Buffer.from('  Local:   http://localhost:3000\n'));
+      socket.emit('connect');
       const handle = await startPromise;
 
       expect(mockedExec).toHaveBeenCalledWith('npm', ['install'], expect.any(Object));
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
+    });
+
+    it('should spawn the configured start command as-is without framework detection', async () => {
+      const { spawn } = jest.requireMock('child_process');
+      const mockProcess = createMockProcess();
+      spawn.mockReturnValue(mockProcess);
+
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
+
+      const startCommand = 'npm run dev -- --host 0.0.0.0';
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 5173,
+        startCommand,
+      });
+
+      await new Promise((r) => setImmediate(r));
+      socket.emit('connect');
+      await startPromise;
+
+      expect(spawn).toHaveBeenCalledWith(startCommand, [], expect.any(Object));
+      expect(mockedConnect).toHaveBeenCalledWith({ host: LOCALHOST, port: 5173 });
+    });
+
+    it('should remove pre-start cleanup paths when they exist', async () => {
+      const { spawn } = jest.requireMock('child_process');
+      const { remove } = jest.requireMock('fs-extra');
+      const mockProcess = createMockProcess();
+      spawn.mockReturnValue(mockProcess);
+
+      mockedPathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+        preStartCleanup: ['.next/dev/lock'],
+      });
+
+      await new Promise((r) => setImmediate(r));
+      socket.emit('connect');
+      await startPromise;
+
+      expect(remove).toHaveBeenCalledWith('/project/lib/.next/dev/lock');
+    });
+
+    it('should retry the port probe when connection is refused', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+
+      const { spawn } = jest.requireMock('child_process');
+      const mockProcess = createMockProcess();
+      spawn.mockReturnValue(mockProcess);
+
+      const refusedSocket = createMockSocket();
+      const readySocket = createMockSocket();
+      mockedConnect
+        .mockReturnValueOnce(refusedSocket as any)
+        .mockReturnValueOnce(readySocket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+      });
+
+      await new Promise((r) => setImmediate(r));
+      refusedSocket.emit('error', new Error('ECONNREFUSED'));
+
+      jest.advanceTimersByTime(300);
+      await new Promise((r) => setImmediate(r));
+      readySocket.emit('connect');
+
+      const handle = await startPromise;
+
+      expect(mockedConnect).toHaveBeenCalledTimes(2);
+      expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
+      jest.useRealTimers();
+    });
+
+    it('should reject when the server process exits before the port is ready', async () => {
+      const { spawn } = jest.requireMock('child_process');
+      const mockProcess = createMockProcess();
+      spawn.mockReturnValue(mockProcess);
+
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+      });
+
+      await new Promise((r) => setImmediate(r));
+      const proc = getSpawnedProcess();
+      proc.emit('exit', 1);
+
+      await expect(startPromise).rejects.toThrow('Web server exited with code 1');
+      expect(socket.destroy).toHaveBeenCalled();
     });
   });
 });

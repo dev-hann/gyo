@@ -1,16 +1,20 @@
 package {{PACKAGE_NAME}}
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import gyo.plugins.bridge.AndroidBridgeInterface
 import gyo.plugins.bridge.BridgeRegistry
+import {{PACKAGE_NAME}}.BuildConfig
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -41,21 +45,46 @@ class MainActivity : AppCompatActivity() {
             allowUniversalAccessFromFileURLs = false
             mediaPlaybackRequiresUserGesture = false
             
-            // Enable debugging
-            WebView.setWebContentsDebuggingEnabled(true)
+            // Enable debugging only in debug builds
+            if (BuildConfig.DEBUG) {
+                WebView.setWebContentsDebuggingEnabled(true)
+            }
         }
         
         // Initialize BridgeRegistry
         BridgeRegistry.initialize()
         
-        // Add JavaScript interface for bridge system
-        val bridgeInterface = AndroidBridgeInterface(webView)
+        // Add JavaScript interface for bridge system (origin-restricted)
+        val bridgeInterface = AndroidBridgeInterface(webView, gyoConfig.allowedHost)
         webView.addJavascriptInterface(bridgeInterface, "androidBridge")
         
         // Example: Register custom bridges here
         // BridgeRegistry.register("my-custom-bridge", MyCustomBridgeHandler())
         
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): Boolean {
+                val target = request?.url ?: return false
+                val targetHost = target.host ?: return false
+                
+                // Same origin as the configured server: load inside the WebView
+                if (targetHost.equals(gyoConfig.allowedHost, ignoreCase = true)) {
+                    return false
+                }
+                
+                // External origin: never load inside the WebView — the native bridge
+                // must not be reachable from third-party pages. Open externally.
+                Log.w("MainActivity", "Blocking external navigation in WebView: $target")
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, target))
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Could not open external URL: ${e.message}")
+                }
+                return true
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 injectGyoRuntime()
@@ -123,8 +152,18 @@ class MainActivity : AppCompatActivity() {
                 throw IllegalStateException("serverUrl is empty in gyo-config.json")
             }
             
+            val allowedHost = try {
+                Uri.parse(serverUrl).host ?: ""
+            } catch (e: Exception) {
+                ""
+            }
+            if (allowedHost.isEmpty()) {
+                Log.e("MainActivity", "Could not parse host from serverUrl: $serverUrl")
+                throw IllegalStateException("Invalid serverUrl in gyo-config.json: $serverUrl")
+            }
+            
             Log.i("MainActivity", "Loaded config - serverUrl: $serverUrl")
-            return GyoConfig(serverUrl = serverUrl)
+            return GyoConfig(serverUrl = serverUrl, allowedHost = allowedHost)
         } catch (e: Exception) {
             Log.e("MainActivity", "Failed to load gyo-config.json from assets: ${e.message}")
             throw IllegalStateException("gyo-config.json must be present with valid serverUrl. Did you run 'gyo build' or 'gyo run'?", e)
@@ -140,6 +179,7 @@ class MainActivity : AppCompatActivity() {
     }
     
     data class GyoConfig(
-        val serverUrl: String
+        val serverUrl: String,
+        val allowedHost: String
     )
 }

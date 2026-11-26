@@ -4,8 +4,9 @@ import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
-import { getProfileUrl } from '../../services/config.service';
+import { saveConfig } from '../../services/config.service';
 import { BuildFailedError, GyoError } from '../../core/errors';
+import inquirer from 'inquirer';
 
 export interface BuildCommandOptions extends PlatformCommandOptions {
   profile: string;
@@ -13,6 +14,8 @@ export interface BuildCommandOptions extends PlatformCommandOptions {
 }
 
 export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandOptions> {
+  protected serverUrl: string = '';
+
   protected getValidPlatforms(): Platform[] {
     return ['android', 'ios'];
   }
@@ -20,10 +23,67 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
   protected async run(): Promise<void> {
     logger.info(`Building with profile: ${this.options.profile}`);
 
+    this.serverUrl = await this.resolveServerUrl();
+
     await this.buildLibAssets();
 
     this.startSpinner(`Building ${this.platform} app...`);
     await this.buildPlatform();
+  }
+
+  /**
+   * Resolves the server URL for the build:
+   * 1. Use profiles.<profile>.serverUrl from gyo.config.json when set
+   * 2. Otherwise prompt for the deploy URL and save it to the config
+   */
+  protected async resolveServerUrl(): Promise<string> {
+    if (!this.config) {
+      throw new GyoError('Configuration not loaded');
+    }
+
+    const existing = this.config.profiles?.[this.options.profile]?.serverUrl.trim();
+    if (existing) {
+      return existing;
+    }
+
+    if (!process.stdin.isTTY) {
+      const available = this.config.profiles ? Object.keys(this.config.profiles) : [];
+      throw new GyoError(
+        `Profile '${this.options.profile}' has no serverUrl in gyo.config.json. ` +
+          `Set it manually (profiles.${this.options.profile}.serverUrl) and retry. ` +
+          `Available profiles: ${available.length > 0 ? available.join(', ') : 'none'}`
+      );
+    }
+
+    logger.info(
+      `Profile '${this.options.profile}' has no serverUrl configured.` +
+        ' Deploy your web app to a server first, then enter its URL.'
+    );
+
+    const { url } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'url',
+        message: `Deploy URL for profile '${this.options.profile}':`,
+        validate: (value: string) =>
+          /^https?:\/\/.+/.test(value.trim()) || 'URL must start with http:// or https://',
+      },
+    ]);
+
+    const serverUrl = (url as string).trim();
+
+    if (!this.config.profiles) {
+      this.config.profiles = {};
+    }
+    this.config.profiles[this.options.profile] = { serverUrl };
+    await saveConfig(this.config, this.projectPath);
+    logger.info(`Saved profiles.${this.options.profile}.serverUrl to gyo.config.json`);
+
+    return serverUrl;
+  }
+
+  protected getServerUrl(): string {
+    return this.serverUrl;
   }
 
   protected async buildLibAssets(): Promise<void> {
@@ -50,13 +110,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
 
     this.succeedSpinner('Lib assets built successfully');
     logger.verbose(libBuildResult.stdout);
-  }
-
-  protected getServerUrl(): string {
-    if (!this.config) {
-      throw new GyoError('Configuration not loaded');
-    }
-    return getProfileUrl(this.config, this.options.profile);
   }
 
   protected abstract buildPlatform(): Promise<void>;

@@ -38,17 +38,25 @@ jest.mock('../services/config.service', () => ({
   shouldStartLocalServer: jest.fn(),
 }));
 
+jest.mock('inquirer', () => ({
+  prompt: jest.fn(),
+  default: { prompt: jest.fn() },
+}));
+
 import { AbstractBuildCommand } from '../commands/build/AbstractBuildCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../utils/fs';
-import { getProfileUrl } from '../services/config.service';
-import { BuildFailedError } from '../core/index';
+import { saveConfig } from '../services/config.service';
+import inquirer from 'inquirer';
+import { BuildFailedError, GyoError } from '../core/index';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
 const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
+const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
+const mockedPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt>;
 
 class TestableBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -59,8 +67,8 @@ class TestableBuildCommand extends AbstractBuildCommand {
     return this.buildLibAssets();
   }
 
-  public testGetServerUrl(): string {
-    return this.getServerUrl();
+  public async testResolveServerUrl(): Promise<string> {
+    return this.resolveServerUrl();
   }
 
   public testWriteConfigFile(configPath: string, serverUrl: string): Promise<void> {
@@ -121,20 +129,66 @@ describe('AbstractBuildCommand', () => {
     });
   });
 
-  describe('getServerUrl', () => {
-    it('should throw when config not loaded', () => {
+  describe('resolveServerUrl', () => {
+    it('should throw when config not loaded', async () => {
       (command as any).config = null;
 
-      expect(() => command.testGetServerUrl()).toThrow('Configuration not loaded');
+      await expect(command.testResolveServerUrl()).rejects.toThrow('Configuration not loaded');
     });
 
-    it('should return URL from profile', () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+    it('should return URL from profile when configured', async () => {
+      (command as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: { development: { serverUrl: 'https://deploy.example.com' } },
+      };
 
-      const url = command.testGetServerUrl();
+      const url = await command.testResolveServerUrl();
 
-      expect(getProfileUrl).toHaveBeenCalled();
-      expect(url).toBe('http://localhost:3000');
+      expect(url).toBe('https://deploy.example.com');
+      expect(mockedPrompt).not.toHaveBeenCalled();
+      expect(mockedSaveConfig).not.toHaveBeenCalled();
+    });
+
+    it('should prompt for URL when profile has no serverUrl and save it', async () => {
+      const originalIsTTY = process.stdin.isTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+      (command as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: { development: { serverUrl: 'http://localhost:3000' } },
+      };
+      (command as any).options = { profile: 'production', release: false };
+      mockedPrompt.mockResolvedValueOnce({ url: 'https://prod.example.com' });
+
+      const url = await command.testResolveServerUrl();
+
+      expect(mockedPrompt).toHaveBeenCalled();
+      expect(url).toBe('https://prod.example.com');
+      expect((command as any).config.profiles.production.serverUrl).toBe(
+        'https://prod.example.com'
+      );
+      expect(mockedSaveConfig).toHaveBeenCalled();
+
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
+    });
+
+    it('should throw in non-interactive environment when serverUrl is missing', async () => {
+      const originalIsTTY = process.stdin.isTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+      (command as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: {},
+      };
+
+      await expect(command.testResolveServerUrl()).rejects.toThrow(GyoError);
+      expect(mockedPrompt).not.toHaveBeenCalled();
+
+      Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true });
     });
   });
 

@@ -62,6 +62,8 @@ Read the appropriate documents before starting work. Each layer has an index fil
 - TDD: write test → confirm failure → implement → confirm pass → refactor
 - Never commit without passing `npm run verify`
 - Commit message follows Conventional Commits
+- Adding a plugin or command requires updating the layer indexes in the same commit: `plugins/README.md`, `docs/PLUGINS.md`, `docs/CLI.md`, `docs/ARCHITECTURE.md` directory tree, and the root `README.md` structure section
+- The CLI holds no web-framework knowledge: framework-specific behavior must live in project configuration (`gyo.config.json`), not in CLI code
 
 ## Build & Test Commands
 

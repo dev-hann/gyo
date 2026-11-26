@@ -83,9 +83,17 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     // MARK: - WKScriptMessageHandler
     
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "gyoBridge" {
-            bridgeInterface.handleMessage(message.body)
+        guard message.name == "gyoBridge" else { return }
+        
+        // Security: only accept bridge calls from the origin (host) of serverUrl.
+        // Third-party pages loaded into the web view must not reach native handlers.
+        let originHost = message.frameInfo.securityOrigin.host
+        if originHost.isEmpty || originHost.caseInsensitiveCompare(allowedHost ?? "") != .orderedSame {
+            print("[GyoBridge] Rejected bridge call from unauthorized origin: '\(originHost)'")
+            return
         }
+        
+        bridgeInterface.handleMessage(message.body)
     }
     
     // MARK: - WKNavigationDelegate
@@ -94,4 +102,32 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         injectGyoRuntime()
     }
     
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+                 decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        guard let targetHost = navigationAction.request.url?.host else {
+            decisionHandler(.allow)
+            return
+        }
+        
+        // Same origin as the configured server: load inside the web view
+        if let allowed = allowedHost, targetHost.caseInsensitiveCompare(allowed) == .orderedSame {
+            decisionHandler(.allow)
+            return
+        }
+        
+        // External origin: never load inside the web view — the native bridge
+        // must not be reachable from third-party pages. Open externally.
+        if navigationAction.navigationType == .linkActivated || navigationAction.targetFrame == nil,
+           let url = navigationAction.request.url {
+            UIApplication.shared.open(url)
+        }
+        decisionHandler(.cancel)
+    }
+    
+    // MARK: - Helpers
+    
+    private var allowedHost: String? {
+        URL(string: serverUrl)?.host
+    }
+
 }

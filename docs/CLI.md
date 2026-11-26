@@ -12,16 +12,15 @@ npm install -g @gyo-framework/cli
 
 ### `gyo create <project-name>`
 
-Create a new Gyo project.
+Create a new Gyo project: native shells (android/ios), `gyo.config.json`, README. Framework-agnostic — the web application in `lib/` is built by the user.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `-t, --template <template>` | string | prompt | Web framework: `react` or `next` |
 | `-f, --force` | boolean | false | Overwrite existing directory |
 
 ### `gyo run`
 
-Build and run on a connected device with a dev server.
+Run on a connected device. With the `development` profile (default): spawns the dev server via `script.start` in `lib/`, waits for the port (TCP probe), saves the LAN URL back to the profile, then builds/installs/launches the native shell. Other profiles: use the configured `serverUrl` directly.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -32,7 +31,7 @@ Build and run on a connected device with a dev server.
 
 ### `gyo build <platform>`
 
-Build production app. Platform: `android` or `ios`.
+Build the app for `android` or `ios`. Bakes `profiles.<profile>.serverUrl` into native assets. If the profile has no `serverUrl`, prompts for the deploy URL (interactive) and saves it; fails with a clear error in non-interactive environments.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -92,7 +91,8 @@ Upgrade CLI.
 | `platforms.android` | object | no | `{ enabled: boolean, packageName?: string }` |
 | `platforms.ios` | object | no | `{ enabled: boolean, bundleId?: string }` |
 | `webview` | object | no | `{ allowFileAccess, allowUniversalAccessFromFileURLs, userAgent }` |
-| `script.start` | string | no | Dev server start command (e.g. `npm run dev`) |
+| `script.start` | string | no | Dev server start command (e.g. `npm run dev -- --host 0.0.0.0`) |
+| `script.preStartCleanup` | string[] | no | Paths removed in `lib/` before the dev server starts (e.g. stale lock files) |
 
 ## Platform Requirements
 

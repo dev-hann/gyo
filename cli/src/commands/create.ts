@@ -3,22 +3,11 @@ import fs from 'fs-extra';
 import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
-import {
-  ensureDir,
-  copyDir,
-  pathExists,
-  writeFile,
-  readFile,
-  readJson,
-  getTemplatesPath,
-} from '../utils/fs';
-import { executeCommand } from '../utils/exec';
+import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from '../utils/fs';
 import { GyoError, DirectoryExistsError, getErrorMessage } from '../core/index';
-import inquirer from 'inquirer';
 
 interface CreateCommandOptions extends BaseCommandOptions {
   projectName?: string;
-  template: string;
   force?: boolean;
 }
 
@@ -33,46 +22,17 @@ interface PlatformConfig {
   extraSteps?: (platformPath: string, context: PlaceholderContext) => Promise<void>;
 }
 
-interface FrameworkOption {
-  name: string;
-  value: string;
-  scaffoldCommand: string;
-  defaultStartScript: string;
-}
-
-const FRAMEWORK_OPTIONS: FrameworkOption[] = [
-  {
-    name: 'React (Vite)',
-    value: 'react',
-    scaffoldCommand: 'npx -y create-vite@latest . --template react --no-interactive',
-    defaultStartScript: 'npm run dev',
-  },
-  {
-    name: 'Next.js',
-    value: 'next',
-    scaffoldCommand: 'npx -y create-next-app@latest . --skip-install --yes --disable-git',
-    defaultStartScript: 'npm run dev',
-  },
-];
-
 export class CreateCommand extends BaseCommand<CreateCommandOptions> {
   private context!: PlaceholderContext;
   private targetPath!: string;
-  private selectedFramework: string = 'react';
-  private scaffoldCommand: string = '';
-  private detectedStartScript: string = 'npm run dev';
   private validatedName: string = '';
 
   getMeta(): CommandMeta {
     return {
       name: 'create <project-name>',
-      description: 'Create a new gyo project',
+      description: 'Create a new gyo project (native shell + config — bring your own web app)',
       positionalHandler: 'projectName',
       options: [
-        {
-          flags: '-t, --template <template>',
-          description: 'Web framework (react, next). Skips framework prompt.',
-        },
         {
           flags: '-f, --force',
           description: 'Overwrite existing project directory',
@@ -96,8 +56,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
 
       this.context = this.createPlaceholderContext();
 
-      const framework = await this.resolveFramework();
-
       await this.createProjectDirectory();
 
       const platforms = this.getPlatforms();
@@ -109,97 +67,13 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       await this.createProjectFiles();
 
       this.succeedSpinner(`Project structure created.`);
-      await this.scaffoldLib(framework);
+      this.showNextSteps();
     } catch (error) {
       if (error instanceof GyoError) {
         throw error;
       }
       const message = getErrorMessage(error);
       throw new GyoError(message, 1, { cause: error });
-    }
-  }
-
-  private async resolveFramework(): Promise<FrameworkOption> {
-    const templateFlag = this.options.template.toLowerCase().trim();
-    const matched = FRAMEWORK_OPTIONS.find((f) => f.value === templateFlag);
-
-    if (matched) {
-      this.selectedFramework = matched.value;
-      this.scaffoldCommand = matched.scaffoldCommand;
-      this.detectedStartScript = matched.defaultStartScript;
-      return matched;
-    }
-
-    this.stopSpinner();
-
-    const answer = await inquirer.prompt([
-      {
-        type: 'select',
-        name: 'framework',
-        message: 'Select a web framework:',
-        choices: FRAMEWORK_OPTIONS.map((f) => ({ name: f.name, value: f.value })),
-      },
-    ]);
-
-    const selected = FRAMEWORK_OPTIONS.find((f) => f.value === answer.framework);
-    if (!selected) {
-      throw new GyoError(`Unknown framework: ${answer.framework}`);
-    }
-    this.selectedFramework = selected.value;
-    this.scaffoldCommand = selected.scaffoldCommand;
-    this.detectedStartScript = selected.defaultStartScript;
-    this.startSpinner('Creating gyo project...');
-    return selected;
-  }
-
-  private async scaffoldLib(framework: FrameworkOption): Promise<void> {
-    const libPath = path.join(this.targetPath, 'lib');
-
-    this.stopSpinner();
-
-    logger.info(`Scaffolding ${framework.name} in lib/...`);
-    logger.info(`Running: ${this.scaffoldCommand}\n`);
-
-    const result = await executeCommand(this.scaffoldCommand, [], {
-      cwd: libPath,
-      stdio: 'inherit',
-      shell: true,
-    });
-
-    if (!result.success) {
-      logger.error('Framework scaffolding failed.');
-      logger.error('Your project structure was created but lib/ may be incomplete.');
-      logger.info(
-        `Try scaffolding manually: cd ${this.validatedName}/lib && ${this.scaffoldCommand}`
-      );
-      throw new GyoError('Framework scaffolding failed');
-    }
-
-    await this.detectStartScript(libPath);
-    await this.updateConfigStartScript();
-
-    logger.success(`Project "${this.validatedName}" created.`);
-    this.showNextSteps();
-  }
-
-  private async detectStartScript(libPath: string): Promise<void> {
-    const pkgPath = path.join(libPath, 'package.json');
-
-    if (!(await pathExists(pkgPath))) {
-      logger.warn('package.json not found in lib/. Using default start script.');
-      return;
-    }
-
-    try {
-      const pkg = (await readJson(pkgPath)) as { scripts?: Record<string, string> };
-      if (pkg.scripts?.dev) {
-        this.detectedStartScript = 'npm run dev';
-      } else if (pkg.scripts?.start) {
-        this.detectedStartScript = 'npm run start';
-      }
-    } catch (error) {
-      logger.warn('Could not read lib/package.json. Using default start script.');
-      logger.debug(getErrorMessage(error));
     }
   }
 
@@ -293,11 +167,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       configContent = JSON.stringify(this.createDefaultConfigObject(), null, 2);
     }
 
-    configContent = configContent.replace(
-      /"start"\s*:\s*"[^"]*"/,
-      `"start": "${this.detectedStartScript}"`
-    );
-
     await writeFile(configDestPath, configContent);
   }
 
@@ -308,9 +177,6 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
       profiles: {
         development: {
           serverUrl: 'http://localhost:3000',
-        },
-        production: {
-          serverUrl: 'https://your-production-url.com',
         },
       },
       platforms: {
@@ -323,7 +189,7 @@ export class CreateCommand extends BaseCommand<CreateCommandOptions> {
         userAgent: 'gyo-webview/1.0',
       },
       script: {
-        start: this.detectedStartScript,
+        start: 'npm run dev',
       },
     };
   }
@@ -432,14 +298,34 @@ A cross-platform application built with gyo.
 - For Android: Android Studio and Android SDK
 - For iOS: Xcode (macOS only)
 
-### Installation
+## 1. Add your web application
+
+The native shell loads a web app served over HTTP. Put any web application
+(React, Next.js, Vue, Svelte, plain HTML...) in \`lib/\`:
 
 \`\`\`bash
 cd ${projectName}/lib
+npm create vite@latest .        # or any framework of your choice
 npm install
 \`\`\`
 
-## Development
+## 2. Configure the dev server
+
+Edit \`gyo.config.json\`:
+
+- \`script.start\` — command that starts your dev server
+- \`profiles.development.serverUrl\` — the URL your dev server serves on
+
+Your dev server must listen on \`0.0.0.0\` (not just localhost) so the
+device on the same network can reach it, e.g. for Vite:
+
+\`\`\`bash
+npm run dev -- --host 0.0.0.0
+\`\`\`
+
+Set \`script.start\` to the exact command including the host flag.
+
+## 3. Run
 
 \`\`\`bash
 cd ${projectName}
@@ -449,28 +335,25 @@ gyo run
 ## Build
 
 \`\`\`bash
-gyo build android
+gyo build android      # will ask for the deploy URL if not configured
 gyo build ios
 \`\`\`
 
-## Clean
+Deploy your web app to a server, then build with the production profile:
 
 \`\`\`bash
-gyo clean android
-gyo clean all
+gyo build android -p production
 \`\`\`
 
 ## Project Structure
 
 \`\`\`
 ${projectName}/
-├── lib/                # Web application (${this.selectedFramework})
-│   ├── src/
-│   ├── index.html
+├── lib/                # Your web application (any framework)
 │   └── package.json
 ├── android/            # Android native shell
 ├── ios/                # iOS native shell
-└── gyo.config.json
+└── gyo.config.json     # server URL + start script configuration
 \`\`\`
 `;
   }
@@ -496,24 +379,11 @@ ios/*.xcworkspace
 `;
   }
 
-  private async updateConfigStartScript(): Promise<void> {
-    const configPath = path.join(this.targetPath, 'gyo.config.json');
-    if (!(await pathExists(configPath))) return;
-
-    try {
-      let content = await readFile(configPath);
-      content = content.replace(/"start"\s*:\s*"[^"]*"/, `"start": "${this.detectedStartScript}"`);
-      await writeFile(configPath, content);
-    } catch (error) {
-      logger.warn('Could not update start script in gyo.config.json.');
-      logger.debug(getErrorMessage(error));
-    }
-  }
-
   private showNextSteps(): void {
     logger.suggestNextSteps([
       `cd ${this.validatedName}`,
-      `cd lib && npm install`,
+      'Create your web app in lib/ (any framework)',
+      'Set script.start in gyo.config.json',
       'gyo run          # Run on connected device',
     ]);
   }
