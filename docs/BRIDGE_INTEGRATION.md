@@ -57,6 +57,16 @@ BridgeRegistry.register(name: String, handler: BridgeHandler)
 
 > See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeRegistry.kt`
 
+### Scripts
+
+> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeScripts.kt`
+
+### Release Builds
+
+Release builds minify with R8. The `@JavascriptInterface` methods are kept by name.
+
+> See `cli/templates/android/app/proguard-rules.pro`
+
 ### AndroidBridgeInterface
 
 Receives messages from WebView via `@JavascriptInterface`, dispatches to registered handlers.

@@ -5,11 +5,12 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
--keepclassmembers class fqcn.of.javascript.interface.for.webview {
-   public *;
+# The WebView reaches the bridge through the @JavascriptInterface methods
+# by name. AGP's default rules already keep annotated methods; this states
+# the dependency so a change to the defaults cannot silently break the
+# bridge in release builds.
+-keepclassmembers class gyo.plugins.bridge.AndroidBridgeInterface {
+    @android.webkit.JavascriptInterface <methods>;
 }
 
 # Uncomment this to preserve the line number information for
