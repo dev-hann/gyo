@@ -15,6 +15,7 @@
 | [@gyo-framework/screen-reader](./screen-reader/README.md) | 0.1.0 | Screen UI tree reading (Android) |
 | [@gyo-framework/screen-action](./screen-action/README.md) | 0.1.0 | UI automation: tap/type/swipe (Android) |
 | [@gyo-framework/screen-find](./screen-find/README.md) | 0.1.0 | Screen element location (Android) |
+| [@gyo-framework/http](./http/README.md) | 0.1.0 | HTTP requests outside the WebView, with the caller's headers (Android) |
 
 ## Naming Convention
 

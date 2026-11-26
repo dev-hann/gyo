@@ -428,6 +428,56 @@ interface FindResult {
 | `find_by_text` | `{ text, exact }` | `{ elements: ElementInfo[], count: number }` |
 | `find_by_id` | `{ id }` | `{ elements: ElementInfo[], count: number }` |
 
+## @gyo-framework/http
+
+GET requests that run outside the WebView, with the headers the caller chooses (Android). The
+WebView cannot make them itself: CORS hides cross-origin responses, and many servers answer a
+WebView's own user agent or a foreign `Referer` with a redirect or a 403.
+
+### Exports
+
+```typescript
+class Http {
+  constructor()
+  request(request: HttpRequest): Promise<HttpResponse>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+interface HttpRequest {
+  url: string
+  headers?: Record<string, string>
+  // Requests that share a jar name share their cookies, which survive app
+  // restarts. Without a jar no cookie is stored or sent.
+  jar?: string
+}
+
+interface HttpResponse {
+  status: number
+  // Where the answer came from, once redirects were followed
+  url: string
+  // Response headers by lower-case name, without set-cookie
+  headers: Record<string, string>
+  bodyBase64: string
+}
+
+function decodeText(response: HttpResponse, encoding?: string): string
+function base64ToBytes(base64: string): Uint8Array
+```
+
+`request` resolves with whatever status the server answered, 404 and 503 included, and rejects when
+no response arrived at all, such as a timeout or a connection that could not be made. After 60
+seconds without an answer it rejects on its own.
+
+### Native Handler
+
+**Android**: `gyo.plugins.http.HttpBridge` — needs no permission beyond INTERNET, and OkHttp, which
+the Android template includes.
+
+| Method | Input | Output |
+|--------|-------|--------|
+| `request` | `HttpRequest` | `HttpResponse` |
+
 ## Plugin Development Conventions
 
 ### Naming

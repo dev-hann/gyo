@@ -11,6 +11,7 @@
 - Android: full-screen video; `element.requestFullscreen()` was rejected with "Fullscreen is not supported"
 - Android: `version`, `platforms.android.versionCode`, `displayName` and `platforms.android.icon` in gyo.config.json set the app's version, launcher name and icon; `gyo run` and `gyo build` sync them before every build
 - Android: release signing through `android/keystore.properties`, which `gyo build android --release` writes from the `GYO_ANDROID_KEYSTORE_*` variables
+- `@gyo-framework/http` plugin: GET requests that run outside the WebView with the caller's headers. Redirects are followed, the raw body comes back as base64, and requests that name the same `jar` share cookies that survive app restarts
 
 ### Changed
 

@@ -15,7 +15,8 @@
     "plugins/phone-caller",
     "plugins/screen-reader",
     "plugins/screen-action",
-    "plugins/screen-find"
+    "plugins/screen-find",
+    "plugins/http"
   ],
   "scripts": {
     "build": "npm run build:bridge && npm run build:test-utils && npm run build:cli",
