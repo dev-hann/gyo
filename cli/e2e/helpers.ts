@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'child_process';
+import { execFile, execSync, spawn } from 'child_process';
 import * as path from 'path';
 import * as os from 'os';
 import fs from 'fs-extra';
@@ -16,7 +16,10 @@ export interface ExecResult {
   stderr: string;
 }
 
-export async function execCLI(args: string[], options?: { cwd?: string; timeout?: number }): Promise<ExecResult> {
+export async function execCLI(
+  args: string[],
+  options?: { cwd?: string; timeout?: number }
+): Promise<ExecResult> {
   try {
     const { stdout, stderr } = await execFileAsync('node', [CLI_PATH, ...args], {
       cwd: options?.cwd,
@@ -37,16 +40,23 @@ export async function execCLI(args: string[], options?: { cwd?: string; timeout?
   }
 }
 
-export async function exec(cmd: string, options?: { cwd?: string; timeout?: number }): Promise<ExecResult> {
+export async function exec(
+  cmd: string,
+  options?: { cwd?: string; timeout?: number }
+): Promise<ExecResult> {
   const { exec: execCmd } = await import('child_process');
   return new Promise((resolve, reject) => {
-    execCmd(cmd, { cwd: options?.cwd, timeout: options?.timeout ?? 120_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err && (err as { killed?: boolean }).killed) {
-        reject(new Error(`Command timed out: ${cmd}`));
-        return;
+    execCmd(
+      cmd,
+      { cwd: options?.cwd, timeout: options?.timeout ?? 120_000, maxBuffer: 10 * 1024 * 1024 },
+      (err, stdout, stderr) => {
+        if (err && (err as { killed?: boolean }).killed) {
+          reject(new Error(`Command timed out: ${cmd}`));
+          return;
+        }
+        resolve({ exitCode: err ? 1 : 0, stdout: stdout ?? '', stderr: stderr ?? '' });
       }
-      resolve({ exitCode: err ? 1 : 0, stdout: stdout ?? '', stderr: stderr ?? '' });
-    });
+    );
   });
 }
 
@@ -111,7 +121,11 @@ export async function waitForAndroidApp(packageName: string, timeoutMs = 60_000)
   return false;
 }
 
-export function waitForOutput(child: ReturnType<typeof spawn>, pattern: string | RegExp, timeoutMs = 120_000): Promise<string> {
+export function waitForOutput(
+  child: ReturnType<typeof spawn>,
+  pattern: string | RegExp,
+  timeoutMs = 120_000
+): Promise<string> {
   return new Promise((resolve, reject) => {
     let output = '';
     const timer = setTimeout(() => {
@@ -175,16 +189,36 @@ export function getSharedState(): SharedState {
   return sharedState;
 }
 
+/** `it`, or a variant that skips with the reason folded into the test name. */
 function skipIf(condition: boolean, reason: string): jest.It {
-  return condition ? it.skip(reason) : it;
+  if (!condition) return it;
+  const skipped = ((name: string, fn?: jest.ProvidesCallback, timeout?: number) =>
+    it.skip(`${name} — ${reason}`, fn, timeout)) as unknown as jest.It;
+  return skipped;
 }
 
+/**
+ * Skip decisions are made while the test file is being evaluated, before any
+ * hook has run, so the device lookup has to be synchronous here. The shared
+ * state the tests use later is still collected asynchronously in `beforeAll`.
+ */
+function commandSucceeds(command: string): boolean {
+  try {
+    execSync(command, { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const hasAndroidDevice = commandSucceeds('adb shell getprop sys.boot_completed');
+
+const hasIOSDevice = commandSucceeds('xtool devices');
+
 export function itIfAndroid(): jest.It {
-  const state = sharedState;
-  return skipIf(!state?.androidDeviceId, 'No Android device connected');
+  return skipIf(!hasAndroidDevice, 'No Android device connected');
 }
 
 export function itIfIOS(): jest.It {
-  const state = sharedState;
-  return skipIf(!state?.iosDeviceId, 'No iOS device connected');
+  return skipIf(!hasIOSDevice, 'No iOS device connected');
 }
