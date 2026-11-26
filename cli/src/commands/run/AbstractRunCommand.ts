@@ -199,6 +199,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
     process.on('SIGINT', interruptCleanup);
     process.on('SIGTERM', interruptCleanup);
+
+    // Exit handlers must be synchronous. This is the safety net for the paths
+    // that never see a signal — an uncaught exception, a closed output pipe —
+    // which would otherwise leave the detached dev server and the log
+    // process running.
+    process.on('exit', () => this.cleanupSync());
   }
 
   protected async cleanup(): Promise<void> {
@@ -215,14 +221,45 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     await Promise.all(promises);
   }
 
+  /**
+   * Signals a child together with everything it spawned. The dev server is
+   * started detached and leads its own process group, so the negative pid
+   * reaches the shell, the package manager and the server. A child without
+   * its own group, such as the log process, is signalled directly.
+   */
+  private signalProcessTree(proc: ChildProcess, signal: 'SIGTERM' | 'SIGKILL'): void {
+    const pid = proc.pid;
+    if (!pid) {
+      return;
+    }
+
+    const signalOrLog = (signalFn: () => void, description: string): boolean => {
+      try {
+        signalFn();
+        return true;
+      } catch (e) {
+        logger.debug(`Failed to ${description}: ${getErrorMessage(e)}`);
+        return false;
+      }
+    };
+
+    if (!signalOrLog(() => process.kill(-pid, signal), `signal process group ${pid}`)) {
+      signalOrLog(() => proc.kill(signal), `signal process ${pid}`);
+    }
+  }
+
   private killProcessWithTimeout(proc: ChildProcess): Promise<void> {
     return new Promise<void>((resolve) => {
-      proc.once('exit', () => resolve());
-      proc.kill('SIGTERM');
+      let exited = false;
+      proc.once('exit', () => {
+        exited = true;
+        resolve();
+      });
+      this.signalProcessTree(proc, 'SIGTERM');
 
       const killTimeout = setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill('SIGKILL');
+        if (!exited) {
+          this.signalProcessTree(proc, 'SIGKILL');
         }
         resolve();
       }, PROCESS_KILL_TIMEOUT_MS);
@@ -230,34 +267,13 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     });
   }
 
-  private killProcessSync(proc: ChildProcess, name: string): void {
-    const pid = proc.pid;
-    if (!pid) {
-      return;
-    }
-
-    const killProcess = (killFn: () => void, description: string): boolean => {
-      try {
-        killFn();
-        return true;
-      } catch (e) {
-        logger.debug(`Failed to ${description} ${name} process: ${getErrorMessage(e)}`);
-        return false;
-      }
-    };
-
-    if (!killProcess(() => process.kill(-pid, 'SIGKILL'), 'kill process group by PID')) {
-      killProcess(() => proc.kill('SIGKILL'), 'kill process');
-    }
-  }
-
   protected cleanupSync(): void {
     if (this.webServerProcess && !this.webServerProcess.killed) {
-      this.killProcessSync(this.webServerProcess, 'web server');
+      this.signalProcessTree(this.webServerProcess, 'SIGKILL');
     }
 
     if (this.platformProcess && !this.platformProcess.killed) {
-      this.killProcessSync(this.platformProcess, 'platform');
+      this.signalProcessTree(this.platformProcess, 'SIGKILL');
     }
   }
 

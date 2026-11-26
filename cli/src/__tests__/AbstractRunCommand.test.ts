@@ -47,7 +47,7 @@ jest.mock('../services/web-server.service', () => ({
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import { saveConfig } from '../services/config.service';
-import { DEFAULT_PORT } from '../core/index';
+import { DEFAULT_PORT, PROCESS_KILL_TIMEOUT_MS } from '../core/index';
 
 const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
 
@@ -409,6 +409,77 @@ describe('AbstractRunCommand', () => {
       (command as any)['cleanupPlatformOnly']();
 
       expect(mockKill).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setupSignalHandlers', () => {
+    let handlers: Record<string, () => void>;
+
+    beforeEach(() => {
+      handlers = {};
+      jest.spyOn(process, 'on').mockImplementation(((event: string, listener: () => void) => {
+        handlers[event] = listener;
+        return process;
+      }) as typeof process.on);
+      jest.spyOn(process, 'kill').mockImplementation(() => true);
+      command['setupSignalHandlers']();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should clean up on exit, which also covers crashes', () => {
+      expect(handlers.exit).toBeDefined();
+      expect(handlers.SIGINT).toBeDefined();
+      expect(handlers.SIGTERM).toBeDefined();
+
+      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
+      (command as any).platformProcess = { pid: 1002, killed: false, kill: jest.fn() };
+
+      handlers.exit();
+
+      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
+      expect(process.kill).toHaveBeenCalledWith(-1002, 'SIGKILL');
+    });
+
+    it('should fall back to the process itself when it leads no process group', () => {
+      (process.kill as jest.Mock).mockImplementation(() => {
+        throw new Error('ESRCH');
+      });
+      const kill = jest.fn();
+      (command as any).platformProcess = { pid: 1002, killed: false, kill };
+
+      handlers.exit();
+
+      expect(kill).toHaveBeenCalledWith('SIGKILL');
+    });
+  });
+
+  describe('killProcessWithTimeout', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should terminate the whole process group, then kill it when it ignores the signal', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.spyOn(process, 'kill').mockImplementation(() => true);
+      const { EventEmitter } = jest.requireActual('events');
+      const proc = new EventEmitter() as any;
+      proc.pid = 1001;
+      proc.killed = false;
+      proc.kill = jest.fn();
+
+      const promise = (command as any)['killProcessWithTimeout'](proc);
+      await Promise.resolve();
+
+      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGTERM');
+
+      jest.advanceTimersByTime(PROCESS_KILL_TIMEOUT_MS);
+      await promise;
+
+      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
+      jest.useRealTimers();
     });
   });
 
