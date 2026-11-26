@@ -4,7 +4,7 @@ import type { Platform, PlatformCommandOptions } from '../base/index';
 import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
-import { saveConfig, shouldStartLocalServer } from '../../services/config.service';
+import { shouldStartLocalServer } from '../../services/config.service';
 import { WebServerService } from '../../services/web-server.service';
 import {
   ServerStartError,
@@ -134,6 +134,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
   }
 
+  /**
+   * Keeps the detected address for this run only. gyo.config.json is the
+   * user's tracked file: the address is machine specific, and `gyo build`
+   * resolves a `localhost` profile by itself.
+   */
   protected async updateProfileUrl(profile: string, serverUrl: string): Promise<void> {
     if (!this.config) {
       return;
@@ -148,8 +153,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     } else {
       this.config.profiles[profile].serverUrl = serverUrl;
     }
-
-    await saveConfig(this.config, this.projectPath);
   }
 
   protected async startWebServer(webPath: string, port: number): Promise<string> {

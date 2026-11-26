@@ -377,6 +377,7 @@ build/
 local.properties
 android/build/
 android/.gradle/
+android/app/src/main/assets/gyo-config.json
 ios/build/
 ios/Pods/
 ios/*.xcworkspace

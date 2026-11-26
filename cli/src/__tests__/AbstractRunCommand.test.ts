@@ -170,7 +170,6 @@ describe('AbstractRunCommand', () => {
       expect((command as any).config.profiles).toEqual({
         development: { serverUrl: 'http://192.168.1.1:3000' },
       });
-      expect(mockedSaveConfig).toHaveBeenCalled();
     });
 
     it('should update existing profile serverUrl', async () => {
@@ -184,6 +183,14 @@ describe('AbstractRunCommand', () => {
       await command.testUpdateProfileUrl('development', 'http://new:3000');
 
       expect((command as any).config.profiles.development.serverUrl).toBe('http://new:3000');
+    });
+
+    it('should keep the detected address in memory and leave gyo.config.json alone', async () => {
+      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+
+      await command.testUpdateProfileUrl('development', 'http://192.168.1.1:3000');
+
+      expect(mockedSaveConfig).not.toHaveBeenCalled();
     });
 
     it('should do nothing when config is null', async () => {

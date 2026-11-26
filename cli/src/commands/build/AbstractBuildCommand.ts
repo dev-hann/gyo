@@ -4,9 +4,12 @@ import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
 import { pathExists } from '../../utils/fs';
-import { saveConfig } from '../../services/config.service';
+import { saveConfig, shouldStartLocalServer } from '../../services/config.service';
+import { WebServerService } from '../../services/web-server.service';
 import { BuildFailedError, GyoError } from '../../core/errors';
 import inquirer from 'inquirer';
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 export interface BuildCommandOptions extends PlatformCommandOptions {
   profile: string;
@@ -15,6 +18,8 @@ export interface BuildCommandOptions extends PlatformCommandOptions {
 
 export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandOptions> {
   protected serverUrl: string = '';
+
+  protected readonly webServerService = new WebServerService();
 
   protected getValidPlatforms(): Platform[] {
     return ['android', 'ios'];
@@ -43,7 +48,7 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
 
     const existing = this.config.profiles?.[this.options.profile]?.serverUrl.trim();
     if (existing) {
-      return existing;
+      return this.toDeviceUrl(existing);
     }
 
     if (!process.stdin.isTTY) {
@@ -79,7 +84,27 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
     await saveConfig(this.config, this.projectPath);
     logger.info(`Saved profiles.${this.options.profile}.serverUrl to gyo.config.json`);
 
-    return serverUrl;
+    return this.toDeviceUrl(serverUrl);
+  }
+
+  /**
+   * `localhost` reaches the build machine only, and a development build is
+   * installed on a device. Point it at the machine's LAN address instead, as
+   * `gyo run` does. `gyo run` no longer stores that address in the config.
+   */
+  protected async toDeviceUrl(serverUrl: string): Promise<string> {
+    if (!shouldStartLocalServer(this.options.profile)) {
+      return serverUrl;
+    }
+
+    let isLoopback: boolean;
+    try {
+      isLoopback = LOOPBACK_HOSTS.has(new URL(serverUrl).hostname);
+    } catch {
+      isLoopback = false;
+    }
+
+    return isLoopback ? this.webServerService.resolveServerUrl(serverUrl) : serverUrl;
   }
 
   protected getServerUrl(): string {

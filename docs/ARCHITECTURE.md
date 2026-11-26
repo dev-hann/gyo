@@ -59,10 +59,10 @@ BaseCommand
 
 ```
 script.start from gyo.config.json → dev server spawned in lib/
+  → fails before spawning when the port is already in use
   → readiness detected by TCP port probe (profiles.<profile>.serverUrl port)
-  → detected LAN URL saved back to the profile
-Android: gyo-config.json (serverUrl) → gradlew assembleDebug → install → launch → logcat
-iOS:     gyo-config.json (serverUrl) → xtool dev → idevicesyslog
+Android: gyo-config.json (serverUrl = detected LAN URL) → gradlew assembleDebug → install → launch → logcat
+iOS:     gyo-config.json (serverUrl = detected LAN URL) → xtool dev → idevicesyslog
 ```
 
 The dev server must listen on `0.0.0.0` (set the host flag in `script.start`, e.g. `npm run dev -- --host 0.0.0.0`) so devices on the LAN can connect.
@@ -72,10 +72,20 @@ The dev server must listen on `0.0.0.0` (set the host flag in `script.start`, e.
 ```
 Deploy web app to a server
   → profiles.<profile>.serverUrl (prompted once and saved if missing)
+  → a localhost serverUrl in the development profile is replaced by the LAN address
   → gyo-config.json (serverUrl) baked into native assets
 Android: gradlew assembleRelease/Debug → APK
 iOS:     xtool dev → install to device
 ```
+
+### Written Files
+
+| File | Written by | Tracked |
+|------|------------|---------|
+| `gyo.config.json` | `gyo create`, `gyo config set`, the one-time deploy URL prompt | yes |
+| `android/app/src/main/assets/gyo-config.json` | `gyo run`, `gyo build` | no (generated, ignored) |
+
+The detected LAN address is never written to `gyo.config.json`.
 
 ### WebView Security
 

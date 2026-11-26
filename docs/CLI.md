@@ -20,7 +20,7 @@ Create a new Gyo project: native shells (android/ios), `gyo.config.json`, README
 
 ### `gyo run`
 
-Run on a connected device. With the `development` profile (default): spawns the dev server via `script.start` in `lib/`, waits for the port (TCP probe), saves the LAN URL back to the profile, then builds/installs/launches the native shell. Other profiles: use the configured `serverUrl` directly.
+Run on a connected device. With the `development` profile (default): spawns the dev server via `script.start` in `lib/`, waits for the port (TCP probe), bakes the detected LAN URL into the native config asset, then builds/installs/launches the native shell. Other profiles: use the configured `serverUrl` directly. `gyo.config.json` is not modified.
 
 Fails before spawning the dev server when its port is already in use.
 
@@ -33,7 +33,7 @@ Fails before spawning the dev server when its port is already in use.
 
 ### `gyo build <platform>`
 
-Build the app for `android` or `ios`. Bakes `profiles.<profile>.serverUrl` into native assets. If the profile has no `serverUrl`, prompts for the deploy URL (interactive) and saves it; fails with a clear error in non-interactive environments.
+Build the app for `android` or `ios`. Bakes `profiles.<profile>.serverUrl` into native assets; a `localhost` address in the `development` profile is baked as the machine's LAN address. If the profile has no `serverUrl`, prompts for the deploy URL (interactive) and saves it; fails with a clear error in non-interactive environments.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

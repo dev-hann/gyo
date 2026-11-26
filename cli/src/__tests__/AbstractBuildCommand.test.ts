@@ -38,6 +38,10 @@ jest.mock('../services/config.service', () => ({
   shouldStartLocalServer: jest.fn(),
 }));
 
+jest.mock('../services/web-server.service', () => ({
+  WebServerService: jest.fn(),
+}));
+
 jest.mock('inquirer', () => ({
   prompt: jest.fn(),
   default: { prompt: jest.fn() },
@@ -47,7 +51,7 @@ import { AbstractBuildCommand } from '../commands/build/AbstractBuildCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile, ensureDir } from '../utils/fs';
-import { saveConfig } from '../services/config.service';
+import { saveConfig, shouldStartLocalServer } from '../services/config.service';
 import inquirer from 'inquirer';
 import { BuildFailedError, GyoError } from '../core/index';
 
@@ -57,6 +61,9 @@ const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
 const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
 const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
 const mockedPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt>;
+const mockedShouldStartLocalServer = shouldStartLocalServer as jest.MockedFunction<
+  typeof shouldStartLocalServer
+>;
 
 class TestableBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -78,6 +85,17 @@ class TestableBuildCommand extends AbstractBuildCommand {
   protected buildPlatform(): Promise<void> {
     return Promise.resolve();
   }
+}
+
+/** A command whose LAN lookup answers `lanUrl`; the development profile is active. */
+function buildCommandWithLanAddress(lanUrl: string): TestableBuildCommand {
+  const { WebServerService } = jest.requireMock('../services/web-server.service');
+  const resolveServerUrl = jest.fn().mockResolvedValue(lanUrl);
+  WebServerService.mockImplementation(() => ({ resolveServerUrl }));
+  mockedShouldStartLocalServer.mockReturnValue(true);
+  const command = new TestableBuildCommand();
+  (command as any).options = { profile: 'development', release: false };
+  return command;
 }
 
 describe('AbstractBuildCommand', () => {
@@ -149,6 +167,50 @@ describe('AbstractBuildCommand', () => {
       expect(url).toBe('https://deploy.example.com');
       expect(mockedPrompt).not.toHaveBeenCalled();
       expect(mockedSaveConfig).not.toHaveBeenCalled();
+    });
+
+    it('should replace localhost with the LAN address for the development profile', async () => {
+      const local = buildCommandWithLanAddress('http://192.168.1.5:3000');
+      (local as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: { development: { serverUrl: 'http://localhost:3000' } },
+      };
+
+      const url = await local.testResolveServerUrl();
+
+      expect(url).toBe('http://192.168.1.5:3000');
+    });
+
+    it('should keep localhost for profiles that do not start a local server', async () => {
+      const local = buildCommandWithLanAddress('http://192.168.1.5:3000');
+      (local as any).options = { profile: 'production', release: false };
+      (local as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: { production: { serverUrl: 'http://localhost:3000' } },
+      };
+      mockedShouldStartLocalServer.mockReturnValue(false);
+
+      const url = await local.testResolveServerUrl();
+
+      expect(url).toBe('http://localhost:3000');
+    });
+
+    it('should keep a configured host for the development profile', async () => {
+      const local = buildCommandWithLanAddress('http://192.168.1.5:3000');
+      (local as any).config = {
+        name: 'test',
+        version: '1.0.0',
+        platforms: {},
+        profiles: { development: { serverUrl: 'http://10.0.2.2:3000' } },
+      };
+
+      const url = await local.testResolveServerUrl();
+
+      expect(url).toBe('http://10.0.2.2:3000');
     });
 
     it('should prompt for URL when profile has no serverUrl and save it', async () => {

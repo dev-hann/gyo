@@ -20,3 +20,5 @@
 
 - `gyo create` writes a valid Android package name for hyphenated names and names starting with a digit
 - `gyo run` fails before spawning the dev server when its port is already in use
+- `gyo run` no longer writes the detected LAN address into `gyo.config.json`; `gyo build` resolves a `localhost` development profile to the LAN address itself
+- New projects ignore `android/app/src/main/assets/gyo-config.json`, which `gyo run` and `gyo build` generate
