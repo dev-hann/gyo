@@ -75,6 +75,18 @@ function getSpawnedProcess(): any {
   return spawn.mock.results[0].value;
 }
 
+/** The pre-check finds nothing listening, so `start` goes on to spawn. */
+function mockPortFree(): MockSocket {
+  const socket = createMockSocket();
+  mockedConnect.mockReturnValueOnce(socket as any);
+  return socket;
+}
+
+async function refuse(socket: MockSocket): Promise<void> {
+  await new Promise((r) => setImmediate(r));
+  socket.emit('error', new Error('ECONNREFUSED'));
+}
+
 describe('WebServerService', () => {
   let service: WebServerService;
 
@@ -141,6 +153,7 @@ describe('WebServerService', () => {
       const mockProcess = createMockProcess();
       spawn.mockReturnValue(mockProcess);
 
+      const freeSocket = mockPortFree();
       const socket = createMockSocket();
       mockedConnect.mockReturnValueOnce(socket as any);
 
@@ -150,6 +163,7 @@ describe('WebServerService', () => {
         startCommand: 'npm run dev',
       });
 
+      await refuse(freeSocket);
       await new Promise((r) => setImmediate(r));
       socket.emit('connect');
       const handle = await startPromise;
@@ -158,11 +172,31 @@ describe('WebServerService', () => {
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
     });
 
+    it('should reject without spawning when the port is already in use', async () => {
+      const { spawn } = jest.requireMock('child_process');
+      const takenSocket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(takenSocket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+      });
+
+      await new Promise((r) => setImmediate(r));
+      takenSocket.emit('connect');
+
+      await expect(startPromise).rejects.toThrow('already in use');
+      expect(spawn).not.toHaveBeenCalled();
+      expect(takenSocket.destroy).toHaveBeenCalled();
+    });
+
     it('should spawn the configured start command as-is without framework detection', async () => {
       const { spawn } = jest.requireMock('child_process');
       const mockProcess = createMockProcess();
       spawn.mockReturnValue(mockProcess);
 
+      const freeSocket = mockPortFree();
       const socket = createMockSocket();
       mockedConnect.mockReturnValueOnce(socket as any);
 
@@ -173,6 +207,7 @@ describe('WebServerService', () => {
         startCommand,
       });
 
+      await refuse(freeSocket);
       await new Promise((r) => setImmediate(r));
       socket.emit('connect');
       await startPromise;
@@ -189,6 +224,7 @@ describe('WebServerService', () => {
 
       mockedPathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
+      const freeSocket = mockPortFree();
       const socket = createMockSocket();
       mockedConnect.mockReturnValueOnce(socket as any);
 
@@ -199,6 +235,7 @@ describe('WebServerService', () => {
         preStartCleanup: ['.next/dev/lock'],
       });
 
+      await refuse(freeSocket);
       await new Promise((r) => setImmediate(r));
       socket.emit('connect');
       await startPromise;
@@ -213,6 +250,7 @@ describe('WebServerService', () => {
       const mockProcess = createMockProcess();
       spawn.mockReturnValue(mockProcess);
 
+      const freeSocket = mockPortFree();
       const refusedSocket = createMockSocket();
       const readySocket = createMockSocket();
       mockedConnect
@@ -225,8 +263,8 @@ describe('WebServerService', () => {
         startCommand: 'npm run dev',
       });
 
-      await new Promise((r) => setImmediate(r));
-      refusedSocket.emit('error', new Error('ECONNREFUSED'));
+      await refuse(freeSocket);
+      await refuse(refusedSocket);
 
       jest.advanceTimersByTime(300);
       await new Promise((r) => setImmediate(r));
@@ -234,7 +272,7 @@ describe('WebServerService', () => {
 
       const handle = await startPromise;
 
-      expect(mockedConnect).toHaveBeenCalledTimes(2);
+      expect(mockedConnect).toHaveBeenCalledTimes(3);
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
       jest.useRealTimers();
     });
@@ -244,6 +282,7 @@ describe('WebServerService', () => {
       const mockProcess = createMockProcess();
       spawn.mockReturnValue(mockProcess);
 
+      const freeSocket = mockPortFree();
       const socket = createMockSocket();
       mockedConnect.mockReturnValueOnce(socket as any);
 
@@ -253,6 +292,7 @@ describe('WebServerService', () => {
         startCommand: 'npm run dev',
       });
 
+      await refuse(freeSocket);
       await new Promise((r) => setImmediate(r));
       const proc = getSpawnedProcess();
       proc.emit('exit', 1);

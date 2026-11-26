@@ -15,3 +15,8 @@
 - Clean architecture: core, services, utils, commands layers
 - Removed hot reload (WebSocket-based)
 - Removed unused dependencies (chokidar, ws)
+
+### Fixed
+
+- `gyo create` writes a valid Android package name for hyphenated names and names starting with a digit
+- `gyo run` fails before spawning the dev server when its port is already in use

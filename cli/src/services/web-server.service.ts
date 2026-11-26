@@ -35,6 +35,15 @@ export class WebServerService {
     await this.ensureNodeModules(webPath);
     await this.cleanupPaths(webPath, preStartCleanup ?? []);
 
+    // A server already listening here would satisfy the readiness probe, so
+    // the one just spawned could die unnoticed while its output is taken
+    // for a successful start.
+    if (await this.isPortOpen(port)) {
+      throw new ServerStartError(
+        `Port ${port} is already in use. Stop the server on it, or give the profile a serverUrl with a free port.`
+      );
+    }
+
     const serverProcess = spawn(startCommand, [], {
       cwd: webPath,
       stdio: 'pipe',
@@ -45,6 +54,20 @@ export class WebServerService {
     const url = await this.waitForServerReady(serverProcess, port);
 
     return { process: serverProcess, url };
+  }
+
+  private isPortOpen(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = net.connect({ host: LOCALHOST, port });
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once('error', () => {
+        socket.destroy();
+        resolve(false);
+      });
+    });
   }
 
   private async ensureNodeModules(webPath: string): Promise<void> {

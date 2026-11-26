@@ -22,6 +22,8 @@ Create a new Gyo project: native shells (android/ios), `gyo.config.json`, README
 
 Run on a connected device. With the `development` profile (default): spawns the dev server via `script.start` in `lib/`, waits for the port (TCP probe), saves the LAN URL back to the profile, then builds/installs/launches the native shell. Other profiles: use the configured `serverUrl` directly.
 
+Fails before spawning the dev server when its port is already in use.
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `-d, --device <device>` | string | auto | Specific device ID |
