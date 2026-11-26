@@ -30,6 +30,7 @@ dist
 .build/
 **/.build/
 .cache/
+cli/templates/android/.gradle/
 
 # Android build
 android/build/

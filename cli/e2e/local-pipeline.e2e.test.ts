@@ -62,6 +62,12 @@ describe('E2E Local: Project Creation & Build', () => {
     expect(entries).toContain('.gitignore');
   });
 
+  it('should not ship Gradle cache directories from the template', async () => {
+    const { projectDir } = getSharedState();
+
+    expect(await fs.pathExists(path.join(projectDir, 'android/.gradle'))).toBe(false);
+  });
+
   it('should have valid gyo.config.json', async () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));
