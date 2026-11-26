@@ -67,7 +67,7 @@ iOS:     gyo-config.json (serverUrl = detected LAN URL) → xtool dev → idevic
 
 The dev server must listen on `0.0.0.0` (set the host flag in `script.start`, e.g. `npm run dev -- --host 0.0.0.0`) so devices on the LAN can connect.
 
-On `Ctrl+C`, `SIGTERM` and any other exit of the CLI, the dev server's process group and the log process are killed.
+The dev server's process group and the log process are killed on `Ctrl+C`, on `SIGTERM`, on any other exit of the CLI, and when the process that launched the CLI goes away.
 
 ### Production (`gyo build`)
 

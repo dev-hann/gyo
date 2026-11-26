@@ -1,11 +1,18 @@
 import {
   DEFAULT_PORT,
+  PARENT_WATCH_INTERVAL_MS,
   WEB_SERVER_TIMEOUT_MS,
   PROCESS_KILL_TIMEOUT_MS,
   LOCALHOST,
 } from '../core/constants';
 
 describe('constants', () => {
+  describe('PARENT_WATCH_INTERVAL_MS', () => {
+    it('should be 1000', () => {
+      expect(PARENT_WATCH_INTERVAL_MS).toBe(1000);
+    });
+  });
+
   describe('DEFAULT_PORT', () => {
     it('should be 3000', () => {
       expect(DEFAULT_PORT).toBe(3000);

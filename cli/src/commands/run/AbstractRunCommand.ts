@@ -10,6 +10,7 @@ import {
   ServerStartError,
   GyoError,
   DEFAULT_PORT,
+  PARENT_WATCH_INTERVAL_MS,
   PROCESS_KILL_TIMEOUT_MS,
   getErrorMessage,
 } from '../../core/index';
@@ -20,11 +21,23 @@ export interface RunCommandOptions extends PlatformCommandOptions {
   port?: number;
 }
 
+/** Signal 0 only probes: it tells whether `pid` exists without touching it. */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM: the process exists but belongs to another user.
+    return (error as { code?: string }).code === 'EPERM';
+  }
+}
+
 export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptions> {
   protected webServerProcess: ChildProcess | null = null;
   protected platformProcess: ChildProcess | null = null;
   protected serverUrl: string = '';
   protected isCleaningUp: boolean = false;
+  private parentWatch: ReturnType<typeof setInterval> | null = null;
 
   protected readonly webServerService = new WebServerService();
 
@@ -192,6 +205,10 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       }
       this.isCleaningUp = true;
 
+      if (this.parentWatch) {
+        clearInterval(this.parentWatch);
+        this.parentWatch = null;
+      }
       this.cleanupSync();
 
       process.exit(0);
@@ -201,10 +218,22 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     process.on('SIGTERM', interruptCleanup);
 
     // Exit handlers must be synchronous. This is the safety net for the paths
-    // that never see a signal — an uncaught exception, a closed output pipe —
+    // that never see a signal — an uncaught exception, an explicit exit —
     // which would otherwise leave the detached dev server and the log
     // process running.
     process.on('exit', () => this.cleanupSync());
+
+    // The CLI is usually launched through something else: a shell, a task
+    // runner, a version manager. When that launcher dies, the signal may never
+    // reach this process, which then keeps the dev server and the log process
+    // alive as orphans. Follow the launcher instead of waiting for a signal.
+    const launcherPid = process.ppid;
+    this.parentWatch = setInterval(() => {
+      if (!isProcessAlive(launcherPid)) {
+        interruptCleanup();
+      }
+    }, PARENT_WATCH_INTERVAL_MS);
+    this.parentWatch.unref();
   }
 
   protected async cleanup(): Promise<void> {

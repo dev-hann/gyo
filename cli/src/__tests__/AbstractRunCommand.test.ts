@@ -47,7 +47,7 @@ jest.mock('../services/web-server.service', () => ({
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import { saveConfig } from '../services/config.service';
-import { DEFAULT_PORT, PROCESS_KILL_TIMEOUT_MS } from '../core/index';
+import { DEFAULT_PORT, PARENT_WATCH_INTERVAL_MS, PROCESS_KILL_TIMEOUT_MS } from '../core/index';
 
 const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
 
@@ -453,6 +453,56 @@ describe('AbstractRunCommand', () => {
       handlers.exit();
 
       expect(kill).toHaveBeenCalledWith('SIGKILL');
+    });
+  });
+
+  describe('launcher watch', () => {
+    let exit: jest.SpyInstance;
+
+    /** `process.kill(pid, 0)` answers for the launcher: alive, or gone. */
+    function launcherState(state: 'alive' | 'gone'): void {
+      (process.kill as jest.Mock).mockImplementation((_pid: number, signal?: number | string) => {
+        if (signal === 0 && state === 'gone') {
+          throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
+        }
+        return true;
+      });
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      jest.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
+      jest.spyOn(process, 'kill').mockImplementation(() => true);
+      exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+      command['setupSignalHandlers']();
+      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
+    });
+
+    afterEach(() => {
+      clearInterval((command as any).parentWatch);
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('should keep running while the launcher is alive', () => {
+      launcherState('alive');
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS * 3);
+
+      expect(exit).not.toHaveBeenCalled();
+      expect(process.kill).not.toHaveBeenCalledWith(-1001, 'SIGKILL');
+    });
+
+    it('should shut down once the launcher is gone', () => {
+      launcherState('gone');
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS);
+
+      expect(process.kill).toHaveBeenCalledWith(process.ppid, 0);
+      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
+      expect(exit).toHaveBeenCalledWith(0);
+    });
+
+    it('should check the launcher often enough to matter', () => {
+      expect(PARENT_WATCH_INTERVAL_MS).toBeLessThanOrEqual(1000);
     });
   });
 

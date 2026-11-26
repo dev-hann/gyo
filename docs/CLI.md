@@ -24,6 +24,8 @@ Run on a connected device. With the `development` profile (default): spawns the 
 
 Fails before spawning the dev server when its port is already in use.
 
+Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, and when the process that launched it goes away.
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `-d, --device <device>` | string | auto | Specific device ID |
