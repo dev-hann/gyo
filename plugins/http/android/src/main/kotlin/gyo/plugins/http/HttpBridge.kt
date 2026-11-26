@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Base64
 import android.util.Log
 import gyo.plugins.bridge.BridgeHandler
-import okhttp3.JavaNetCookieJar
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -50,7 +49,7 @@ class HttpBridge(context: Context) : BridgeHandler {
         val requestClient = if (jar.isEmpty()) {
             client
         } else {
-            client.newBuilder().cookieJar(JavaNetCookieJar.create(jars.named(jar))).build()
+            client.newBuilder().cookieJar(CookieJarOf(jars.named(jar))).build()
         }
 
         requestClient.newCall(builder.build()).execute().use { response ->
@@ -64,7 +63,7 @@ class HttpBridge(context: Context) : BridgeHandler {
                 .put("status", response.code)
                 .put("url", response.request.url.toString())
                 .put("headers", headers)
-                .put("bodyBase64", Base64.encodeToString(response.body.bytes(), Base64.NO_WRAP))
+                .put("bodyBase64", Base64.encodeToString(response.body?.bytes() ?: ByteArray(0), Base64.NO_WRAP))
         }
     }
 

@@ -7,6 +7,9 @@ import org.json.JSONObject
 import java.net.CookieHandler
 import java.net.CookieManager
 import java.net.URI
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 
 /**
  * Cookie jars that outlive the process, one per name.
@@ -21,15 +24,33 @@ internal class CookieJars(context: Context) {
 }
 
 /**
- * The cookie handling of the platform CookieManager, made to survive process
- * death.
+ * Hands OkHttp's cookies to a CookieHandler, the way OkHttp's own JavaNetCookieJar does. That
+ * class ships in the okhttp-urlconnection module, which the app does not have.
+ */
+internal class CookieJarOf(private val handler: CookieHandler) : CookieJar {
+
+    override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        handler.put(URI(url.toString()), mapOf("Set-Cookie" to cookies.map { it.toString() }))
+    }
+
+    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        val uri = URI(url.toString())
+        val header = handler.get(uri, mapOf("Cookie" to emptyList<String>()))["Cookie"]
+            ?: return emptyList()
+        return header.mapNotNull { Cookie.parse(url, it) }
+    }
+}
+
+/**
+ * The cookie handling of the platform CookieManager, made to survive process death: servers that
+ * tie a session to a cookie refuse a client that drops it, such as a community answering a detail
+ * page with a 503.
  *
- * The manager parses and matches cookies but forgets them with the process,
- * so every Set-Cookie header it receives is also written to SharedPreferences
- * in place of the header that defined the same cookie. The next time the jar
- * opens, the stored headers are fed to a fresh manager as they arrived. A
- * header whose cookie has expired since is dropped there, so only live and
- * session cookies return.
+ * The manager parses and matches cookies but forgets them with the process, so every Set-Cookie
+ * header it receives is also written to SharedPreferences in place of the header that defined the
+ * same cookie. The next time the jar opens, the stored headers are fed to a fresh manager as they
+ * arrived. A header whose cookie has expired since is dropped there, so only live and session
+ * cookies return.
  */
 private class PersistedCookies(
     private val history: SharedPreferences,
@@ -41,7 +62,7 @@ private class PersistedCookies(
         val stored = entries()
         for (i in 0 until stored.length()) {
             val entry = stored.getJSONObject(i)
-            replay(URI.create(entry.getString("url")), entry.getString("header"))
+            manager.put(URI.create(entry.getString("url")), mapOf("Set-Cookie" to listOf(entry.getString("header"))))
         }
     }
 
@@ -54,10 +75,6 @@ private class PersistedCookies(
     override fun put(uri: URI, responseHeaders: Map<String, List<String>>) {
         manager.put(uri, responseHeaders)
         responseHeaders["Set-Cookie"]?.forEach { record(uri, it) }
-    }
-
-    private fun replay(uri: URI, header: String) {
-        manager.put(uri, mapOf("Set-Cookie" to listOf(header)))
     }
 
     private fun record(uri: URI, header: String) {
@@ -79,8 +96,8 @@ private class PersistedCookies(
 
     private companion object {
         /**
-         * Which cookie a Set-Cookie header defines. Hosts and domains ignore
-         * case; names and paths do not.
+         * Which cookie a Set-Cookie header defines. Hosts and domains ignore case; names and
+         * paths do not.
          */
         fun keyOf(uri: URI, header: String): String {
             val name = header.substringBefore(';').substringBefore('=').trim()
