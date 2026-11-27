@@ -49,7 +49,7 @@ export class InstallCommand extends BaseCommand<InstallCommandOptions> {
 
     if (plugins.length === 0) {
       this.succeedSpinner('No Gyo plugins found in lib/node_modules/');
-      logger.info('Install plugins with: cd lib && npm install @gyo-framework/<name>');
+      logger.info('Install plugins with: cd lib && npm install @gyo-community/<name>');
       return;
     }
 

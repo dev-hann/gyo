@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import fs from 'fs-extra';
 import { InstallCommand } from '../commands/install';
+import { logger } from '../utils/logger';
 import {
   APP_LAUNCHER_HANDLER,
   COMMUNICATION_HANDLER,
@@ -71,6 +72,14 @@ describe('InstallCommand', () => {
     process.chdir(os.tmpdir());
 
     await expect(install()).rejects.toThrow('Not a gyo project');
+  });
+
+  it('should point at the scope the plugins are published under when none is installed', async () => {
+    await install();
+
+    expect(logger.info).toHaveBeenCalledWith(
+      'Install plugins with: cd lib && npm install @gyo-community/<name>'
+    );
   });
 
   it('should include a plugin as a Gradle module and register it', async () => {

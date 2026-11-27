@@ -85,4 +85,5 @@
 - `gyo run` connected the dev server's output to a pipe nobody read. A server that printed more than a pipe holds waited for that write for good. Its output is not connected any more; what it prints on stderr still is
 - `@gyo-community/accessibility`: `ScreenAction.tap()` and `swipe()` resolved to `true` whenever nothing was thrown, whether the system had taken the gesture or not. They resolve to `false` when it did not, and `Accessibility.openSettings()` is typed with the `error` the native side returns when it could not open the settings
 - `@gyo-community/notifications`: `NotificationListener.openSettings()` is typed with the `error` the native side returns when it could not open the settings
+- `gyo install` told a project with no plugin to install `@gyo-framework/<name>`. Plugins are published under `@gyo-community`
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later
