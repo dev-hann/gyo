@@ -350,6 +350,32 @@ describe('IOSRunCommand', () => {
   });
 
   describe('bundle ID', () => {
+    // What a developer may write by hand; YAML reads each as the same value.
+    it.each([
+      ['a quoted bundleID', 'bundleID: "com.example.app"\n', 'com.example.app'],
+      [
+        'a bundleID with a trailing comment',
+        'bundleID: com.example.app # released\n',
+        'com.example.app',
+      ],
+      [
+        'a commented-out bundleID above the real one',
+        '# bundleID: com.example.old\nbundleID: com.example.new\n',
+        'com.example.new',
+      ],
+    ])('should use the YAML value with $name', async (_name, xtoolYml, expected) => {
+      await fs.writeFile(project.ios('xtool.yml'), xtoolYml);
+      const { run, search, logProcess } = await runSearchingSyslog();
+      search.emit('exit', 0);
+      await endRun(run, await logProcess());
+
+      expect(mockedSpawn).toHaveBeenLastCalledWith(
+        'idevicesyslog',
+        ['-m', expected],
+        LOG_PROCESS_OPTIONS
+      );
+    });
+
     it('should use the bundle ID of the xtool.yml gyo create wrote', async () => {
       // Arrange: nothing else names the app, so the syslog search is ended empty
       const { run, search, logProcess } = await runSearchingSyslog();

@@ -10,6 +10,25 @@ import { showXtoolError } from '../xtool-output';
 
 const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
 
+/**
+ * The value of a top-level `key` in a YAML file of plain `key: value`
+ * lines, as YAML reads it: quotes and a trailing comment are not part of
+ * the value, and a commented-out line says nothing. Empty when nothing
+ * follows the key on its line, as for a nested mapping.
+ */
+function plainScalar(content: string, key: string): string | undefined {
+  const startsTheKey = new RegExp(`^${key}\\s*:`);
+  const line = content.split(/\r?\n/).find((entry) => startsTheKey.test(entry));
+  if (line === undefined) {
+    return undefined;
+  }
+  const value = line
+    .replace(new RegExp(`^${key}\\s*:\\s*`), '')
+    .replace(/\s+#.*$/, '')
+    .trim();
+  return value.replace(/^(['"])(.*)\1$/, '$2');
+}
+
 export class IOSRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
     return { name: 'run-ios', description: 'Run iOS app' };
@@ -54,21 +73,19 @@ export class IOSRunCommand extends AbstractRunCommand {
 
       const content = await readFile(xtoolYmlPath);
 
-      if (content.includes('bundleID:') && content.match(/bundleID:\s*\n\s+/)) {
+      const value = plainScalar(content, 'bundleID');
+      if (value === undefined) {
+        logger.error('bundleID not found in xtool.yml');
+        logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
+        throw new BuildFailedError('bundleID not found in xtool.yml');
+      }
+      if (value === '') {
         logger.error('Invalid xtool.yml: bundleID should be a string value, not a mapping');
         logger.error('Expected format: bundleID: com.example.app');
         logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
         throw new BuildFailedError('Invalid xtool.yml: bundleID should be a string value');
       }
-
-      const match = content.match(/bundleID:\s*(.+)/);
-      if (!match) {
-        logger.error('bundleID not found in xtool.yml');
-        logger.error(`Check your xtool.yml file at: ${xtoolYmlPath}`);
-        throw new BuildFailedError('bundleID not found in xtool.yml');
-      }
-
-      const bundleId = match[1].trim();
+      const bundleId = value;
       if (bundleId.startsWith('{{') || bundleId.includes('{{')) {
         logger.error(`bundleID contains template variable: ${bundleId}`);
         logger.error('Template variables should have been replaced during project creation');
@@ -113,6 +130,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     }
 
     if (fullBundleId === bundleId) {
+      // The project's part may hold an underscore: `demo-app` becomes `com.example.demo_app`.
       match = combinedOutput.match(/(XTL-[A-Z0-9]+\.[a-z0-9._]+)/i);
       if (
         match &&

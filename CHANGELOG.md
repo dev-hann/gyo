@@ -59,4 +59,5 @@
 - `gyo run` reported success while the dev server listened on localhost only, and the device could not reach it. It now says that the device will not reach the server and how to start it on every interface
 - `gyo clean ios` left `.build`, where SwiftPM keeps the build, and could report success after a failed removal
 - `gyo run` on Android installed the app and did not launch it. The package name is read from a build file written for Android Gradle Plugin 9, `applicationId = "..."`, as well as from an older one
+- `gyo run` on iOS searched the device's syslog for the app instead of following the bundle ID xtool had printed, when the project name has a hyphen or starts with a digit: `demo-app` becomes `com.example.demo_app`, and the underscore was not looked for
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later
