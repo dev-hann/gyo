@@ -6,12 +6,16 @@ import type {
   BridgeInterceptor,
 } from './types';
 
+/** A call native has not answered yet. `release` drops its timeout. */
+interface PendingCall {
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+  release: () => void;
+}
+
 export class Bridge {
   private static instances: Bridge[] = [];
-  private static callbackMap: Map<
-    string,
-    { resolve: (value: unknown) => void; reject: (reason: unknown) => void }
-  > = new Map();
+  private static callbackMap: Map<string, PendingCall> = new Map();
 
   private name: string;
   private timeout: number;
@@ -37,15 +41,12 @@ export class Bridge {
     }
   }
 
-  private static findCallback(callbackId: string):
-    | {
-        resolve: (value: unknown) => void;
-        reject: (reason: unknown) => void;
-      }
-    | undefined {
+  /** Takes the call out of the pending set, so it can be settled exactly once. */
+  private static takeCallback(callbackId: string): PendingCall | undefined {
     const pending = Bridge.callbackMap.get(callbackId);
     if (pending) {
       Bridge.callbackMap.delete(callbackId);
+      pending.release();
     }
     return pending;
   }
@@ -54,12 +55,10 @@ export class Bridge {
     if (!window.gyoBridge) {
       window.gyoBridge = {
         resolve: (callbackId: string, data: unknown) => {
-          const pending = Bridge.findCallback(callbackId);
-          pending?.resolve(data);
+          Bridge.takeCallback(callbackId)?.resolve(data);
         },
         reject: (callbackId: string, error: string) => {
-          const pending = Bridge.findCallback(callbackId);
-          pending?.reject(new Error(error));
+          Bridge.takeCallback(callbackId)?.reject(new Error(error));
         },
         publish: (bridgeName: string, data: unknown) => {
           for (const instance of Bridge.instances) {
@@ -114,26 +113,28 @@ export class Bridge {
     if (this.destroyed) {
       return Promise.reject(new Error('Bridge has been destroyed'));
     }
-    return new Promise((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       const callbackId = this.generateCallbackId();
-
-      this.pendingCallbackIds.add(callbackId);
-      Bridge.callbackMap.set(callbackId, {
-        resolve: resolve as (value: unknown) => void,
-        reject: reject as (reason: unknown) => void,
-      });
 
       const timer = setTimeout(() => {
         this.activeTimers.delete(timer);
-        if (this.pendingCallbackIds.has(callbackId)) {
-          this.pendingCallbackIds.delete(callbackId);
-          Bridge.callbackMap.delete(callbackId);
-          const error = new Error(`Bridge method '${method}' timed out after ${this.timeout}ms`);
-          this.runOnError({ bridgeName: this.name, methodName: method, data, callbackId }, error);
-          reject(error);
-        }
+        this.fail(
+          { bridgeName: this.name, methodName: method, data, callbackId },
+          new Error(`Bridge method '${method}' timed out after ${this.timeout}ms`)
+        );
       }, this.timeout);
       this.activeTimers.add(timer);
+      this.pendingCallbackIds.add(callbackId);
+
+      Bridge.callbackMap.set(callbackId, {
+        resolve: resolve as (value: unknown) => void,
+        reject: reject as (reason: unknown) => void,
+        release: () => {
+          clearTimeout(timer);
+          this.activeTimers.delete(timer);
+          this.pendingCallbackIds.delete(callbackId);
+        },
+      });
 
       const request: BridgeRequest = {
         bridgeName: this.name,
@@ -147,16 +148,11 @@ export class Bridge {
           try {
             this.sendToNative(finalRequest);
           } catch (error) {
-            this.pendingCallbackIds.delete(callbackId);
-            Bridge.callbackMap.delete(callbackId);
-            this.runOnError(finalRequest, error as Error);
-            reject(error);
+            this.fail(finalRequest, error as Error);
           }
         })
         .catch((error) => {
-          this.pendingCallbackIds.delete(callbackId);
-          Bridge.callbackMap.delete(callbackId);
-          reject(error);
+          Bridge.takeCallback(callbackId)?.reject(error);
         });
     });
   }
@@ -174,6 +170,19 @@ export class Bridge {
 
   public isAvailable(): boolean {
     return !this.destroyed && !!(window.androidBridge || window.webkit?.messageHandlers?.gyoBridge);
+  }
+
+  /**
+   * Rejects a call that can no longer succeed and tells the interceptors.
+   * Does nothing once native has answered.
+   */
+  private fail(request: BridgeRequest, error: Error): void {
+    const pending = Bridge.takeCallback(request.callbackId);
+    if (!pending) {
+      return;
+    }
+    this.runOnError(request, error);
+    pending.reject(error);
   }
 
   private runOnError(request: BridgeRequest, error: Error): void {
@@ -199,8 +208,11 @@ export class Bridge {
     }
     this.activeTimers.clear();
 
+    // Nothing will answer these calls any more: settle them instead of
+    // leaving the caller waiting.
+    const destroyedError = new Error('Bridge has been destroyed');
     for (const id of this.pendingCallbackIds) {
-      Bridge.callbackMap.delete(id);
+      Bridge.takeCallback(id)?.reject(destroyedError);
     }
     this.pendingCallbackIds.clear();
 

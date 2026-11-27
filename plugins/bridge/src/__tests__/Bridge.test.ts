@@ -178,8 +178,8 @@ describe('Bridge', () => {
     it('should generate unique callback IDs', async () => {
       window.androidBridge = { postMessage: jest.fn() };
 
-      bridge.invoke('method1');
-      bridge.invoke('method2');
+      const first = bridge.invoke('method1');
+      const second = bridge.invoke('method2');
 
       await Promise.resolve();
 
@@ -188,6 +188,10 @@ describe('Bridge', () => {
       const id2 = JSON.parse(calls[1][0]).callbackId;
 
       expect(id1).not.toBe(id2);
+
+      window.gyoBridge!.resolve(id1, null);
+      window.gyoBridge!.resolve(id2, null);
+      await Promise.all([first, second]);
     });
 
     it('should prefer Android bridge over iOS bridge', async () => {
@@ -268,6 +272,62 @@ describe('Bridge', () => {
       interceptBridge.destroy();
       jest.useRealTimers();
     });
+
+    it('should not report a timeout after the native side resolved', async () => {
+      const onError = jest.fn();
+      const settledBridge = new Bridge('resolved-test', {
+        timeout: 50,
+        interceptors: [{ onError }],
+      });
+      window.androidBridge = { postMessage: jest.fn() };
+
+      jest.useFakeTimers();
+
+      const promise = settledBridge.invoke('fastMethod');
+
+      await Promise.resolve();
+      const { callbackId } = JSON.parse(
+        (window.androidBridge!.postMessage as jest.Mock).mock.calls[0][0]
+      );
+      window.gyoBridge!.resolve(callbackId, 'ok');
+
+      jest.advanceTimersByTime(100);
+      await Promise.resolve();
+
+      await expect(promise).resolves.toBe('ok');
+      expect(onError).not.toHaveBeenCalled();
+
+      settledBridge.destroy();
+      jest.useRealTimers();
+    });
+
+    it('should not report a timeout after the native side rejected', async () => {
+      const onError = jest.fn();
+      const settledBridge = new Bridge('rejected-test', {
+        timeout: 50,
+        interceptors: [{ onError }],
+      });
+      window.androidBridge = { postMessage: jest.fn() };
+
+      jest.useFakeTimers();
+
+      const promise = settledBridge.invoke('badMethod');
+
+      await Promise.resolve();
+      const { callbackId } = JSON.parse(
+        (window.androidBridge!.postMessage as jest.Mock).mock.calls[0][0]
+      );
+      window.gyoBridge!.reject(callbackId, 'Bridge not found');
+
+      jest.advanceTimersByTime(100);
+      await Promise.resolve();
+
+      await expect(promise).rejects.toThrow('Bridge not found');
+      expect(onError).not.toHaveBeenCalled();
+
+      settledBridge.destroy();
+      jest.useRealTimers();
+    });
   });
 
   describe('listen', () => {
@@ -338,7 +398,7 @@ describe('Bridge', () => {
   });
 
   describe('destroy', () => {
-    it('should clear all pending callbacks so late resolve is ignored', async () => {
+    it('should reject the pending calls and ignore their late resolve', async () => {
       window.androidBridge = { postMessage: jest.fn() };
 
       const invokePromise = bridge.invoke('pendingMethod');
@@ -351,23 +411,9 @@ describe('Bridge', () => {
 
       bridge.destroy();
 
+      await expect(invokePromise).rejects.toThrow('Bridge has been destroyed');
+
       window.gyoBridge!.resolve(sentMessage.callbackId, 'late-response');
-
-      let resolved = false;
-      let rejected = false;
-      invokePromise.then(
-        () => {
-          resolved = true;
-        },
-        () => {
-          rejected = true;
-        }
-      );
-
-      await Promise.resolve();
-
-      expect(resolved).toBe(false);
-      expect(rejected).toBe(false);
     });
 
     it('should clear all event listeners', () => {

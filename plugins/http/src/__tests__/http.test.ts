@@ -82,9 +82,12 @@ describe('Http', () => {
     it('should send the url alone when no headers or jar are given', async () => {
       window.androidBridge = { postMessage };
 
-      http.request({ url: 'https://example.com/' });
+      const pending = http.request({ url: 'https://example.com/' });
       const sent = await postedMessage(postMessage);
+      const native = response('');
+      window.gyoBridge?.resolve(sent.callbackId, native);
 
+      await expect(pending).resolves.toEqual(native);
       expect(sent.data).toEqual({ url: 'https://example.com/' });
     });
 
