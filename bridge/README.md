@@ -69,8 +69,8 @@ afterEach(() => mock.restore());
 | `restore()` | Removes the native object, so that the next test starts clean |
 | `setPlatform(platform)`, `cleanupPlatform()` | Put the native object of `android`, `ios` or neither (`none`) on `window`, without recording anything |
 
-> See [docs/TESTING.md](../../docs/TESTING.md) for how a test of the CLI uses them.
+> See [docs/TESTING.md](../docs/TESTING.md) for how a test of the CLI uses them.
 
 ## Native Integration
 
-> See [docs/BRIDGE_INTEGRATION.md](../../docs/BRIDGE_INTEGRATION.md) for Android/iOS integration specs.
+> See [docs/BRIDGE_INTEGRATION.md](../docs/BRIDGE_INTEGRATION.md) for Android/iOS integration specs.

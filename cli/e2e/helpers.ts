@@ -8,7 +8,7 @@ const execFileAsync = promisify(execFile);
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const CLI_PATH = path.join(ROOT_DIR, 'cli/dist/index.js');
-const BRIDGE_PATH = path.join(ROOT_DIR, 'plugins/bridge');
+const BRIDGE_PATH = path.join(ROOT_DIR, 'bridge');
 
 export interface ExecResult {
   exitCode: number;

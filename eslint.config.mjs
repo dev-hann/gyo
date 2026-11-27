@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Every TypeScript source in the repository, CLI and plugins alike. Each
 // file is type-checked through the tsconfig nearest to it.
-const sources = ['cli/src/**/*.ts', 'plugins/*/src/**/*.ts'];
+const sources = ['cli/src/**/*.ts', 'bridge/src/**/*.ts', 'plugins/*/src/**/*.ts'];
 // Tests and what they share, such as the helpers under `__tests__/helpers/`.
 const tests = ['**/src/**/__tests__/**/*.ts'];
 
@@ -57,7 +57,7 @@ export default [
   },
   {
     // The testing entry hands out jest mocks to the app that tests against the bridge.
-    files: ['plugins/bridge/src/testing/**/*.ts'],
+    files: ['bridge/src/testing/**/*.ts'],
     ignores: tests,
     languageOptions: { globals: { jest: 'readonly' } },
   },

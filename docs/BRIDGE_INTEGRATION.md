@@ -86,7 +86,7 @@ The handlers of installed plugins are registered by `PluginRegistry.kt` in the a
 The app's `MainActivity` registers it in every project. Only a permission the app declares in its manifest can be granted; for any other the system denies the request without prompting.
 
 > See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/PermissionBridge.kt`
-> See `plugins/bridge/src/permissions.ts` for `requestPermissions()` on the web side.
+> See `bridge/src/permissions.ts` for `requestPermissions()` on the web side.
 
 ### Scripts
 

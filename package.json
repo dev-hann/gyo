@@ -5,7 +5,7 @@
   "description": "Cross-platform mobile app framework built with React + Vite + TypeScript",
   "workspaces": [
     "cli",
-    "plugins/bridge",
+    "bridge",
     "plugins/app-launcher",
     "plugins/device-info",
     "plugins/communication",
@@ -28,8 +28,8 @@
     "test:all": "npm run test && npm run test:e2e:local",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts'",
-    "format:check": "prettier --check 'cli/src/**/*.ts' 'plugins/bridge/src/**/*.ts'",
+    "format": "prettier --write 'cli/src/**/*.ts' 'bridge/src/**/*.ts'",
+    "format:check": "prettier --check 'cli/src/**/*.ts' 'bridge/src/**/*.ts'",
     "typecheck": "npm run typecheck --workspaces",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build",
     "prepare": "husky"
