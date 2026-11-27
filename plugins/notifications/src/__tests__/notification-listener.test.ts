@@ -99,4 +99,13 @@ describe('NotificationListener', () => {
     });
     expect(result).toEqual({ opened: true });
   });
+
+  it('should say why the settings could not be opened', async () => {
+    const { result } = await exchange(() => listener.openSettings(), {
+      opened: false,
+      error: 'No Activity found to handle the intent',
+    });
+
+    expect(result).toEqual({ opened: false, error: 'No Activity found to handle the intent' });
+  });
 });

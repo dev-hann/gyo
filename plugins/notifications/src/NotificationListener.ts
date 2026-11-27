@@ -18,8 +18,9 @@ export class NotificationListener {
     return this.bridge.invoke<NotificationListResult>('get_notifications', { limit });
   }
 
-  async openSettings(): Promise<{ opened: boolean }> {
-    return this.bridge.invoke<{ opened: boolean }>('open_settings');
+  /** `error` says why, when `opened` is `false`. */
+  async openSettings(): Promise<{ opened: boolean; error?: string }> {
+    return this.bridge.invoke<{ opened: boolean; error?: string }>('open_settings');
   }
 
   isAvailable(): boolean {

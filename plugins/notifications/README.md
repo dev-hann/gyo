@@ -37,7 +37,7 @@ listener.destroy();
 |--------|---------|-------------|
 | `isEnabled()` | `Promise<NotificationListenerStatus>` | Whether notification access is granted and the listener is connected |
 | `getNotifications(limit?)` | `Promise<NotificationListResult>` | The most recent notifications, at most `limit` (50 by default, 200 at most) |
-| `openSettings()` | `Promise<{ opened: boolean }>` | Opens the notification access settings |
+| `openSettings()` | `Promise<{ opened: boolean; error?: string }>` | Opens the notification access settings. `error` says why when `opened` is `false` |
 | `isAvailable()` | `boolean` | Whether the native bridge is present |
 | `destroy()` | `void` | Releases the bridge |
 

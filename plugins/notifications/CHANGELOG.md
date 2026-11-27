@@ -6,6 +6,7 @@
 - Both classes post to one bridge, `notifications`, answered by one Android handler, `NotificationsBridge`. The method names stay as they were: `is_enabled`, `get_notifications` and `open_settings` for `NotificationListener`, `list` for `NotificationReader`
 - The Android module is one: it declares `GyoNotificationListenerService` and the handler and depends on no module of another plugin. An app that had both plugins lists this one in `package.json` instead
 - `NotificationReader` gets one `NotificationInfo` type, with the `id` the native side always returned
+- `openSettings()` is typed with the `error` the native side returns when it could not open the settings
 
 ## @gyo-framework/notification-listener
 
