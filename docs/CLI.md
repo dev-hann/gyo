@@ -22,7 +22,7 @@ Create a new Gyo project: native shells (android/ios), `gyo.config.json`, README
 
 Run on a connected device. With the `development` profile (default): spawns the dev server via `script.start` in `lib/`, waits for the port (TCP probe), bakes the detected LAN URL into the native config asset, then builds/installs/launches the native shell. Other profiles: use the configured `serverUrl` directly. `gyo.config.json` is not modified.
 
-Fails before spawning the dev server when its port is already in use.
+Fails before spawning the dev server when its port is already in use, and after starting it when it answers on localhost but not at the address the device will use: it names the fix in both cases.
 
 The address baked into the app is the host of `profiles.<profile>.serverUrl`. A loopback host (`localhost`, `127.0.0.1`) means this machine, whose LAN address is found at run time; any other host is used as it is.
 

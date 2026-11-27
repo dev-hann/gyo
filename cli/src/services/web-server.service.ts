@@ -14,6 +14,7 @@ import {
   PROBE_INTERVAL_MS,
   LOCALHOST,
   DEFAULT_PORT,
+  isLoopbackHost,
 } from '../core/index';
 
 export interface StartServerOptions {
@@ -29,6 +30,8 @@ export interface ServerHandle {
   process: ChildProcess;
   url: string;
 }
+
+export const REACHABLE_TIMEOUT_MS = 2000;
 
 export class WebServerService {
   async start(options: StartServerOptions): Promise<ServerHandle> {
@@ -55,13 +58,63 @@ export class WebServerService {
 
     try {
       const localUrl = await this.waitForServerReady(serverProcess, port);
-      return { process: serverProcess, url: await this.resolveServerUrl(localUrl, advertiseHost) };
+      const url = await this.resolveServerUrl(localUrl, advertiseHost);
+      await this.requireReachable(url);
+      return { process: serverProcess, url };
     } catch (error) {
       // The caller never receives the process, so nothing else would stop
       // what it started.
       signalProcessTree(serverProcess, 'SIGKILL');
       throw error;
     }
+  }
+
+  /**
+   * The server answered on localhost; a device loads it at `url`. One that
+   * listens on localhost only leaves the app unable to connect, with
+   * nothing on the developer's machine to say so.
+   */
+  private requireReachable(url: string): Promise<void> {
+    const { hostname, port } = new URL(url);
+    const host = hostname.replace(/^\[(.*)\]$/, '$1');
+    if (isLoopbackHost(host)) {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const fail = (): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(
+          new ServerStartError(
+            `The dev server is running, but it does not answer at ${url}, where the device will look for it.\n` +
+              '  If it listens on localhost only, start it on every interface and put that command in script.start,\n' +
+              '  for example "npm run dev -- --host 0.0.0.0". If it already does, name the address to use in the profile\'s serverUrl.'
+          )
+        );
+      };
+
+      const socket = net.connect({ host, port: Number(port) });
+      const timer = setTimeout(() => {
+        socket.destroy();
+        fail();
+      }, REACHABLE_TIMEOUT_MS);
+      timer.unref();
+      socket.once('connect', () => {
+        clearTimeout(timer);
+        socket.destroy();
+        settled = true;
+        resolve();
+      });
+      socket.once('error', () => {
+        clearTimeout(timer);
+        socket.destroy();
+        fail();
+      });
+    });
   }
 
   private isPortOpen(port: number): Promise<boolean> {

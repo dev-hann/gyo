@@ -40,7 +40,7 @@ jest.mock('net', () => ({
   connect: jest.fn(),
 }));
 
-import { WebServerService } from '../services/web-server.service';
+import { WebServerService, REACHABLE_TIMEOUT_MS } from '../services/web-server.service';
 import { isLoopbackHost, namedHostOf } from '../core/index';
 import { executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
@@ -71,21 +71,50 @@ function createMockProcess(): any {
   return mockProcess;
 }
 
-function getSpawnedProcess(): any {
-  const { spawn } = jest.requireMock('child_process');
-  return spawn.mock.results[0].value;
+/**
+ * A socket that answers by itself once the service listens for it, so that
+ * a test never has to guess when the service gets around to it.
+ */
+function answering(answer: 'connect' | 'error'): MockSocket {
+  const socket = createMockSocket();
+  const once = socket.once.bind(socket);
+  socket.once = ((event: string, listener: () => void) => {
+    once(event, listener);
+    if (event === answer) {
+      setImmediate(() => {
+        if (answer === 'error') {
+          socket.emit('error', new Error('ECONNREFUSED'));
+        } else {
+          socket.emit('connect');
+        }
+      });
+    }
+    return socket;
+  }) as MockSocket['once'];
+  mockedConnect.mockReturnValueOnce(socket as any);
+  return socket;
 }
 
-/** The pre-check finds nothing listening, so `start` goes on to spawn. */
-function mockPortFree(): MockSocket {
+/** A socket nothing is listening on. */
+function silent(): MockSocket {
   const socket = createMockSocket();
   mockedConnect.mockReturnValueOnce(socket as any);
   return socket;
 }
 
-async function refuse(socket: MockSocket): Promise<void> {
-  await new Promise((r) => setImmediate(r));
-  socket.emit('error', new Error('ECONNREFUSED'));
+/** Lets the service run until `condition` holds, instead of guessing when it gets there. */
+async function until(condition: () => boolean): Promise<void> {
+  for (let tries = 0; tries < 200 && !condition(); tries++) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
+/** The dev server, once `start` has spawned it. */
+function spawnServer(): any {
+  const { spawn } = jest.requireMock('child_process');
+  const mockProcess = createMockProcess();
+  spawn.mockReturnValue(mockProcess);
+  return mockProcess;
 }
 
 describe('WebServerService', () => {
@@ -146,6 +175,18 @@ describe('WebServerService', () => {
   });
 
   describe('start', () => {
+    const options = { webPath: '/project/lib', port: 3000, startCommand: 'npm run dev' };
+
+    function expectSpawned(command: string): void {
+      const { spawn } = jest.requireMock('child_process');
+      expect(spawn).toHaveBeenCalledWith(command, [], {
+        cwd: '/project/lib',
+        stdio: 'pipe',
+        shell: true,
+        detached: true,
+      });
+    }
+
     it('should throw ServerStartError when npm install fails', async () => {
       mockedPathExists.mockResolvedValueOnce(false);
       mockedExec.mockResolvedValueOnce({
@@ -155,12 +196,10 @@ describe('WebServerService', () => {
         code: 1,
       });
 
-      await expect(
-        service.start({ webPath: '/project/lib', port: 3000, startCommand: 'npm run dev' })
-      ).rejects.toThrow('Failed to install web dependencies');
+      await expect(service.start(options)).rejects.toThrow('Failed to install web dependencies');
     });
 
-    it('should install node_modules when not found and resolve on port probe', async () => {
+    it('should install node_modules when not found and resolve on the port probe', async () => {
       mockedPathExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
       mockedExec.mockResolvedValueOnce({
         success: true,
@@ -168,25 +207,12 @@ describe('WebServerService', () => {
         stderr: '',
         code: 0,
       });
+      spawnServer();
+      answering('error');
+      answering('connect');
+      answering('connect');
 
-      const { spawn } = jest.requireMock('child_process');
-      const mockProcess = createMockProcess();
-      spawn.mockReturnValue(mockProcess);
-
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
-
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-      });
-
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
-      socket.emit('connect');
-      const handle = await startPromise;
+      const handle = await service.start(options);
 
       expect(mockedExec).toHaveBeenCalledWith('npm', ['install'], expect.any(Object));
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
@@ -194,176 +220,141 @@ describe('WebServerService', () => {
 
     it('should reject without spawning when the port is already in use', async () => {
       const { spawn } = jest.requireMock('child_process');
-      const takenSocket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(takenSocket as any);
+      const taken = answering('connect');
 
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-      });
+      await expect(service.start(options)).rejects.toThrow('already in use');
 
-      await new Promise((r) => setImmediate(r));
-      takenSocket.emit('connect');
-
-      await expect(startPromise).rejects.toThrow('already in use');
       expect(spawn).not.toHaveBeenCalled();
-      expect(takenSocket.destroy).toHaveBeenCalled();
+      expect(taken.destroy).toHaveBeenCalled();
     });
 
     it('should advertise the host the profile names rather than looking for one', async () => {
-      const { spawn } = jest.requireMock('child_process');
-      spawn.mockReturnValue(createMockProcess());
+      spawnServer();
+      answering('error');
+      answering('connect');
+      answering('connect');
 
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
+      const handle = await service.start({ ...options, advertiseHost: '10.0.0.7' });
 
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-        advertiseHost: '10.0.0.7',
-      });
+      expect(handle.url).toBe('http://10.0.0.7:3000');
+    });
 
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
-      socket.emit('connect');
+    it('should not look further when the device is told to use this machine', async () => {
+      spawnServer();
+      answering('error');
+      answering('connect');
 
-      expect((await startPromise).url).toBe('http://10.0.0.7:3000');
+      const handle = await service.start({ ...options, advertiseHost: '127.0.0.1' });
+
+      expect(handle.url).toBe('http://127.0.0.1:3000');
+      expect(mockedConnect).toHaveBeenCalledTimes(2);
+    });
+
+    it('should refuse a server that answers on localhost but not where the device looks', async () => {
+      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+      const server = spawnServer();
+      server.pid = 4242;
+      answering('error');
+      answering('connect');
+      silent();
+
+      await expect(service.start({ ...options, advertiseHost: '10.0.0.7' })).rejects.toThrow(
+        'it does not answer at http://10.0.0.7:3000, where the device will look for it'
+      );
+      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
+
+      kill.mockRestore();
+    });
+
+    it("should give up when the device's address never answers", async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+      const server = spawnServer();
+      server.pid = 4242;
+      answering('error');
+      answering('connect');
+      const deviceEnd = silent();
+
+      const startPromise = service.start({ ...options, advertiseHost: '10.0.0.7' });
+      await until(() => deviceEnd.listenerCount('connect') > 0);
+      jest.advanceTimersByTime(REACHABLE_TIMEOUT_MS);
+
+      await expect(startPromise).rejects.toThrow('where the device will look for it');
+      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
+
+      kill.mockRestore();
+      jest.useRealTimers();
     });
 
     it('should spawn the configured start command as-is without framework detection', async () => {
-      const { spawn } = jest.requireMock('child_process');
-      const mockProcess = createMockProcess();
-      spawn.mockReturnValue(mockProcess);
-
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
+      spawnServer();
+      answering('error');
+      answering('connect');
+      answering('connect');
 
       const startCommand = 'npm run dev -- --host 0.0.0.0';
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 5173,
-        startCommand,
-      });
+      await service.start({ ...options, port: 5173, startCommand });
 
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
-      socket.emit('connect');
-      await startPromise;
-
-      expect(spawn).toHaveBeenCalledWith(startCommand, [], expect.any(Object));
+      expectSpawned(startCommand);
       expect(mockedConnect).toHaveBeenCalledWith({ host: LOCALHOST, port: 5173 });
     });
 
     it('should remove pre-start cleanup paths when they exist', async () => {
-      const { spawn } = jest.requireMock('child_process');
       const { remove } = jest.requireMock('fs-extra');
-      const mockProcess = createMockProcess();
-      spawn.mockReturnValue(mockProcess);
-
+      spawnServer();
       mockedPathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
+      answering('error');
+      answering('connect');
+      answering('connect');
 
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
-
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-        preStartCleanup: ['.next/dev/lock'],
-      });
-
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
-      socket.emit('connect');
-      await startPromise;
+      await service.start({ ...options, preStartCleanup: ['.next/dev/lock'] });
 
       expect(remove).toHaveBeenCalledWith('/project/lib/.next/dev/lock');
     });
 
     it('should retry the port probe when connection is refused', async () => {
-      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      spawnServer();
+      answering('error');
+      const refused = answering('error');
+      answering('connect');
+      answering('connect');
 
-      const { spawn } = jest.requireMock('child_process');
-      const mockProcess = createMockProcess();
-      spawn.mockReturnValue(mockProcess);
-
-      const freeSocket = mockPortFree();
-      const refusedSocket = createMockSocket();
-      const readySocket = createMockSocket();
-      mockedConnect
-        .mockReturnValueOnce(refusedSocket as any)
-        .mockReturnValueOnce(readySocket as any);
-
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-      });
-
-      await refuse(freeSocket);
-      await refuse(refusedSocket);
-
+      const startPromise = service.start(options);
+      await until(() => refused.listenerCount('error') > 0);
+      await until(() => refused.listenerCount('error') === 0);
       jest.advanceTimersByTime(300);
-      await new Promise((r) => setImmediate(r));
-      readySocket.emit('connect');
 
       const handle = await startPromise;
 
-      expect(mockedConnect).toHaveBeenCalledTimes(3);
+      expect(mockedConnect).toHaveBeenCalledTimes(4);
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
       jest.useRealTimers();
     });
 
     it('should reject when the server process exits before the port is ready', async () => {
-      const { spawn } = jest.requireMock('child_process');
-      const mockProcess = createMockProcess();
-      spawn.mockReturnValue(mockProcess);
+      const server = spawnServer();
+      answering('error');
+      const probe = silent();
 
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
-
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-      });
-
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
-      const proc = getSpawnedProcess();
-      proc.emit('exit', 1);
+      const startPromise = service.start(options);
+      await until(() => probe.listenerCount('error') > 0);
+      server.emit('exit', 1);
 
       await expect(startPromise).rejects.toThrow('Web server exited with code 1');
-      expect(socket.destroy).toHaveBeenCalled();
+      expect(probe.destroy).toHaveBeenCalled();
     });
 
     it('should stop the server it started when the port never gets ready', async () => {
-      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
       const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+      const server = spawnServer();
+      server.pid = 4242;
+      answering('error');
+      const probe = silent();
 
-      const { spawn } = jest.requireMock('child_process');
-      const mockProcess = createMockProcess();
-      mockProcess.pid = 4242;
-      spawn.mockReturnValue(mockProcess);
-
-      const freeSocket = mockPortFree();
-      const socket = createMockSocket();
-      mockedConnect.mockReturnValueOnce(socket as any);
-
-      const startPromise = service.start({
-        webPath: '/project/lib',
-        port: 3000,
-        startCommand: 'npm run dev',
-      });
-
-      await refuse(freeSocket);
-      await new Promise((r) => setImmediate(r));
+      const startPromise = service.start(options);
+      await until(() => probe.listenerCount('error') > 0);
       jest.advanceTimersByTime(WEB_SERVER_TIMEOUT_MS);
 
       await expect(startPromise).rejects.toThrow('failed to start within');
