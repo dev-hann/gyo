@@ -64,4 +64,5 @@
 - `gyo build ios --release` is refused before the web app is built and before the profile is asked for
 - `gyo create` ignores `ios/Sources/Resources/gyo-config.json`, as it does the Android one. A development build writes this machine's address into it
 - An Android build that fails having printed nothing is reported as `Unknown error`, not with an empty line
+- `gyo run -d <id>` had no effect on iOS: xtool was not told which device to use. It gets the device with `--udid`
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later

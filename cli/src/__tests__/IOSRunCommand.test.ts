@@ -413,12 +413,26 @@ describe('IOSRunCommand', () => {
   });
 
   describe('build and install', () => {
-    it('should build and install the app with xtool dev in ios/', async () => {
+    it('should build and install the app with xtool dev in ios/, on the device that was asked for', async () => {
       // Act
       await command.runDirectly();
 
       // Assert
       expect(mockedExec).toHaveBeenCalledTimes(1);
+      expect(mockedExec).toHaveBeenCalledWith('xtool', ['dev', '--udid', 'abc123'], {
+        cwd: project.ios(),
+        stdio: 'pipe',
+      });
+    });
+
+    it('should let xtool choose the device when none was asked for', async () => {
+      // Arrange
+      command.setOptions({ profile: 'development', device: undefined });
+
+      // Act
+      await command.runDirectly();
+
+      // Assert
       expect(mockedExec).toHaveBeenCalledWith('xtool', ['dev'], {
         cwd: project.ios(),
         stdio: 'pipe',

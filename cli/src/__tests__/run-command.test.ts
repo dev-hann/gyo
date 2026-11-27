@@ -251,11 +251,11 @@ describe('RunCommand', () => {
 
         expect(logger.info).toHaveBeenCalledWith('Using specified device: iPhone 15 Pro (ios)');
         expect(mockedPrompt).not.toHaveBeenCalled();
-        expect(mockedExec).toHaveBeenCalledWith('xtool', ['dev'], {
+        expect(mockedExec).toHaveBeenCalledWith('xtool', ['dev', '--udid', IOS.id], {
           cwd: project.ios(),
           stdio: 'pipe',
         });
-        expect(commandsRun()).toEqual(['xtool dev']);
+        expect(commandsRun()).toEqual([`xtool dev --udid ${IOS.id}`]);
         expect(appConfig('ios')).toEqual({ serverUrl: SERVER_URL });
       });
 
@@ -299,7 +299,7 @@ describe('RunCommand', () => {
             ],
           },
         ]);
-        expect(commandsRun()).toEqual(['xtool dev']);
+        expect(commandsRun()).toEqual([`xtool dev --udid ${IOS.id}`]);
         expect(appConfig('ios')).toEqual({ serverUrl: SERVER_URL });
         expect(fs.pathExistsSync(project.android('app/src/main/assets/gyo-config.json'))).toBe(
           false

@@ -106,7 +106,9 @@ export class IOSRunCommand extends AbstractRunCommand {
   private async buildAndInstallApp(iosPath: string, bundleId: string): Promise<string> {
     this.updateSpinner('Building and installing iOS app...');
 
-    const buildResult = await executeCommand('xtool', ['dev'], {
+    // The device `gyo run` chose; xtool picks one itself when none was.
+    const device = this.options.device ? ['--udid', this.options.device] : [];
+    const buildResult = await executeCommand('xtool', ['dev', ...device], {
       cwd: iosPath,
       stdio: 'pipe',
     });
