@@ -1,22 +1,46 @@
 import UIKit
 import WebKit
 
+/// An origin as the web sees it: scheme, host and port, with the default
+/// ports spelled out. The one place that decides what "same origin" means.
+struct ServerOrigin: Equatable {
+    let scheme: String
+    let host: String
+    let port: Int
+
+    /// The origin of a URL; nil for what has no host, such as about:blank.
+    init?(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), let host = url.host?.lowercased() else { return nil }
+        self.scheme = scheme
+        self.host = host
+        self.port = url.port ?? (scheme == "https" ? 443 : 80)
+    }
+
+    func matches(_ securityOrigin: WKSecurityOrigin) -> Bool {
+        ServerOrigin(scheme: securityOrigin.protocol, host: securityOrigin.host, port: securityOrigin.port) == self
+    }
+}
+
 class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
     
     private var webView: WKWebView!
     private var serverUrl: String
+    /// Where the app is served from: the one origin that may use the bridge and load here.
+    private let origin: ServerOrigin?
     private var bridgeInterface: IOSBridgeInterface!
     
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         // Load config before calling super.init
         let config = loadGyoConfig()
         self.serverUrl = config.serverUrl
+        self.origin = URL(string: config.serverUrl).flatMap(ServerOrigin.init)
         super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
     }
     
     required init?(coder: NSCoder) {
         let config = loadGyoConfig()
         self.serverUrl = config.serverUrl
+        self.origin = URL(string: config.serverUrl).flatMap(ServerOrigin.init)
         super.init(coder: coder)
     }
     
@@ -85,11 +109,12 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.name == "gyoBridge" else { return }
         
-        // Security: only accept bridge calls from the origin (host) of serverUrl.
-        // Third-party pages loaded into the web view must not reach native handlers.
-        let originHost = message.frameInfo.securityOrigin.host
-        if originHost.isEmpty || originHost.caseInsensitiveCompare(allowedHost ?? "") != .orderedSame {
-            print("[GyoBridge] Rejected bridge call from unauthorized origin: '\(originHost)'")
+        // Security: only accept bridge calls from the origin of serverUrl.
+        // Third-party pages and iframes loaded into the web view must not
+        // reach native handlers.
+        let sender = message.frameInfo.securityOrigin
+        guard let origin = origin, origin.matches(sender) else {
+            print("[GyoBridge] Rejected bridge call from another origin: \(sender.protocol)://\(sender.host):\(sender.port)")
             return
         }
         
@@ -104,13 +129,13 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        guard let targetHost = navigationAction.request.url?.host else {
+        guard let target = navigationAction.request.url, target.host != nil else {
             decisionHandler(.allow)
             return
         }
         
         // Same origin as the configured server: load inside the web view
-        if let allowed = allowedHost, targetHost.caseInsensitiveCompare(allowed) == .orderedSame {
+        if origin == ServerOrigin(target) {
             decisionHandler(.allow)
             return
         }
@@ -124,10 +149,4 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         decisionHandler(.cancel)
     }
     
-    // MARK: - Helpers
-    
-    private var allowedHost: String? {
-        URL(string: serverUrl)?.host
-    }
-
 }

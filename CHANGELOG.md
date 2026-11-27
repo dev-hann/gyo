@@ -37,6 +37,7 @@
 - Each command error is reported once
 - Android: the native bridge is registered as a WebView message listener for the origin of `serverUrl`, so Android never injects it into another origin, third-party iframes included. Navigation to another origin opens outside the WebView
 - iOS: `IOSBridgeInterface` no longer implements the script message handler; that path had no origin check. `WebViewController` is the handler, as the template always used it
+- iOS: a bridge call and a navigation are checked against the whole origin of `serverUrl`, scheme and port included; only the host was compared
 - GitHub Actions runs lint, typecheck, unit tests, the build, the bundle tests and an Android build with every official plugin. Build artifacts, nested lockfiles and the auto-improve skill are no longer tracked
 
 ### Fixed

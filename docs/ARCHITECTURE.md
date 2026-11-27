@@ -102,7 +102,7 @@ The detected LAN address is never written to `gyo.config.json`.
 
 ### WebView Security
 
-The native bridge is origin-restricted: only the host of the configured `serverUrl` may invoke bridge handlers. External navigation is blocked in the WebView and opened in the system browser.
+The native bridge is origin-restricted: only the origin (scheme, host and port) of the configured `serverUrl` may invoke bridge handlers. External navigation is blocked in the WebView and opened in the system browser.
 
 | Build | Cleartext traffic | Reason |
 |-------|-------------------|--------|
