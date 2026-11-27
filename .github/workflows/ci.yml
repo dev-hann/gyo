@@ -50,7 +50,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      # The action installs an SDK package named `tools` unless told otherwise, and Google no longer publishes it.
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
       - run: npm ci
       - run: npm run test:e2e:android
