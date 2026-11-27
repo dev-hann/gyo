@@ -49,9 +49,13 @@ export class WebServerService {
       );
     }
 
+    // The server's own output is not shown, only its errors: a pipe nobody
+    // reads would hold a server back once it is full, and what it holds is
+    // kept for nothing. Its stdin is closed to it, so that no server waits
+    // for a key.
     const serverProcess = spawn(startCommand, [], {
       cwd: webPath,
-      stdio: 'pipe',
+      stdio: ['ignore', 'ignore', 'pipe'],
       shell: true,
       detached: true,
     });

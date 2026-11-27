@@ -78,4 +78,5 @@
 - `gyo config set platforms.android.versionCode 1` was refused: `1` was read as `true`. A number is read as a number; `yes`, `no`, `on` and `off` still read as booleans
 - A display name with `$` in it corrupted `strings.xml`: `$1` and `$&` were taken for the matched text
 - A keystore password, alias or path outside Latin-1 did not reach Gradle. `keystore.properties` is written the way Java reads it now
+- `gyo run` connected the dev server's output to a pipe nobody read. A server that printed more than a pipe holds waited for that write for good. Its output is not connected any more; what it prints on stderr still is
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later

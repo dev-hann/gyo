@@ -28,7 +28,9 @@ The address baked into the app is the host of `profiles.<profile>.serverUrl`. A 
 
 A release build warns when its `serverUrl` is plain `http`: release builds deny cleartext traffic.
 
-Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, when its terminal closes, and when the process that launched it goes away.
+Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, when its terminal closes, and when the process that launched it goes away. A failed platform part stops the dev server before `gyo run` reports the error.
+
+The dev server's own output is not shown, only what it prints on stderr that names an error.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

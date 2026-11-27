@@ -201,7 +201,7 @@ describe('WebServerService', () => {
       const { spawn } = jest.requireMock('child_process');
       expect(spawn).toHaveBeenCalledWith(command, [], {
         cwd: webPath,
-        stdio: 'pipe',
+        stdio: ['ignore', 'ignore', 'pipe'],
         shell: true,
         detached: true,
       });
