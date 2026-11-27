@@ -55,7 +55,7 @@ Remove build artifacts. Platform: `android`, `ios`, `lib`, or `all`.
 
 Manage `gyo.config.json`. Subcommands: `show`, `get <key>`, `set <key> <value>`.
 
-Supports dot-notation keys. The value takes the type of the one it replaces; a new key is read as a boolean or a number. Nothing is written unless the result is a valid config.
+Supports dot-notation keys. The value takes the type of the one it replaces; a new key is read as a number, or as a boolean when it is `true`, `false`, `yes`, `no`, `on` or `off`. Nothing is written unless the result is a valid config.
 
 ### `gyo install`
 

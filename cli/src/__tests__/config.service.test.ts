@@ -194,6 +194,12 @@ describe('config.service', () => {
         after: { platforms: { android: { enabled: true, versionCode: 73 } } },
       },
       {
+        // A digit is a number before it is a boolean: `1` is not `true`.
+        key: 'platforms.android.versionCode',
+        value: '1',
+        after: { platforms: { android: { enabled: true, versionCode: 1 } } },
+      },
+      {
         key: 'webview.allowFileAccess',
         value: 'true',
         after: { webview: { allowFileAccess: true } },
@@ -412,6 +418,12 @@ describe('config.service', () => {
         ...validConfig,
         platforms: { ios: { enabled: true } },
       };
+      expect(validateConfig(config)).toBe(true);
+    });
+
+    it('should accept a bundleId an earlier gyo wrote into the ios platform', () => {
+      // Nothing reads it: the bundle ID of the app is the one in ios/xtool.yml.
+      const config = { ...validConfig, platforms: { ios: { enabled: true, bundleId: false } } };
       expect(validateConfig(config)).toBe(true);
     });
 

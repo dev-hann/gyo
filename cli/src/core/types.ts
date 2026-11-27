@@ -28,7 +28,6 @@ export interface GyoConfig {
     android?: AndroidPlatformConfig;
     /** Whether `gyo run ios` and `gyo build ios` may run. The bundle ID of the app is `bundleID` in ios/xtool.yml. */
     ios?: BasePlatformConfig;
-    [key: string]: BasePlatformConfig | undefined;
   };
   webview?: {
     allowFileAccess?: boolean;

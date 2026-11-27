@@ -141,19 +141,27 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
   return raw;
 }
 
-const TRUE_VALUES = ['true', 'yes', '1', 'on'];
-const FALSE_VALUES = ['false', 'no', '0', 'off'];
+const TRUE_VALUES = ['true', 'yes', 'on'];
+const FALSE_VALUES = ['false', 'no', 'off'];
 
-/** `text` as a boolean or a number when it reads as one. */
+/**
+ * `text` as a boolean or a number when it reads as one. A number comes
+ * first: `1` is the version code 1, not `true`.
+ */
 function convertLiteral(text: string): string | number | boolean {
-  const lower = text.toLowerCase();
+  const trimmed = text.trim();
+  if (trimmed !== '' && !Number.isNaN(Number(trimmed))) {
+    return Number(trimmed);
+  }
+
+  const lower = trimmed.toLowerCase();
   if (TRUE_VALUES.includes(lower)) {
     return true;
   }
   if (FALSE_VALUES.includes(lower)) {
     return false;
   }
-  return text.trim() !== '' && !isNaN(Number(text)) ? Number(text) : text;
+  return text;
 }
 
 /**
