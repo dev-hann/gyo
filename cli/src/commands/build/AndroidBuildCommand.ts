@@ -10,6 +10,7 @@ import {
   toAndroidAppIdentity,
 } from '../../services/android-shell.service';
 import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
+import { isLoopbackHost } from '../../core/index';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -28,10 +29,24 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
     await syncAndroidAppIdentity(androidPath, toAndroidAppIdentity(this.config, this.projectPath));
 
     const serverUrl = this.getServerUrl();
+    this.warnWhenReleaseCannotLoad(serverUrl);
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
     await this.writeConfigFile(configPath, serverUrl, this.config.webview);
 
     await this.buildApp(androidPath);
+  }
+
+  /** Release builds deny plain http, except to the device itself. */
+  private warnWhenReleaseCannotLoad(serverUrl: string): void {
+    if (!this.options.release) {
+      return;
+    }
+    const { protocol, hostname } = new URL(serverUrl);
+    if (protocol === 'http:' && !isLoopbackHost(hostname)) {
+      logger.warn(
+        `A release build does not load ${serverUrl}: it denies plain http. Serve the profile over https.`
+      );
+    }
   }
 
   private async buildApp(androidPath: string): Promise<void> {

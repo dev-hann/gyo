@@ -245,6 +245,37 @@ describe('AndroidBuildCommand', () => {
       );
     });
 
+    it('should warn when a release build is pointed at plain http', async () => {
+      (command as any).options = { profile: 'production', release: true };
+      (command as any).serverUrl = 'http://203.0.113.10';
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+
+      await command['buildPlatform']();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        'A release build does not load http://203.0.113.10: it denies plain http. Serve the profile over https.'
+      );
+    });
+
+    it('should stay quiet about https, the device itself and debug builds', async () => {
+      (command as any).serverUrl = 'https://example.com';
+      for (const options of [
+        { profile: 'production', release: true },
+        { profile: 'development', release: false },
+      ]) {
+        (command as any).options = options;
+        mockedPathExists.mockResolvedValue(true);
+        mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+        await command['buildPlatform']();
+      }
+      (command as any).options = { profile: 'production', release: true };
+      (command as any).serverUrl = 'http://127.0.0.1:8080';
+      await command['buildPlatform']();
+
+      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('denies plain http'));
+    });
+
     it('should fail the build when a plugin cannot be synced', async () => {
       mockedPathExists.mockResolvedValue(true);
       mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));

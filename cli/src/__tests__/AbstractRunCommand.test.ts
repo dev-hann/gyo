@@ -37,18 +37,15 @@ jest.mock('../services/config.service', () => ({
   shouldStartLocalServer: jest.fn(),
 }));
 
-jest.mock('../services/web-server.service', () => ({
-  WebServerService: jest.fn().mockImplementation(() => ({
-    start: jest.fn(),
-  })),
-}));
+// One `start` for every instance, so that a test can read what was asked of it.
+jest.mock('../services/web-server.service', () => {
+  const start = jest.fn().mockResolvedValue({ process: null, url: 'http://192.168.0.7:3000' });
+  return { WebServerService: jest.fn().mockImplementation(() => ({ start })) };
+});
 
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
-import { saveConfig } from '../services/config.service';
 import { DEFAULT_PORT, PARENT_WATCH_INTERVAL_MS, PROCESS_KILL_TIMEOUT_MS } from '../core/index';
-
-const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
 
 class TestableRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -61,10 +58,6 @@ class TestableRunCommand extends AbstractRunCommand {
 
   public testGetStartCommand(): string {
     return this.getStartCommand();
-  }
-
-  public testUpdateProfileUrl(profile: string, serverUrl: string): Promise<void> {
-    return this.updateProfileUrl(profile, serverUrl);
   }
 
   protected runPlatform(): Promise<void> {
@@ -164,44 +157,36 @@ describe('AbstractRunCommand', () => {
     });
   });
 
-  describe('updateProfileUrl', () => {
-    it('should create profiles object if missing', async () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+  describe('startWebServer', () => {
+    const startOf = (): jest.Mock => {
+      const { WebServerService } = jest.requireMock('../services/web-server.service');
+      return new WebServerService().start as jest.Mock;
+    };
 
-      await command.testUpdateProfileUrl('development', 'http://192.168.1.1:3000');
-
-      expect((command as any).config.profiles).toEqual({
-        development: { serverUrl: 'http://192.168.1.1:3000' },
-      });
-    });
-
-    it('should update existing profile serverUrl', async () => {
+    it('should leave the address to this machine when the profile says localhost', async () => {
       (command as any).config = {
-        name: 'test',
-        version: '1.0.0',
-        platforms: {},
-        profiles: { development: { serverUrl: 'http://old:3000' } },
+        script: { start: 'npm run dev' },
+        profiles: { development: { serverUrl: 'http://localhost:3000' } },
       };
 
-      await command.testUpdateProfileUrl('development', 'http://new:3000');
+      await command['startWebServer']('/project/lib', 3000);
 
-      expect((command as any).config.profiles.development.serverUrl).toBe('http://new:3000');
+      expect(startOf()).toHaveBeenCalledWith(
+        expect.objectContaining({ advertiseHost: undefined, port: 3000 })
+      );
     });
 
-    it('should keep the detected address in memory and leave gyo.config.json alone', async () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+    it('should advertise the machine the profile names', async () => {
+      (command as any).config = {
+        script: { start: 'npm run dev' },
+        profiles: { development: { serverUrl: 'http://192.168.0.7:3000' } },
+      };
 
-      await command.testUpdateProfileUrl('development', 'http://192.168.1.1:3000');
+      await command['startWebServer']('/project/lib', 3000);
 
-      expect(mockedSaveConfig).not.toHaveBeenCalled();
-    });
-
-    it('should do nothing when config is null', async () => {
-      (command as any).config = null;
-
-      await command.testUpdateProfileUrl('development', 'http://localhost:3000');
-
-      expect(mockedSaveConfig).not.toHaveBeenCalled();
+      expect(startOf()).toHaveBeenCalledWith(
+        expect.objectContaining({ advertiseHost: '192.168.0.7' })
+      );
     });
   });
 

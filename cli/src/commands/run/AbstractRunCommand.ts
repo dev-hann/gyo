@@ -14,6 +14,7 @@ import {
   PARENT_WATCH_INTERVAL_MS,
   PROCESS_KILL_TIMEOUT_MS,
   getErrorMessage,
+  namedHostOf,
 } from '../../core/index';
 
 export interface RunCommandOptions extends PlatformCommandOptions {
@@ -81,8 +82,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
         this.serverUrl = await this.startWebServer(libPath, port);
 
-        await this.updateProfileUrl(this.options.profile, this.serverUrl);
-
         this.succeedSpinner(
           `Local server running at ${this.serverUrl} (profile: ${this.options.profile})`
         );
@@ -148,35 +147,18 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
   }
 
-  /**
-   * Keeps the detected address for this run only. gyo.config.json is the
-   * user's tracked file: the address is machine specific, and `gyo build`
-   * resolves a `localhost` profile by itself.
-   */
-  protected async updateProfileUrl(profile: string, serverUrl: string): Promise<void> {
-    if (!this.config) {
-      return;
-    }
-
-    if (!this.config.profiles) {
-      this.config.profiles = {};
-    }
-
-    if (!(profile in this.config.profiles)) {
-      this.config.profiles[profile] = { serverUrl: serverUrl };
-    } else {
-      this.config.profiles[profile].serverUrl = serverUrl;
-    }
-  }
-
   protected async startWebServer(webPath: string, port: number): Promise<string> {
     const startCommand = this.getStartCommand();
 
+    // A profile that names a machine says which address devices should load;
+    // with localhost, the LAN address of this machine is found instead.
+    const profileUrl = this.config?.profiles?.[this.options.profile]?.serverUrl;
     const handle = await this.webServerService.start({
       webPath,
       port,
       startCommand,
       preStartCleanup: this.config?.script?.preStartCleanup,
+      advertiseHost: profileUrl ? namedHostOf(profileUrl) : undefined,
     });
 
     this.webServerProcess = handle.process;

@@ -24,6 +24,10 @@ Run on a connected device. With the `development` profile (default): spawns the 
 
 Fails before spawning the dev server when its port is already in use.
 
+The address baked into the app is the host of `profiles.<profile>.serverUrl`. A loopback host (`localhost`, `127.0.0.1`) means this machine, whose LAN address is found at run time; any other host is used as it is.
+
+A release build warns when its `serverUrl` is plain `http`: release builds deny cleartext traffic.
+
 Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, when its terminal closes, and when the process that launched it goes away.
 
 | Option | Type | Default | Description |
@@ -75,7 +79,7 @@ List connected devices.
 
 ### `gyo doctor`
 
-Check and diagnose development environment.
+Check and diagnose development environment. Requires the Node release the CLI names in `engines.node`, JDK 17 and the Android platform the template's `compileSdk` names. An SDK found in its usual place is used for the later checks when `ANDROID_HOME` is not set.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|

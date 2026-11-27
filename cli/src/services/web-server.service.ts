@@ -21,6 +21,8 @@ export interface StartServerOptions {
   port: number;
   startCommand: string;
   preStartCleanup?: string[];
+  /** The address devices should load the server from; the LAN address when not given. */
+  advertiseHost?: string;
 }
 
 export interface ServerHandle {
@@ -30,7 +32,7 @@ export interface ServerHandle {
 
 export class WebServerService {
   async start(options: StartServerOptions): Promise<ServerHandle> {
-    const { webPath, port, startCommand, preStartCleanup } = options;
+    const { webPath, port, startCommand, preStartCleanup, advertiseHost } = options;
 
     await this.ensureNodeModules(webPath);
     await this.cleanupPaths(webPath, preStartCleanup ?? []);
@@ -52,8 +54,8 @@ export class WebServerService {
     });
 
     try {
-      const url = await this.waitForServerReady(serverProcess, port);
-      return { process: serverProcess, url };
+      const localUrl = await this.waitForServerReady(serverProcess, port);
+      return { process: serverProcess, url: await this.resolveServerUrl(localUrl, advertiseHost) };
     } catch (error) {
       // The caller never receives the process, so nothing else would stop
       // what it started.
@@ -192,13 +194,13 @@ export class WebServerService {
     });
   }
 
-  async resolveServerUrl(detectedUrl: string): Promise<string> {
+  /** The URL devices load: the given host, or this machine's address on the LAN. */
+  async resolveServerUrl(detectedUrl: string, advertiseHost?: string): Promise<string> {
     const urlObj = new URL(detectedUrl);
     const port = parseInt(urlObj.port || String(DEFAULT_PORT), 10);
 
     try {
-      const ip = await this.getLocalIP();
-      return `http://${ip}:${port}`;
+      return `http://${advertiseHost ?? (await this.getLocalIP())}:${port}`;
     } catch (error) {
       logger.warn(`Failed to get local IP, using localhost: ${getErrorMessage(error)}`);
       return `http://${LOCALHOST}:${port}`;

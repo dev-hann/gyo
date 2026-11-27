@@ -41,6 +41,7 @@ jest.mock('net', () => ({
 }));
 
 import { WebServerService } from '../services/web-server.service';
+import { isLoopbackHost, namedHostOf } from '../core/index';
 import { executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import { connect } from 'net';
@@ -93,6 +94,25 @@ describe('WebServerService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     service = new WebServerService();
+  });
+
+  describe('namedHostOf', () => {
+    it('should name the machine a URL points at', () => {
+      expect(namedHostOf('http://192.168.0.7:3000')).toBe('192.168.0.7');
+      expect(namedHostOf('https://example.com/app')).toBe('example.com');
+    });
+
+    it('should treat a loopback host as this machine, and no host as nothing', () => {
+      expect(namedHostOf('http://localhost:3000')).toBeUndefined();
+      expect(namedHostOf('http://127.0.0.1:3000')).toBeUndefined();
+      expect(namedHostOf('not a url')).toBeUndefined();
+    });
+
+    it('should tell a loopback host apart', () => {
+      expect(isLoopbackHost('localhost')).toBe(true);
+      expect(isLoopbackHost('::1')).toBe(true);
+      expect(isLoopbackHost('example.com')).toBe(false);
+    });
   });
 
   describe('getLocalIP', () => {
@@ -189,6 +209,28 @@ describe('WebServerService', () => {
       await expect(startPromise).rejects.toThrow('already in use');
       expect(spawn).not.toHaveBeenCalled();
       expect(takenSocket.destroy).toHaveBeenCalled();
+    });
+
+    it('should advertise the host the profile names rather than looking for one', async () => {
+      const { spawn } = jest.requireMock('child_process');
+      spawn.mockReturnValue(createMockProcess());
+
+      const freeSocket = mockPortFree();
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+        advertiseHost: '10.0.0.7',
+      });
+
+      await refuse(freeSocket);
+      await new Promise((r) => setImmediate(r));
+      socket.emit('connect');
+
+      expect((await startPromise).url).toBe('http://10.0.0.7:3000');
     });
 
     it('should spawn the configured start command as-is without framework detection', async () => {
