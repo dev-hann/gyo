@@ -1,193 +1,188 @@
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
 import { PlatformCommand } from '../commands/base/PlatformCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
-import type { Platform } from '../core/index';
-import { PlatformDisabledError } from '../core/index';
+import type { GyoConfig, Platform } from '../core/index';
+import { silenceLogger } from './helpers/logger';
+import { createTestProject } from './helpers/project';
+import type { TestProject } from './helpers/project';
 
-jest.mock('../services/config.service', () => ({
-  loadConfig: jest.fn().mockResolvedValue(null),
-  validateConfig: jest.fn(),
-  saveConfig: jest.fn(),
-  shouldStartLocalServer: jest.fn(),
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
 }));
 
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-    suggestNextSteps: jest.fn(),
-  },
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
 }));
 
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
+/** A command of one platform, as the build and run commands are built on the base. */
+class ProjectCommand extends PlatformCommand {
+  /** Where the base class was asked to write the shell's config. */
+  configPath = '';
+  /** What the base class handed `run()`; null when `run()` was not reached. */
+  handed: { platform: Platform; config: GyoConfig | null } | null = null;
 
-import { loadConfig } from '../services/config.service';
-import { pathExists } from '../utils/fs';
-
-const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-
-class TestablePlatformCommand extends PlatformCommand {
   getMeta(): CommandMeta {
-    return { name: 'test-platform', description: 'test' };
+    return { name: 'project', description: 'A command of one platform' };
   }
 
   protected getValidPlatforms(): Platform[] {
     return ['android', 'ios'];
   }
 
-  protected run(): Promise<void> {
-    return Promise.resolve();
+  protected async run(): Promise<void> {
+    await this.checkPlatformDirectoryExists();
+    await this.writeConfigFile(this.configPath, 'https://example.com', this.config?.webview);
+    this.handed = { platform: this.platform, config: this.config };
   }
 }
 
 describe('PlatformCommand', () => {
-  let command: TestablePlatformCommand;
+  let project: TestProject;
 
-  beforeEach(() => {
+  function command(): ProjectCommand {
+    const created = new ProjectCommand();
+    created.configPath = project.file('written/nested/gyo-config.json');
+    return created;
+  }
+
+  beforeEach(async () => {
     jest.clearAllMocks();
-    mockedPathExists.mockImplementation((p: string) =>
-      Promise.resolve(typeof p === 'string' && p.includes('gyo.config.json'))
-    );
-    command = new TestablePlatformCommand();
+    silenceLogger();
+    project = await createTestProject();
   });
 
-  describe('setPlatform', () => {
-    it('should set the platform', () => {
-      command.setPlatform('ios');
+  afterEach(() => project.remove());
 
-      expect(command['platform']).toBe('ios');
-    });
-  });
+  describe('the platform', () => {
+    it('should come from the positional argument', async () => {
+      const created = command();
+      created.setPositionalArgs(['ios']);
 
-  describe('validatePlatform', () => {
-    it('should pass for valid platform', () => {
-      command.setPlatform('android');
+      await created.runDirectly();
 
-      expect(() => command.execute()).not.toThrow();
+      expect(created.handed?.platform).toBe('ios');
     });
 
-    it('should reject an invalid platform with the valid ones', async () => {
-      command.setPlatform('windows' as Platform);
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: {},
-      });
+    it('should be android without an argument', async () => {
+      const created = command();
 
-      await expect(command.execute()).rejects.toThrow(
+      await created.runDirectly();
+
+      expect(created.handed?.platform).toBe('android');
+    });
+
+    it('should be refused with the valid ones when it is outside them', async () => {
+      const created = command();
+      created.setPositionalArgs(['windows']);
+
+      await expect(created.runDirectly()).rejects.toThrow(
         'Invalid platform: windows. Valid platforms are: android, ios'
       );
+
+      expect(created.handed).toBeNull();
     });
   });
 
-  describe('validatePlatformEnabled', () => {
-    it('should reject a disabled platform with the way to enable it', async () => {
-      command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: { android: { enabled: false } },
-      });
+  describe('the project', () => {
+    it('should be refused outside a project, saying what to run', async () => {
+      const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-empty-'));
+      const previousCwd = process.cwd();
+      process.chdir(empty);
 
-      await expect(command.execute()).rejects.toThrow(
-        "Platform 'android' is disabled in gyo.config.json. " +
-          'Enable it: gyo config set platforms.android.enabled true'
-      );
+      try {
+        await expect(command().runDirectly()).rejects.toThrow(
+          /Not a gyo project[\s\S]*Run 'gyo create <project-name>'/
+        );
+      } finally {
+        process.chdir(previousCwd);
+        fs.removeSync(empty);
+      }
     });
 
-    it('should pass when platform is enabled', async () => {
-      command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: { android: { enabled: true } },
-      });
+    it('should have its config read before the command runs', async () => {
+      await project.setConfig({ displayName: '데모 앱' });
+      const created = command();
 
-      await expect(command.execute()).resolves.toBeUndefined();
+      await created.runDirectly();
+
+      expect(created.handed?.config).toMatchObject({ name: 'demo-app', displayName: '데모 앱' });
     });
 
-    it('should pass when config has no platforms', async () => {
-      command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: {},
-      });
+    it('should be refused when its gyo.config.json is not valid', async () => {
+      await fs.writeJson(project.file('gyo.config.json'), { name: 'demo-app' });
+      const created = command();
 
-      await expect(command.execute()).resolves.toBeUndefined();
+      await expect(created.runDirectly()).rejects.toThrow('Invalid gyo.config.json');
+
+      expect(created.handed).toBeNull();
     });
   });
 
-  describe('runDirectly', () => {
-    it('should run all lifecycle steps successfully', async () => {
-      command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: {},
-      });
+  describe('a platform of the config', () => {
+    it('should be refused when it is disabled, with the way to enable it', async () => {
+      await project.setConfig({ platforms: { android: { enabled: false } } });
+      const created = command();
 
-      await expect(command.runDirectly()).resolves.toBeUndefined();
+      await expect(created.runDirectly()).rejects.toThrow(
+        "Platform 'android' is disabled in gyo.config.json. Enable it: gyo config set platforms.android.enabled true"
+      );
+
+      expect(created.handed).toBeNull();
     });
 
-    it('should reject an invalid platform before anything runs', async () => {
-      command.setPlatform('windows' as Platform);
+    it.each([
+      ['enabled', { android: { enabled: true } }],
+      ['not mentioned', { ios: { enabled: true } }],
+    ])('should run when the platform is %s', async (_case, platforms) => {
+      await project.setConfig({ platforms });
 
-      await expect(command.runDirectly()).rejects.toThrow('Invalid platform: windows');
-    });
-
-    it('should throw GyoError when gyo.config.json not found', async () => {
-      command.setPlatform('android');
-      mockedPathExists.mockResolvedValue(false);
-
-      await expect(command.runDirectly()).rejects.toThrow('Not a gyo project');
-    });
-
-    it('should throw PlatformDisabledError when platform disabled', async () => {
-      command.setPlatform('android');
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: { android: { enabled: false } },
-      });
-
-      await expect(command.runDirectly()).rejects.toThrow(PlatformDisabledError);
+      await expect(command().runDirectly()).resolves.toBeUndefined();
     });
   });
 
-  describe('checkPlatformDirectoryExists', () => {
-    it('should reject with the missing directory and the way out', async () => {
-      command.setPlatform('android');
-      mockedPathExists.mockResolvedValue(false);
+  describe('the platform directory', () => {
+    it('should be refused when it is missing, saying what to run', async () => {
+      fs.removeSync(project.android());
+      const created = command();
 
-      await expect(command['checkPlatformDirectoryExists']()).rejects.toThrow(
-        "Platform 'android' not found"
+      await expect(created.runDirectly()).rejects.toThrow(
+        /Platform 'android' not found[\s\S]*Run 'gyo create' to initialize the project/
       );
-      await expect(command['checkPlatformDirectoryExists']()).rejects.toThrow(
-        "Run 'gyo create' to initialize the project"
-      );
+
+      expect(created.handed).toBeNull();
     });
 
-    it('should pass when directory exists', async () => {
-      command.setPlatform('android');
-      mockedPathExists.mockResolvedValue(true);
+    it('should pass when it is there', async () => {
+      await expect(command().runDirectly()).resolves.toBeUndefined();
+    });
+  });
 
-      await expect(command['checkPlatformDirectoryExists']()).resolves.toBeUndefined();
+  describe('writeConfigFile', () => {
+    it('should write the server URL and the settings the shell has to apply, making the directory', async () => {
+      const created = command();
+
+      await created.runDirectly();
+
+      expect(fs.readJsonSync(created.configPath)).toEqual({
+        serverUrl: 'https://example.com',
+        webview: { allowFileAccess: false, allowUniversalAccessFromFileURLs: false },
+      });
+    });
+
+    it('should write the server URL alone when no setting applies', async () => {
+      await project.setConfig({ webview: { userAgent: 'gyo-webview/1.0' } });
+      const created = command();
+
+      await created.runDirectly();
+
+      expect(fs.readJsonSync(created.configPath)).toEqual({ serverUrl: 'https://example.com' });
     });
   });
 });
