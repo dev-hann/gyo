@@ -73,6 +73,8 @@ describe('toJavaPropertyValue', () => {
     ['carriage returns', 'first\rsecond', 'first\\rsecond'],
     ['tabs', 'first\tsecond', 'first\\tsecond'],
     ['a leading space', ' secret', '\\ secret'],
+    // Java reads a properties file as ISO 8859-1, and the file is written as UTF-8.
+    ['characters outside Latin-1', '비밀번호', '\\ube44\\ubc00\\ubc88\\ud638'],
   ])('should escape %s', (_what, value, escaped) => {
     expect(toJavaPropertyValue(value)).toBe(escaped);
   });

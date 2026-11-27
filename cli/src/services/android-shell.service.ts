@@ -47,14 +47,21 @@ export function toXmlText(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** Escapes a value for a Java `.properties` file. */
+/**
+ * Escapes a value for a Java `.properties` file. Java reads the file as
+ * ISO 8859-1, so a character outside it is written the way Java writes one.
+ */
 export function toJavaPropertyValue(value: string): string {
   return value
     .replace(/\\/g, '\\\\')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t')
-    .replace(/^ /, '\\ ');
+    .replace(/^ /, '\\ ')
+    .replace(
+      /[^\x20-\x7e]/g,
+      (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
+    );
 }
 
 export function renderKeystoreProperties(properties: KeystoreProperties): string {
