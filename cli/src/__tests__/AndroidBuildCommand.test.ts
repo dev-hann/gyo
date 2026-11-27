@@ -153,7 +153,7 @@ describe('AndroidBuildCommand', () => {
     it('should include the installed plugins as Gradle modules before Gradle runs', async () => {
       writePluginFixture(
         project.path,
-        '@gyo-framework/app-launcher',
+        '@gyo-community/app-launcher',
         APP_LAUNCHER_HANDLER,
         'app_launcher'
       );

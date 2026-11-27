@@ -4,6 +4,7 @@
 
 ### Added
 
+- Published under `@gyo-community`, where every add-on feature lives; `@gyo-framework` is the core
 - `Http.request({ url, headers, jar })`: native GET that follows redirects and returns the status,
   the final url, the response headers and the raw body as base64
 - Cookies per `jar` name, kept across app restarts

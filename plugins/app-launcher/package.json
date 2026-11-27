@@ -1,5 +1,5 @@
 {
-  "name": "@gyo-framework/app-launcher",
+  "name": "@gyo-community/app-launcher",
   "version": "0.1.2",
   "description": "Gyo plugin for launching apps and URLs via Android PackageManager bridge",
   "type": "module",

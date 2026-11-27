@@ -1,17 +1,17 @@
-# @gyo-framework/app-launcher
+# @gyo-community/app-launcher
 
 Gyo plugin for launching apps and URLs via Android PackageManager bridge.
 
 ## Installation
 
 ```bash
-npm install @gyo-framework/app-launcher
+npm install @gyo-community/app-launcher
 ```
 
 ## Usage
 
 ```typescript
-import { AppLauncher } from '@gyo-framework/app-launcher';
+import { AppLauncher } from '@gyo-community/app-launcher';
 
 const launcher = new AppLauncher();
 

@@ -150,6 +150,8 @@ describe('CreateCommand', () => {
     const readme = read('my-app/README.md');
     expect(readme).toContain('# my-app');
     expect(readme).toContain('├── android/');
+    // The add-on features of the framework live under the community scope.
+    expect(readme).toContain('npm install @gyo-community/http');
     expect(readme).not.toContain('{{');
   });
 

@@ -50,8 +50,8 @@ beforeAll(async () => {
 
   // Installed the way npm link, pnpm and workspaces install: as symlinks.
   for (const plugin of plugins) {
-    const [, name] = plugin.name.split('/');
-    const link = path.join(projectDir, 'lib', 'node_modules', '@gyo-framework', name);
+    // Under the package's own scope, as npm would put it.
+    const link = path.join(projectDir, 'lib', 'node_modules', ...plugin.name.split('/'));
     await fs.ensureDir(path.dirname(link));
     await fs.symlink(plugin.dir, link);
   }

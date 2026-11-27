@@ -12,7 +12,7 @@ import type { DiscoveredPlugin, PluginManifest } from '../services/plugin.servic
 import type { PluginFixtureOptions } from './helpers/plugin';
 import {
   APP_LAUNCHER_HANDLER,
-  SMS_SENDER_HANDLER,
+  COMMUNICATION_HANDLER,
   androidFilePath,
   writeAndroidShell,
   writePluginFixture,
@@ -35,8 +35,8 @@ jest.mock('../utils/logger', () => ({
 // here while every published plugin failed.
 const GENERATED_FILES = ['gyo.settings.gradle', 'app/gyo.build.gradle'];
 const REGISTRY = 'app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt';
-const APP_LAUNCHER = '@gyo-framework/app-launcher';
-const SMS_SENDER = '@gyo-framework/sms-sender';
+const APP_LAUNCHER = '@gyo-community/app-launcher';
+const SMS_SENDER = '@gyo-community/communication';
 const PACKAGE_NAME = 'com.example.app';
 
 describe('plugin.service', () => {
@@ -119,7 +119,7 @@ describe('plugin.service', () => {
       const settings = readAndroid('gyo.settings.gradle');
       expect(settings).toContain("include ':gyo-plugin-app-launcher'");
       expect(settings).toContain(
-        "project(':gyo-plugin-app-launcher').projectDir = file('../lib/node_modules/@gyo-framework/app-launcher/android')"
+        "project(':gyo-plugin-app-launcher').projectDir = file('../lib/node_modules/@gyo-community/app-launcher/android')"
       );
     });
 
@@ -134,27 +134,27 @@ describe('plugin.service', () => {
       await syncAndroidPlugins(projectPath, [plugin]);
 
       expect(readAndroid('gyo.settings.gradle')).toContain(
-        "projectDir = file('../store/lib/node_modules/@gyo-framework/app-launcher/android')"
+        "projectDir = file('../store/lib/node_modules/@gyo-community/app-launcher/android')"
       );
     });
 
     it('should make the app depend on every plugin module', async () => {
       const plugins = [
         addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher'),
-        addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender'),
+        addPlugin(SMS_SENDER, COMMUNICATION_HANDLER, 'communication'),
       ];
 
       await syncAndroidPlugins(projectPath, plugins);
 
       const appGradle = readAndroid('app/gyo.build.gradle');
       expect(appGradle).toContain("implementation project(':gyo-plugin-app-launcher')");
-      expect(appGradle).toContain("implementation project(':gyo-plugin-sms-sender')");
+      expect(appGradle).toContain("implementation project(':gyo-plugin-communication')");
     });
 
     it('should write a registry that registers every handler', async () => {
       const plugins = [
         addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher'),
-        addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender'),
+        addPlugin(SMS_SENDER, COMMUNICATION_HANDLER, 'communication'),
       ];
 
       await syncAndroidPlugins(projectPath, plugins);
@@ -164,7 +164,9 @@ describe('plugin.service', () => {
       expect(registry).toContain(
         'BridgeRegistry.register("app_launcher", AppLauncherBridge(context))'
       );
-      expect(registry).toContain('BridgeRegistry.register("sms_sender", SmsSenderBridge(context))');
+      expect(registry).toContain(
+        'BridgeRegistry.register("communication", CommunicationBridge(context))'
+      );
     });
 
     it('should leave the shell as the template ships it when no plugin is installed', async () => {
@@ -186,53 +188,53 @@ describe('plugin.service', () => {
     });
 
     it('should fail when a plugin needs the module of a plugin that is not installed', async () => {
-      const screenReader = addPlugin(
-        '@gyo-framework/screen-reader',
-        'gyo.plugins.screen_reader.ScreenReaderBridge',
-        'screen_reader'
+      const assistant = addPlugin(
+        '@gyo-community/assistant',
+        'gyo.plugins.assistant.AssistantBridge',
+        'assistant'
       );
       fs.appendFileSync(
-        path.join(screenReader.path, 'android/build.gradle.kts'),
+        path.join(assistant.path, 'android/build.gradle.kts'),
         'dependencies { implementation(project(":gyo-plugin-accessibility")) }\n'
       );
 
-      await expect(syncAndroidPlugins(projectPath, [screenReader])).rejects.toThrow(
+      await expect(syncAndroidPlugins(projectPath, [assistant])).rejects.toThrow(
         'needs the plugin that gyo includes as gyo-plugin-accessibility'
       );
     });
 
     it('should accept a plugin that depends on an installed plugin', async () => {
-      const screenReader = addPlugin(
-        '@gyo-framework/screen-reader',
-        'gyo.plugins.screen_reader.ScreenReaderBridge',
-        'screen_reader'
+      const assistant = addPlugin(
+        '@gyo-community/assistant',
+        'gyo.plugins.assistant.AssistantBridge',
+        'assistant'
       );
       fs.appendFileSync(
-        path.join(screenReader.path, 'android/build.gradle.kts'),
+        path.join(assistant.path, 'android/build.gradle.kts'),
         'dependencies { implementation(project(":gyo-plugin-accessibility")) }\n'
       );
       const accessibility = addPlugin(
-        '@gyo-framework/accessibility',
+        '@gyo-community/accessibility',
         'gyo.plugins.accessibility.AccessibilityBridge',
         'accessibility'
       );
 
       await expect(
-        syncAndroidPlugins(projectPath, [screenReader, accessibility])
+        syncAndroidPlugins(projectPath, [assistant, accessibility])
       ).resolves.toBeUndefined();
 
       expect(readAndroid('gyo.settings.gradle')).toContain("include ':gyo-plugin-accessibility'");
     });
 
     it('should fail when two plugins are included as the same Gradle project', async () => {
+      // A dot is not allowed in a Gradle project name; both become device-info.
       const plugins = [
-        addPlugin('@gyo-framework/sms-sender', SMS_SENDER_HANDLER, 'sms_sender'),
-        // A dot is not allowed in a Gradle project name; both become sms-sender.
-        addPlugin('@gyo-community/sms.sender', SMS_SENDER_HANDLER, 'sms_sender'),
+        addPlugin('@gyo-community/device-info', COMMUNICATION_HANDLER, 'device_info'),
+        addPlugin('@gyo-community/device.info', COMMUNICATION_HANDLER, 'other'),
       ];
 
       await expect(syncAndroidPlugins(projectPath, plugins)).rejects.toThrow(
-        'Two plugins are included as :gyo-plugin-sms-sender'
+        'Two plugins are included as :gyo-plugin-device-info'
       );
     });
 
@@ -314,7 +316,7 @@ describe('plugin.service', () => {
 
       const manifest = await readManifest(projectPath);
       expect(manifest?.model).toBe('gradle-module');
-      expect(manifest?.plugins[0].path).toBe('lib/node_modules/@gyo-framework/app-launcher');
+      expect(manifest?.plugins[0].path).toBe('lib/node_modules/@gyo-community/app-launcher');
     });
 
     it('should fail when the project has no android directory', async () => {
@@ -350,9 +352,9 @@ describe('plugin.service', () => {
 
 describe('needsSync', () => {
   const plugin: DiscoveredPlugin = {
-    name: '@gyo-framework/app-launcher',
+    name: '@gyo-community/app-launcher',
     version: '0.1.0',
-    path: '/project/lib/node_modules/@gyo-framework/app-launcher',
+    path: '/project/lib/node_modules/@gyo-community/app-launcher',
     meta: { bridgeName: 'app_launcher', android: { handlerClass: APP_LAUNCHER_HANDLER } },
     hasAndroid: true,
     hasIOS: false,

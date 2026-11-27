@@ -1,4 +1,4 @@
-# @gyo-framework/http
+# @gyo-community/http
 
 GET requests from the web layer that run outside the WebView, with the headers the caller chooses.
 
@@ -12,7 +12,7 @@ Decoding is left to the caller, who knows the charset.
 ## Install
 
 ```bash
-npm install @gyo-framework/http
+npm install @gyo-community/http
 ```
 
 `gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Android only; the module brings its own OkHttp.

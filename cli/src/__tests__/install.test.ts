@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import { InstallCommand } from '../commands/install';
 import {
   APP_LAUNCHER_HANDLER,
-  SMS_SENDER_HANDLER,
+  COMMUNICATION_HANDLER,
   androidFilePath,
   emptyRegistry,
   writeAndroidShell,
@@ -76,7 +76,7 @@ describe('InstallCommand', () => {
   it('should include a plugin as a Gradle module and register it', async () => {
     writePluginFixture(
       projectPath,
-      '@gyo-framework/app-launcher',
+      '@gyo-community/app-launcher',
       APP_LAUNCHER_HANDLER,
       'app_launcher'
     );
@@ -95,9 +95,9 @@ describe('InstallCommand', () => {
   it('should unregister the last plugin once it is uninstalled', async () => {
     const plugin = writePluginFixture(
       projectPath,
-      '@gyo-framework/sms-sender',
-      SMS_SENDER_HANDLER,
-      'sms_sender'
+      '@gyo-community/communication',
+      COMMUNICATION_HANDLER,
+      'communication'
     );
     await install();
     fs.removeSync(plugin.path);

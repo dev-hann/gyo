@@ -54,10 +54,10 @@ gyo build android -p production
 
 ## Plugins
 
-A Gyo plugin is an npm package that gives the web layer a native ability. Install it in `lib/`; the next `gyo run`, `gyo build` or `gyo install` adds its Android code to the app:
+A Gyo plugin is an npm package that gives the web layer a native ability. The framework's add-on features are published under `@gyo-community`. Install one in `lib/`; the next `gyo run`, `gyo build` or `gyo install` adds its Android code to the app:
 
 ```bash
-cd lib && npm install @gyo-framework/http
+cd lib && npm install @gyo-community/http
 ```
 
 Permissions the system has to ask the user for, such as contacts or SMS, go in `android/app/src/main/AndroidManifest.xml`. `gyo install` lists the ones an installed plugin needs.

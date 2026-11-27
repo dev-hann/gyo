@@ -1,5 +1,5 @@
 {
-  "name": "@gyo-framework/http",
+  "name": "@gyo-community/http",
   "version": "0.1.0",
   "description": "Gyo plugin for HTTP requests outside the WebView, with caller-supplied headers",
   "type": "module",
@@ -46,7 +46,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dev-hann/gyo.git",
+    "url": "https://github.com/dev-hann/gyo.git",
     "directory": "plugins/http"
   },
   "bugs": {

@@ -5,7 +5,7 @@ import type { DiscoveredPlugin } from '../../services/plugin.service';
 const ANDROID_TEMPLATE = path.join(__dirname, '../../../templates/android');
 
 export const APP_LAUNCHER_HANDLER = 'gyo.plugins.app_launcher.AppLauncherBridge';
-export const SMS_SENDER_HANDLER = 'gyo.plugins.sms_sender.SmsSenderBridge';
+export const COMMUNICATION_HANDLER = 'gyo.plugins.communication.CommunicationBridge';
 
 export interface PluginFixtureOptions {
   /** Permissions the plugin declares under `gyo.android.permissions`. */

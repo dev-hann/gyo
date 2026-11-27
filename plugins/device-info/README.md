@@ -1,17 +1,17 @@
-# @gyo-framework/device-info
+# @gyo-community/device-info
 
 Gyo plugin for reading device information via Android Build/Settings.
 
 ## Installation
 
 ```bash
-npm install @gyo-framework/device-info
+npm install @gyo-community/device-info
 ```
 
 ## Usage
 
 ```typescript
-import { DeviceInfo } from '@gyo-framework/device-info';
+import { DeviceInfo } from '@gyo-community/device-info';
 
 const deviceInfo = new DeviceInfo();
 
