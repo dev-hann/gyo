@@ -90,7 +90,8 @@ export class AndroidRunCommand extends AbstractRunCommand {
       }
 
       const content = await readFile(buildGradlePath);
-      const match = content.match(/applicationId\s+"([^"]+)"/);
+      // AGP 9 has Gradle write `applicationId = "..."`; older projects wrote `applicationId "..."`.
+      const match = content.match(/applicationId\s*=?\s*"([^"]+)"/);
       return match ? match[1] : null;
     } catch (error) {
       const message = getErrorMessage(error);

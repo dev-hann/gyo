@@ -48,6 +48,7 @@ jest.mock('fs-extra', () => ({
 }));
 
 import { EventEmitter } from 'events';
+import * as path from 'path';
 import { AndroidRunCommand } from '../commands/run/AndroidRunCommand';
 import { executeCommand, requireTool } from '../utils/exec';
 import { pathExists, readFile } from '../utils/fs';
@@ -225,6 +226,20 @@ describe('AndroidRunCommand', () => {
 
       const result = await command['getPackageName']('/android');
       expect(result).toBe('com.example.app');
+    });
+
+    it('should read the applicationId the template writes, assignment and all', async () => {
+      // The build file of a generated project, not one written for the test.
+      const buildFile = jest
+        .requireActual('fs-extra')
+        .readFileSync(path.join(__dirname, '../../templates/android/app/build.gradle'), 'utf-8')
+        .replace(/\{\{PACKAGE_NAME\}\}/g, 'com.example.demo_app');
+      mockedFsReadFile.mockResolvedValue(buildFile);
+      mockedPathExists.mockResolvedValue(true);
+
+      const result = await command['getPackageName']('/android');
+
+      expect(result).toBe('com.example.demo_app');
     });
 
     it('should return null when build.gradle not found', async () => {
