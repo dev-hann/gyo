@@ -29,6 +29,7 @@
 - The command of a platform says which platform it is for. `gyo build` and `gyo run` no longer pass it along, and it no longer validates a platform that was chosen for it. A command that only another command runs no longer declares a name for Commander
 - The Android module of every plugin names its Kotlin sources the way Android Gradle Plugin 9 wants: `srcDirs` is deprecated there and warned about on every build
 - `@gyo-framework/notification-listener` and `@gyo-framework/notification-reader` are one package, `@gyo-community/notifications`. The reader could not build without the listener, and nothing in its `package.json` said so: `gyo install` stopped with a message to install the other. One Android module declares the service and answers both classes
+- `@gyo-framework/contact-search`, `@gyo-framework/sms-sender` and `@gyo-framework/phone-caller` are one package, `@gyo-community/communication`, with one bridge and one Android module. The classes keep their methods; the import path is the change
 - The tests of an app use `@gyo-framework/bridge/testing`: `createBridgeMock(name)` answers requests of the real `Bridge` through `requests()`, `resolve()`, `reject()` and `emitEvent()`, and `setPlatform()` and `cleanupPlatform()` stand in for the native object. It was `@gyo-framework/test-utils`, a package of its own, whose mock could not answer anything and kept the `Bridge` from installing what settles its promises
 - Plugin naming unified to `@gyo-framework/*` scope
 - Clean architecture: core, services, utils, commands layers

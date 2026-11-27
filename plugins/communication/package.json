@@ -1,0 +1,89 @@
+{
+  "name": "@gyo-community/communication",
+  "version": "0.2.0",
+  "description": "Gyo plugin for searching contacts, sending and reading SMS, and making calls and reading the call log on Android",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "android/src",
+    "android/build.gradle.kts",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "watch": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build && npm run typecheck",
+    "clean": "rm -rf dist android/build"
+  },
+  "keywords": [
+    "gyo",
+    "communication",
+    "contacts",
+    "contact-search",
+    "sms",
+    "sms-sender",
+    "calls",
+    "telephony",
+    "phone-caller",
+    "android",
+    "bridge",
+    "plugin"
+  ],
+  "author": "Gyo Framework",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dev-hann/gyo.git",
+    "directory": "plugins/communication"
+  },
+  "bugs": {
+    "url": "https://github.com/dev-hann/gyo/issues"
+  },
+  "homepage": "https://github.com/dev-hann/gyo#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "gyo": {
+    "bridgeName": "communication",
+    "android": {
+      "handlerClass": "gyo.plugins.communication.CommunicationBridge",
+      "permissions": [
+        "android.permission.READ_CONTACTS",
+        "android.permission.SEND_SMS",
+        "android.permission.READ_SMS",
+        "android.permission.CALL_PHONE",
+        "android.permission.READ_CALL_LOG"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@gyo-framework/bridge": "^0.2.0"
+  },
+  "devDependencies": {
+    "@gyo-framework/bridge": "^0.2.0",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.4.9",
+    "tsup": "^8.0.0"
+  }
+}
