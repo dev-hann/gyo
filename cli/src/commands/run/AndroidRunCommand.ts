@@ -7,6 +7,7 @@ import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
 import { BuildFailedError, GyoError, getErrorMessage } from '../../core/errors';
 import { syncAndroidAppIdentity, toAndroidAppIdentity } from '../../services/android-shell.service';
+import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
 
 export class AndroidRunCommand extends AbstractRunCommand {
   getMeta(): CommandMeta {
@@ -19,6 +20,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
     await this.checkPlatformDirectoryExists();
     await this.checkAdbAvailable();
     await this.updateServerUrl(androidPath, serverUrl);
+    await syncAndroidPluginsIfNeeded(this.projectPath);
 
     if (!this.config) {
       throw new GyoError('Configuration not loaded');

@@ -54,12 +54,17 @@ jest.mock('../services/android-shell.service', () => ({
   prepareReleaseSigning: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../services/plugin.service', () => ({
+  syncAndroidPluginsIfNeeded: jest.fn().mockResolvedValue(undefined),
+}));
+
 import { AndroidBuildCommand } from '../commands/build/AndroidBuildCommand';
 import { executeCommand } from '../utils/exec';
 import { pathExists, writeFile } from '../utils/fs';
-import { BuildFailedError } from '../core/errors';
+import { BuildFailedError, GyoError } from '../core/errors';
 import { logger } from '../utils/logger';
 import { prepareReleaseSigning, syncAndroidAppIdentity } from '../services/android-shell.service';
+import { syncAndroidPluginsIfNeeded } from '../services/plugin.service';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
@@ -69,6 +74,9 @@ const mockedSyncIdentity = syncAndroidAppIdentity as jest.MockedFunction<
 >;
 const mockedPrepareSigning = prepareReleaseSigning as jest.MockedFunction<
   typeof prepareReleaseSigning
+>;
+const mockedSyncPlugins = syncAndroidPluginsIfNeeded as jest.MockedFunction<
+  typeof syncAndroidPluginsIfNeeded
 >;
 
 function makeExecResult(success: boolean, stdout = '', stderr = '') {
@@ -224,6 +232,27 @@ describe('AndroidBuildCommand', () => {
         displayName: '킥뉴스',
         iconPath: undefined,
       });
+    });
+
+    it('should sync the plugins before Gradle runs', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+
+      await command['buildPlatform']();
+
+      expect(mockedSyncPlugins).toHaveBeenCalledWith('/project');
+      expect(mockedSyncPlugins.mock.invocationCallOrder[0]).toBeLessThan(
+        mockedExec.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('should fail the build when a plugin cannot be synced', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+      mockedSyncPlugins.mockRejectedValue(new GyoError('@gyo-framework/x ships no sources'));
+
+      await expect(command['buildPlatform']()).rejects.toThrow('ships no sources');
+      expect(mockedExec).not.toHaveBeenCalled();
     });
   });
 

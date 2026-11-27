@@ -62,6 +62,16 @@ jest.mock('../services/android-shell.service', () => ({
   prepareReleaseSigning: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../services/plugin.service', () => ({
+  syncAndroidPluginsIfNeeded: jest.fn().mockResolvedValue(undefined),
+}));
+
+import { syncAndroidPluginsIfNeeded } from '../services/plugin.service';
+
+const mockedSyncPlugins = syncAndroidPluginsIfNeeded as jest.MockedFunction<
+  typeof syncAndroidPluginsIfNeeded
+>;
+
 const mockedSyncIdentity = syncAndroidAppIdentity as jest.MockedFunction<
   typeof syncAndroidAppIdentity
 >;
@@ -120,6 +130,37 @@ describe('AndroidRunCommand', () => {
         iconPath: undefined,
       });
       expect(mockedExec).toHaveBeenCalled();
+    });
+
+    it('should sync the plugins before Gradle runs', async () => {
+      (command as any).config = { name: 'app', version: '1.0.0', platforms: {} };
+      (command as any)['monitorLogs'] = jest.fn().mockResolvedValue(undefined);
+      mockedPathExists.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
+      mockedExec.mockResolvedValue(await makeExecResult(true));
+      mockedFsReadFile.mockResolvedValue(
+        'android { defaultConfig { applicationId "com.example.app" } }'
+      );
+
+      await command['runPlatform']('http://192.168.1.5:3000');
+
+      expect(mockedSyncPlugins).toHaveBeenCalledWith('/project');
+      expect(mockedSyncPlugins.mock.invocationCallOrder[0]).toBeLessThan(
+        mockedExec.mock.invocationCallOrder[0]
+      );
+    });
+
+    it('should stop before building when a plugin cannot be synced', async () => {
+      (command as any)['monitorLogs'] = jest.fn().mockResolvedValue(undefined);
+      mockedPathExists.mockResolvedValue(true);
+      mockedRequireTool.mockResolvedValue(undefined);
+      mockedExec.mockResolvedValue(await makeExecResult(true));
+      mockedSyncPlugins.mockRejectedValue(new Error('@gyo-framework/x ships no sources'));
+
+      await expect(command['runPlatform']('http://192.168.1.5:3000')).rejects.toThrow(
+        'ships no sources'
+      );
+      expect(mockedExec).not.toHaveBeenCalled();
     });
   });
 

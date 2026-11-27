@@ -261,6 +261,18 @@ describe('CreateCommand', () => {
     expect(gitignoreCall![1]).toContain('android/app/src/main/assets/gyo-config.json');
   });
 
+  it('should ignore the record of the last plugin sync in .gitignore', async () => {
+    mockedPathExists.mockResolvedValue(false);
+
+    await command.testRun().catch(() => {});
+
+    const gitignoreCall = mockedWriteFile.mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].endsWith('.gitignore')
+    );
+    expect(gitignoreCall).toBeDefined();
+    expect(gitignoreCall![1]).toContain('.gyo-plugins');
+  });
+
   it('should write README.md', async () => {
     mockedPathExists.mockResolvedValue(false);
     mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });

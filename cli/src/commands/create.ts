@@ -385,7 +385,8 @@ android/keystore.properties
 ios/build/
 ios/Pods/
 ios/*.xcworkspace
-.gyo/cache/
+# Record of the last plugin sync: machine specific.
+.gyo-plugins
 `;
   }
 

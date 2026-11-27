@@ -9,15 +9,7 @@ import {
   syncAndroidAppIdentity,
   toAndroidAppIdentity,
 } from '../../services/android-shell.service';
-import {
-  discoverPlugins,
-  syncAndroidPlugins,
-  generatePluginRegistry,
-  updateMainActivity,
-  writeManifest,
-  readManifest,
-  needsSync,
-} from '../../services/plugin.service';
+import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -28,8 +20,7 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
     const androidPath = path.join(this.projectPath, 'android');
 
     await this.checkPlatformDirectoryExists();
-
-    await this.syncPluginsIfNeeded(androidPath);
+    await syncAndroidPluginsIfNeeded(this.projectPath);
 
     if (!this.config) {
       throw new GyoError('Configuration not loaded');
@@ -41,35 +32,6 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
     await this.writeConfigFile(configPath, serverUrl, this.config.webview);
 
     await this.buildApp(androidPath);
-  }
-
-  private async syncPluginsIfNeeded(androidPath: string): Promise<void> {
-    try {
-      const plugins = await discoverPlugins(this.projectPath);
-      const manifest = await readManifest(this.projectPath);
-
-      if (!needsSync(manifest, plugins)) {
-        logger.verbose('Plugins up to date, skipping sync');
-        return;
-      }
-
-      if (plugins.length > 0) {
-        logger.info('Plugin changes detected, re-syncing...');
-        await syncAndroidPlugins(androidPath, plugins);
-        await generatePluginRegistry(androidPath, plugins);
-
-        const config = this.config;
-        if (config?.platforms.android?.packageName) {
-          await updateMainActivity(androidPath, config.platforms.android.packageName, plugins);
-        }
-
-        await writeManifest(this.projectPath, plugins);
-        logger.verbose(`Synced ${plugins.length} plugin(s)`);
-      }
-    } catch (e) {
-      logger.warn(`Plugin sync failed: ${e instanceof Error ? e.message : String(e)}`);
-      logger.warn('Continuing build without plugin sync...');
-    }
   }
 
   private async buildApp(androidPath: string): Promise<void> {

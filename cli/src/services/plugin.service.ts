@@ -1,7 +1,8 @@
 import * as path from 'path';
 import fs from 'fs-extra';
 import { logger } from '../utils/logger';
-import { pathExists, readJson, writeFile, ensureDir } from '../utils/fs';
+import { pathExists, readJson } from '../utils/fs';
+import { GyoError } from '../core/errors';
 
 export interface GyoPluginAndroid {
   handlerClass: string;
@@ -22,27 +23,35 @@ export interface DiscoveredPlugin {
   hasIOS: boolean;
 }
 
+/** What the last sync put into the platform projects. Paths are relative to the project. */
 export interface PluginManifest {
   plugins: DiscoveredPlugin[];
-  timestamp: string;
+}
+
+/** A plugin with an Android handler whose declaration could be read. */
+interface AndroidPlugin {
+  plugin: DiscoveredPlugin;
+  handlerClass: string;
+  /** Package segments of `handlerClass`. */
+  segments: string[];
 }
 
 const GYO_PLUGIN_SCOPES = ['@gyo-framework', '@gyo-community'];
 const MANIFEST_FILE = '.gyo-plugins';
 const PLUGIN_REGISTRY_PACKAGE = 'gyo.plugins.bridge';
 const PLUGIN_REGISTRY_CLASS = 'PluginRegistry';
+const JAVA_SOURCE_ROOT = 'app/src/main/java';
+/** Where a plugin keeps the sources of its handler's package, in order of preference. */
+const PLUGIN_SOURCE_ROOTS = ['android/src/main/kotlin', 'android/src/main/java'];
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-function getLibPath(projectPath: string): string {
-  return path.join(projectPath, 'lib');
-}
-
-function getAndroidPluginPath(androidPath: string): string {
-  return path.join(androidPath, 'app/src/main/java/gyo/plugins');
+/** `text` as a regular expression that matches exactly `text`. */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export async function discoverPlugins(projectPath: string): Promise<DiscoveredPlugin[]> {
-  const libPath = getLibPath(projectPath);
-  const nodeModulesPath = path.join(libPath, 'node_modules');
+  const nodeModulesPath = path.join(projectPath, 'lib', 'node_modules');
 
   if (!(await pathExists(nodeModulesPath))) {
     logger.debug('node_modules not found in lib/');
@@ -76,16 +85,13 @@ export async function discoverPlugins(projectPath: string): Promise<DiscoveredPl
           continue;
         }
 
-        const hasAndroid = await pathExists(path.join(pluginDir, 'android/src'));
-        const hasIOS = await pathExists(path.join(pluginDir, 'ios/Sources'));
-
         plugins.push({
           name: pkgJson.name,
           version: pkgJson.version,
           path: pluginDir,
           meta: pkgJson.gyo,
-          hasAndroid,
-          hasIOS,
+          hasAndroid: await pathExists(path.join(pluginDir, 'android/src')),
+          hasIOS: await pathExists(path.join(pluginDir, 'ios/Sources')),
         });
       } catch (e) {
         logger.debug(`Failed to read ${pkgJsonPath}: ${e}`);
@@ -96,86 +102,106 @@ export async function discoverPlugins(projectPath: string): Promise<DiscoveredPl
   return plugins;
 }
 
-export async function syncAndroidPlugins(
-  androidPath: string,
-  plugins: DiscoveredPlugin[]
-): Promise<void> {
-  const pluginJavaPath = getAndroidPluginPath(androidPath);
-
-  const androidPlugins = plugins.filter((p) => p.hasAndroid && p.meta.android);
-  if (androidPlugins.length === 0) {
-    logger.debug('No Android plugins to sync');
-    return;
+/**
+ * Reads the Android handler a plugin declares. A declared handler that
+ * cannot be read fails: syncing around it would leave the build broken.
+ */
+function toAndroidPlugin(plugin: DiscoveredPlugin): AndroidPlugin | null {
+  const handlerClass = plugin.meta.android?.handlerClass;
+  if (!plugin.hasAndroid || handlerClass === undefined) {
+    return null;
   }
 
-  for (const plugin of androidPlugins) {
-    const androidMeta = plugin.meta.android;
-    if (!androidMeta) continue;
-    const handlerClass = androidMeta.handlerClass;
-    const classParts = handlerClass.split('.');
-    const className = classParts[classParts.length - 1];
-    const packageParts = classParts.slice(0, -1);
-    const destDir = path.join(pluginJavaPath, ...packageParts.slice(2));
+  const segments = typeof handlerClass === 'string' ? handlerClass.split('.') : [];
+  const isClassName = segments.length >= 2 && segments.every((s) => IDENTIFIER.test(s));
+  if (!isClassName) {
+    throw new GyoError(
+      `${plugin.name} declares "${String(handlerClass)}" as its Android handler, which is not a class name.`
+    );
+  }
+  const { bridgeName } = plugin.meta;
+  if (typeof bridgeName !== 'string' || !IDENTIFIER.test(bridgeName)) {
+    throw new GyoError(`${plugin.name} declares "${String(bridgeName)}" as its bridge name.`);
+  }
 
-    await ensureDir(destDir);
+  return { plugin, handlerClass, segments: segments.slice(0, -1) };
+}
 
-    const srcDir = path.join(plugin.path, 'android/src/main/kotlin', ...packageParts.slice(2));
+function androidPlugins(plugins: DiscoveredPlugin[]): AndroidPlugin[] {
+  return plugins.flatMap((plugin) => {
+    const android = toAndroidPlugin(plugin);
+    return android ? [android] : [];
+  });
+}
+
+/** Where the sources of a handler's package live in the Android project. */
+function handlerDir(androidPath: string, { segments }: AndroidPlugin): string {
+  return path.join(androidPath, JAVA_SOURCE_ROOT, ...segments);
+}
+
+async function copySources(androidPath: string, android: AndroidPlugin): Promise<void> {
+  const { plugin, segments } = android;
+  const sourceDirs = PLUGIN_SOURCE_ROOTS.map((root) => path.join(plugin.path, root, ...segments));
+
+  for (const srcDir of sourceDirs) {
     if (await pathExists(srcDir)) {
-      const files = await fs.readdir(srcDir);
-      for (const file of files) {
-        if (file.endsWith('.kt')) {
-          await fs.copy(path.join(srcDir, file), path.join(destDir, file), {
-            overwrite: true,
-          });
-          logger.debug(`Copied ${file} -> ${destDir}`);
-        }
-      }
-    } else {
-      const altSrcDir = path.join(plugin.path, 'android/src/main/java', ...packageParts.slice(2));
-      if (await pathExists(altSrcDir)) {
-        const files = await fs.readdir(altSrcDir);
-        for (const file of files) {
-          if (file.endsWith('.kt') || file.endsWith('.java')) {
-            await fs.copy(path.join(altSrcDir, file), path.join(destDir, file), {
-              overwrite: true,
-            });
-            logger.debug(`Copied ${file} -> ${destDir}`);
-          }
-        }
-      } else {
-        logger.warn(`No source found for ${plugin.name} at expected paths`);
-      }
+      await fs.copy(srcDir, handlerDir(androidPath, android));
+      logger.verbose(`Copied ${path.relative(plugin.path, srcDir)} of ${plugin.name}`);
+      return;
     }
+  }
 
-    logger.verbose(`Synced ${plugin.name} -> ${className}`);
+  throw new GyoError(
+    `${plugin.name} declares the handler ${android.handlerClass} but ships no sources for its ` +
+      `package. Expected one of: ${sourceDirs
+        .map((dir) => path.relative(plugin.path, dir))
+        .join(', ')}`
+  );
+}
+
+async function removeGoneSources(
+  androidPath: string,
+  previous: DiscoveredPlugin[],
+  current: AndroidPlugin[]
+): Promise<void> {
+  const kept = new Set(current.map((android) => handlerDir(androidPath, android)));
+
+  for (const android of androidPlugins(previous)) {
+    const dir = handlerDir(androidPath, android);
+    if (kept.has(dir) || !(await pathExists(dir))) continue;
+
+    await fs.remove(dir);
+    logger.verbose(`Removed the sources of ${android.plugin.name}`);
   }
 }
 
-export async function generatePluginRegistry(
-  androidPath: string,
-  plugins: DiscoveredPlugin[]
-): Promise<void> {
-  const bridgePath = path.join(androidPath, 'app/src/main/java/gyo/plugins/bridge');
-  await ensureDir(bridgePath);
+function registryPath(androidPath: string): string {
+  return path.join(
+    androidPath,
+    JAVA_SOURCE_ROOT,
+    ...PLUGIN_REGISTRY_PACKAGE.split('.'),
+    `${PLUGIN_REGISTRY_CLASS}.kt`
+  );
+}
 
-  const androidPlugins = plugins.filter((p) => p.hasAndroid && p.meta.android);
+/** Writes the registry that registers every Android handler, or removes it when there is none. */
+async function writePluginRegistry(androidPath: string, plugins: AndroidPlugin[]): Promise<void> {
+  const registry = registryPath(androidPath);
 
-  const imports = new Set<string>();
-  const registrations: string[] = [];
-
-  imports.add('import android.content.Context');
-  imports.add(`import ${PLUGIN_REGISTRY_PACKAGE}.BridgeRegistry`);
-
-  for (const plugin of androidPlugins) {
-    const androidMeta = plugin.meta.android;
-    if (!androidMeta) continue;
-    const handlerClass = androidMeta.handlerClass;
-    const bridgeName = plugin.meta.bridgeName;
-    imports.add(`import ${handlerClass}`);
-    registrations.push(
-      `        BridgeRegistry.register("${bridgeName}", ${handlerClass.split('.').pop()}(context))`
-    );
+  if (plugins.length === 0) {
+    await fs.remove(registry);
+    return;
   }
+
+  const imports = new Set<string>([
+    'import android.content.Context',
+    `import ${PLUGIN_REGISTRY_PACKAGE}.BridgeRegistry`,
+  ]);
+  const registrations = plugins.map(({ plugin, handlerClass }) => {
+    imports.add(`import ${handlerClass}`);
+    const className = handlerClass.split('.').pop();
+    return `        BridgeRegistry.register("${plugin.meta.bridgeName}", ${className}(context))`;
+  });
 
   const content = [
     `package ${PLUGIN_REGISTRY_PACKAGE}`,
@@ -190,73 +216,83 @@ export async function generatePluginRegistry(
     '',
   ].join('\n');
 
-  const registryPath = path.join(bridgePath, `${PLUGIN_REGISTRY_CLASS}.kt`);
-  await writeFile(registryPath, content);
-  logger.verbose(`Generated ${PLUGIN_REGISTRY_CLASS}.kt with ${androidPlugins.length} plugin(s)`);
+  await fs.outputFile(registry, content);
 }
 
-export async function updateMainActivity(
-  androidPath: string,
-  packageName: string,
-  plugins: DiscoveredPlugin[]
-): Promise<void> {
-  const packagePath = packageName.replace(/\./g, '/');
-  const mainActivityDir = path.join(androidPath, `app/src/main/java/${packagePath}`);
-  const mainActivityPath = path.join(mainActivityDir, 'MainActivity.kt');
-
-  if (!(await pathExists(mainActivityPath))) {
-    logger.warn('MainActivity.kt not found');
-    return;
+async function findFile(dir: string, fileName: string): Promise<string | null> {
+  if (!(await pathExists(dir))) {
+    return null;
   }
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+    const entryPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const found = await findFile(entryPath, fileName);
+      if (found) {
+        return found;
+      }
+    } else if (entry.name === fileName) {
+      return entryPath;
+    }
+  }
+  return null;
+}
 
-  let content = await fs.readFile(mainActivityPath, 'utf-8');
+/**
+ * `MainActivity.kt`, wherever the generated project keeps it. It is found
+ * by name: the package in gyo.config.json is not what places the file.
+ */
+async function findMainActivity(androidPath: string): Promise<string | null> {
+  for (const root of ['app/src/main/java', 'app/src/main/kotlin']) {
+    const found = await findFile(path.join(androidPath, root), 'MainActivity.kt');
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
 
-  const hasPluginRegistryImport = content.includes(
-    `import ${PLUGIN_REGISTRY_PACKAGE}.${PLUGIN_REGISTRY_CLASS}`
-  );
-  if (!hasPluginRegistryImport && plugins.length > 0) {
-    content = content.replace(
-      'import gyo.plugins.bridge.BridgeRegistry',
-      `import gyo.plugins.bridge.BridgeRegistry\nimport ${PLUGIN_REGISTRY_PACKAGE}.${PLUGIN_REGISTRY_CLASS}`
+/** Adds or removes the line that registers the plugins from MainActivity. */
+async function wireMainActivity(androidPath: string, plugins: AndroidPlugin[]): Promise<void> {
+  const mainActivityPath = await findMainActivity(androidPath);
+  if (!mainActivityPath) {
+    if (plugins.length === 0) {
+      return;
+    }
+    throw new GyoError(
+      `MainActivity.kt not found under ${path.join(androidPath, JAVA_SOURCE_ROOT)}, so the plugins cannot be registered.`
     );
   }
 
+  const original = await fs.readFile(mainActivityPath, 'utf-8');
+  let content = original;
+  const registryImport = `import ${PLUGIN_REGISTRY_PACKAGE}.${PLUGIN_REGISTRY_CLASS}`;
   const registryCall = `${PLUGIN_REGISTRY_CLASS}.registerAll(this)`;
-  if (!content.includes(registryCall) && plugins.length > 0) {
-    content = content.replace(
-      /\/\/\s*Example:\s*Register custom bridges here[\s\S]*?BridgeRegistry\.register\("my-custom-bridge".*?\)/,
-      registryCall
-    );
 
+  if (plugins.length === 0) {
+    content = content
+      .replace(new RegExp(`^${escapeRegExp(registryImport)}\\r?\\n`, 'm'), '')
+      .replace(new RegExp(`^[ \\t]*${escapeRegExp(registryCall)}\\r?\\n`, 'm'), '');
+  } else {
     if (!content.includes(registryCall)) {
-      content = content.replace(
-        'BridgeRegistry.initialize()',
-        `BridgeRegistry.initialize()\n        \n        ${registryCall}`
-      );
+      const initialize = /^([ \t]*)BridgeRegistry\.initialize\(\)/m;
+      if (!initialize.test(content)) {
+        throw new GyoError(
+          `${mainActivityPath} has no "BridgeRegistry.initialize()" line to register the plugins after.`
+        );
+      }
+      content = content.replace(initialize, `$1BridgeRegistry.initialize()\n$1${registryCall}`);
+    }
+    if (!content.includes(registryImport)) {
+      const bridgeImport = 'import gyo.plugins.bridge.BridgeRegistry';
+      content = content.includes(bridgeImport)
+        ? content.replace(bridgeImport, `${bridgeImport}\n${registryImport}`)
+        : content.replace(/^(package [^\n]+)\n/, `$1\n\n${registryImport}\n`);
     }
   }
 
-  if (plugins.length === 0) {
-    content = content.replace(`\n        \n        ${registryCall}`, '');
-    content = content.replace(`\n        ${registryCall}`, '');
-    content = content.replace(`import ${PLUGIN_REGISTRY_PACKAGE}.${PLUGIN_REGISTRY_CLASS}\n`, '');
+  if (content !== original) {
+    await fs.writeFile(mainActivityPath, content, 'utf-8');
   }
-
-  await writeFile(mainActivityPath, content);
-  logger.verbose('Updated MainActivity.kt');
-}
-
-export async function writeManifest(
-  projectPath: string,
-  plugins: DiscoveredPlugin[]
-): Promise<void> {
-  const manifest: PluginManifest = {
-    plugins,
-    timestamp: new Date().toISOString(),
-  };
-  const manifestPath = path.join(projectPath, MANIFEST_FILE);
-  await fs.writeJson(manifestPath, manifest, { spaces: 2 });
-  logger.verbose(`Wrote ${MANIFEST_FILE}`);
 }
 
 export async function readManifest(projectPath: string): Promise<PluginManifest | null> {
@@ -265,10 +301,24 @@ export async function readManifest(projectPath: string): Promise<PluginManifest 
     return null;
   }
   try {
-    return (await readJson(manifestPath)) as PluginManifest;
+    const manifest = (await readJson(manifestPath)) as PluginManifest;
+    return { plugins: Array.isArray(manifest.plugins) ? manifest.plugins : [] };
   } catch {
     return null;
   }
+}
+
+export async function writeManifest(
+  projectPath: string,
+  plugins: DiscoveredPlugin[]
+): Promise<void> {
+  const manifest: PluginManifest = {
+    plugins: plugins.map((plugin) => ({
+      ...plugin,
+      path: path.relative(projectPath, plugin.path),
+    })),
+  };
+  await fs.writeJson(path.join(projectPath, MANIFEST_FILE), manifest, { spaces: 2 });
 }
 
 export function needsSync(
@@ -288,4 +338,45 @@ export function needsSync(
   }
 
   return false;
+}
+
+/**
+ * Makes the Android project match the plugins installed in lib/: the
+ * sources of their handlers, the registry that registers them and the line
+ * in MainActivity that runs it. The sources of plugins that are gone are
+ * removed. A plugin that cannot be synced fails the sync: going on would
+ * only move the failure into the Gradle build.
+ */
+export async function syncAndroidPlugins(
+  projectPath: string,
+  plugins?: DiscoveredPlugin[]
+): Promise<void> {
+  const current = plugins ?? (await discoverPlugins(projectPath));
+  const androidPath = path.join(projectPath, 'android');
+  if (!(await pathExists(androidPath))) {
+    throw new GyoError(`Android project not found at ${androidPath}`);
+  }
+
+  const previous = (await readManifest(projectPath))?.plugins ?? [];
+  const currentAndroid = androidPlugins(current);
+
+  for (const android of currentAndroid) {
+    await copySources(androidPath, android);
+  }
+  await removeGoneSources(androidPath, previous, currentAndroid);
+  await writePluginRegistry(androidPath, currentAndroid);
+  await wireMainActivity(androidPath, currentAndroid);
+  await writeManifest(projectPath, current);
+
+  logger.verbose(`Synced ${currentAndroid.length} Android plugin(s)`);
+}
+
+/** Syncs only when the installed plugins differ from the ones the last sync recorded. */
+export async function syncAndroidPluginsIfNeeded(projectPath: string): Promise<void> {
+  const plugins = await discoverPlugins(projectPath);
+  if (!needsSync(await readManifest(projectPath), plugins)) {
+    logger.verbose('Plugins up to date, skipping sync');
+    return;
+  }
+  await syncAndroidPlugins(projectPath, plugins);
 }

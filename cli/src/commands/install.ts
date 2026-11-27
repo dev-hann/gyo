@@ -1,18 +1,13 @@
-import * as path from 'path';
 import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
-import { pathExists } from '../utils/fs';
-import { GyoError, getErrorMessage } from '../core/index';
-import {
-  discoverPlugins,
-  syncAndroidPlugins,
-  generatePluginRegistry,
-  updateMainActivity,
-  writeManifest,
-} from '../services/plugin.service';
+import { discoverPlugins, syncAndroidPlugins } from '../services/plugin.service';
 
-export class InstallCommand extends BaseCommand<BaseCommandOptions> {
+interface InstallCommandOptions extends BaseCommandOptions {
+  platform?: string;
+}
+
+export class InstallCommand extends BaseCommand<InstallCommandOptions> {
   getMeta(): CommandMeta {
     return {
       name: 'install',
@@ -28,11 +23,29 @@ export class InstallCommand extends BaseCommand<BaseCommandOptions> {
 
   protected async run(): Promise<void> {
     await this.requireGyoProject();
-    const projectPath = this.projectPath;
 
     this.startSpinner('Scanning plugins...');
 
-    const plugins = await discoverPlugins(projectPath);
+    const plugins = await discoverPlugins(this.projectPath);
+
+    if (plugins.length > 0) {
+      logger.info(`Found ${plugins.length} plugin(s):`);
+      for (const plugin of plugins) {
+        const platforms: string[] = [];
+        if (plugin.hasAndroid) platforms.push('android');
+        if (plugin.hasIOS) platforms.push('ios');
+        logger.info(`  ${plugin.name}@${plugin.version} [${platforms.join(', ')}]`);
+      }
+    }
+
+    if (this.options.platform && this.options.platform !== 'android') {
+      this.succeedSpinner(`Nothing to sync for ${this.options.platform}`);
+      return;
+    }
+
+    // Runs even with no plugin: it also removes what an earlier sync left behind.
+    this.updateSpinner('Syncing Android plugins...');
+    await syncAndroidPlugins(this.projectPath, plugins);
 
     if (plugins.length === 0) {
       this.succeedSpinner('No Gyo plugins found in lib/node_modules/');
@@ -40,46 +53,6 @@ export class InstallCommand extends BaseCommand<BaseCommandOptions> {
       return;
     }
 
-    logger.info(`Found ${plugins.length} plugin(s):`);
-    for (const plugin of plugins) {
-      const platforms: string[] = [];
-      if (plugin.hasAndroid) platforms.push('android');
-      if (plugin.hasIOS) platforms.push('ios');
-      logger.info(`  ${plugin.name}@${plugin.version} [${platforms.join(', ')}]`);
-    }
-
-    const platform = (this.options as BaseCommandOptions & { platform?: string }).platform;
-
-    const androidPath = path.join(projectPath, 'android');
-    const shouldSyncAndroid =
-      (!platform || platform === 'android') && (await pathExists(androidPath));
-
-    if (shouldSyncAndroid) {
-      this.updateSpinner('Syncing Android plugins...');
-      await syncAndroidPlugins(androidPath, plugins);
-      await generatePluginRegistry(androidPath, plugins);
-
-      const config = this.config;
-      if (config?.platforms.android?.packageName) {
-        await updateMainActivity(androidPath, config.platforms.android.packageName, plugins);
-      } else {
-        logger.warn('Could not determine package name. Update MainActivity.kt manually.');
-      }
-
-      logger.success('Android plugins synced');
-    }
-
-    await writeManifest(projectPath, plugins);
-
-    this.succeedSpinner(`Synced ${plugins.length} plugin(s)`);
-  }
-
-  protected async handleError(error: unknown): Promise<void> {
-    this.spinner.fail('Install failed');
-    logger.error(getErrorMessage(error));
-    if (error instanceof GyoError) {
-      throw error;
-    }
-    throw new GyoError(getErrorMessage(error), 1, { cause: error });
+    this.succeedSpinner('Android plugins synced');
   }
 }
