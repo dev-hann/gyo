@@ -448,6 +448,9 @@ describe('AbstractRunCommand', () => {
       const error = new Error('adb: device offline');
 
       logProcess.emit('error', error);
+      // Before the error goes on, the run asks the dev server to stop.
+      await signalled;
+      devServer.emit('exit', 0);
 
       await expect(run).rejects.toBe(error);
       expect(logProcess.kill).toHaveBeenCalledWith('SIGTERM');
@@ -570,6 +573,40 @@ describe('AbstractRunCommand', () => {
     function runAndReport(): Promise<unknown> {
       return failureOf(command.execute());
     }
+
+    // `gyo run` runs the command of a platform with `runDirectly()` and
+    // reports the error itself: the dev server has to be stopped before it.
+    it('should ask the dev server to stop when the platform part fails, as gyo run calls it', async () => {
+      const failure = failureOf(command.runDirectly());
+      await signalled;
+
+      expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGTERM');
+
+      jest.advanceTimersByTime(PROCESS_KILL_TIMEOUT_MS);
+
+      expect(await failure).toHaveProperty(
+        'message',
+        expect.stringContaining("Platform 'android' not found")
+      );
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('should not report a dev server as stopped unexpectedly while the run is stopping it', async () => {
+      const failure = failureOf(command.runDirectly());
+      await signalled;
+      devServer.emit('exit', 143); // what npm exits with on SIGTERM
+      await failure;
+
+      expect(logger.error).not.toHaveBeenCalledWith(
+        expect.stringContaining('Web server unexpectedly stopped')
+      );
+    });
+
+    beforeEach(() => {
+      project.setWebApp({ start: 'npm run dev' });
+      // The platform part fails once the dev server runs.
+      fs.removeSync(project.android());
+    });
 
     beforeEach(() => {
       project.setWebApp({ start: 'npm run dev' });

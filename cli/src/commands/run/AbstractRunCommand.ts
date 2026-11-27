@@ -62,6 +62,20 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     }
   }
 
+  /**
+   * `gyo run` runs the command of a platform this way and reports the error
+   * itself. The dev server is stopped here, before the error goes on: left
+   * running, it would only be killed when the CLI exits.
+   */
+  async runDirectly(): Promise<void> {
+    try {
+      await super.runDirectly();
+    } catch (error) {
+      await this.cleanup();
+      throw error;
+    }
+  }
+
   protected async run(): Promise<void> {
     this.setupSignalHandlers();
 
@@ -219,7 +233,9 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     this.parentWatch.unref();
   }
 
+  /** Asks the dev server and the log process to stop. How they end after this is not news. */
   protected async cleanup(): Promise<void> {
+    this.isCleaningUp = true;
     const promises: Promise<void>[] = [];
 
     if (this.webServerProcess && !this.webServerProcess.killed) {
@@ -236,17 +252,15 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   /** Asks the process tree to stop, and kills it when it has not after PROCESS_KILL_TIMEOUT_MS. */
   private killProcessWithTimeout(proc: ChildProcess): Promise<void> {
     return new Promise<void>((resolve) => {
-      let exited = false;
+      let killTimeout: ReturnType<typeof setTimeout> | undefined;
       proc.once('exit', () => {
-        exited = true;
+        clearTimeout(killTimeout);
         resolve();
       });
       signalProcessTree(proc, 'SIGTERM');
 
-      const killTimeout = setTimeout(() => {
-        if (!exited) {
-          signalProcessTree(proc, 'SIGKILL');
-        }
+      killTimeout = setTimeout(() => {
+        signalProcessTree(proc, 'SIGKILL');
         resolve();
       }, PROCESS_KILL_TIMEOUT_MS);
       killTimeout.unref();
