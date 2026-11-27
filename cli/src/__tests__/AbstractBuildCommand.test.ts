@@ -50,7 +50,6 @@ describe('AbstractBuildCommand', () => {
   /** Builds Android for `profile`, as a debug build. */
   function buildAndroid(profile: string): Promise<void> {
     const command = new AndroidBuildCommand();
-    command.setPlatform('android');
     command.setOptions({ profile, release: false });
     return command.runDirectly();
   }
@@ -243,7 +242,6 @@ describe('AbstractBuildCommand', () => {
         )
       );
       const command = new IOSBuildCommand();
-      command.setPlatform('ios');
       command.setOptions({ profile: 'production', release: false });
 
       await command.runDirectly();

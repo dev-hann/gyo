@@ -59,7 +59,6 @@ describe('IOSBuildCommand', () => {
   /** Runs `gyo build ios` with the production profile, as `gyo build` does. */
   function build(release = false): Promise<void> {
     const command = new IOSBuildCommand();
-    command.setPlatform('ios');
     command.setOptions({ profile: 'production', release });
     return command.runDirectly();
   }

@@ -1,5 +1,5 @@
 import * as path from 'path';
-import type { Platform, PlatformCommandOptions } from '../base/index';
+import type { PlatformCommandOptions } from '../base/index';
 import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand } from '../../utils/exec';
@@ -19,10 +19,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
   protected serverUrl: string = '';
 
   protected readonly webServerService = new WebServerService();
-
-  protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
-  }
 
   protected async run(): Promise<void> {
     logger.info(`Building with profile: ${this.options.profile}`);

@@ -1,7 +1,9 @@
 import type { CommandMeta, Platform, PlatformCommandOptions } from './base/index';
 import { PlatformCommand } from './base/index';
 import { logger } from '../utils/logger';
-import { getErrorMessage } from '../core/index';
+import { getErrorMessage, InvalidPlatformError } from '../core/index';
+
+const PLATFORMS: Platform[] = ['android', 'ios'];
 
 export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
   getMeta(): CommandMeta {
@@ -12,8 +14,15 @@ export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
     };
   }
 
-  protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
+  setPositionalArgs([platform]: string[]): void {
+    this.platform = platform as Platform;
+  }
+
+  protected async beforeRun(): Promise<void> {
+    if (!PLATFORMS.includes(this.platform)) {
+      throw new InvalidPlatformError(this.platform, PLATFORMS);
+    }
+    await super.beforeRun();
   }
 
   protected async run(): Promise<void> {

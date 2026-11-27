@@ -2,7 +2,6 @@ import * as os from 'os';
 import * as path from 'path';
 import fs from 'fs-extra';
 import { PlatformCommand } from '../commands/base/PlatformCommand';
-import type { CommandMeta } from '../commands/base/BaseCommand';
 import type { GyoConfig, Platform } from '../core/index';
 import { silenceLogger } from './helpers/logger';
 import { createTestProject } from './helpers/project';
@@ -28,14 +27,6 @@ class ProjectCommand extends PlatformCommand {
   /** What the base class handed `run()`; null when `run()` was not reached. */
   handed: { platform: Platform; config: GyoConfig | null } | null = null;
 
-  getMeta(): CommandMeta {
-    return { name: 'project', description: 'A command of one platform' };
-  }
-
-  protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
-  }
-
   protected async run(): Promise<void> {
     await this.checkPlatformDirectoryExists();
     await this.writeConfigFile(this.configPath, 'https://example.com', this.config?.webview);
@@ -59,36 +50,6 @@ describe('PlatformCommand', () => {
   });
 
   afterEach(() => project.remove());
-
-  describe('the platform', () => {
-    it('should come from the positional argument', async () => {
-      const created = command();
-      created.setPositionalArgs(['ios']);
-
-      await created.runDirectly();
-
-      expect(created.handed?.platform).toBe('ios');
-    });
-
-    it('should be android without an argument', async () => {
-      const created = command();
-
-      await created.runDirectly();
-
-      expect(created.handed?.platform).toBe('android');
-    });
-
-    it('should be refused with the valid ones when it is outside them', async () => {
-      const created = command();
-      created.setPositionalArgs(['windows']);
-
-      await expect(created.runDirectly()).rejects.toThrow(
-        'Invalid platform: windows. Valid platforms are: android, ios'
-      );
-
-      expect(created.handed).toBeNull();
-    });
-  });
 
   describe('the project', () => {
     it('should be refused outside a project, saying what to run', async () => {

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import type { BaseCommand, BaseCommandOptions } from './commands/base/index';
+import type { BaseCommand, BaseCommandOptions, RegisteredCommand } from './commands/base/index';
 import { BuildCommand } from './commands/build';
 import { RunCommand } from './commands/run';
 import { CleanCommand } from './commands/clean';
@@ -38,7 +38,10 @@ function run(cmd: BaseCommand<BaseCommandOptions>, args: unknown[]): Promise<voi
   return cmd.execute();
 }
 
-function registerCommand(program: Command, cmd: BaseCommand<BaseCommandOptions>): void {
+function registerCommand(
+  program: Command,
+  cmd: BaseCommand<BaseCommandOptions> & RegisteredCommand
+): void {
   const meta = cmd.getMeta();
   let command = program.command(meta.name).description(meta.description);
 

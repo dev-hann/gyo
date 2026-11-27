@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
-import type { CommandMeta } from '../base/BaseCommand';
+import type { Platform } from '../base/index';
 import { logger, EMOJI } from '../../utils/logger';
 import { executeCommand, requireTool, checkCommandExists } from '../../utils/exec';
 import { pathExists, readFile, removeDir } from '../../utils/fs';
@@ -30,9 +30,7 @@ function plainScalar(content: string, key: string): string | undefined {
 }
 
 export class IOSRunCommand extends AbstractRunCommand {
-  getMeta(): CommandMeta {
-    return { name: 'run-ios', description: 'Run iOS app' };
-  }
+  protected platform: Platform = 'ios';
 
   protected async runPlatform(serverUrl: string): Promise<void> {
     const iosPath = path.join(this.projectPath, 'ios');

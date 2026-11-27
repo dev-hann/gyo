@@ -96,7 +96,6 @@ function appConfig(): unknown {
 /** Runs the command the way `gyo run` does. */
 function startRun(options: RunCommandOptions = RUN_OPTIONS): Promise<void> {
   const command = new AndroidRunCommand();
-  command.setPlatform('android');
   command.setOptions(options);
   return command.runDirectly();
 }

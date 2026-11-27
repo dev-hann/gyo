@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
-import type { CommandMeta } from '../base/BaseCommand';
+import type { Platform } from '../base/index';
 import { logger, EMOJI } from '../../utils/logger';
 import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
@@ -10,9 +10,7 @@ import { syncAndroidAppIdentity, toAndroidAppIdentity } from '../../services/and
 import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
 
 export class AndroidRunCommand extends AbstractRunCommand {
-  getMeta(): CommandMeta {
-    return { name: 'run-android', description: 'Run Android app' };
-  }
+  protected platform: Platform = 'android';
 
   protected async runPlatform(serverUrl: string): Promise<void> {
     const androidPath = path.join(this.projectPath, 'android');

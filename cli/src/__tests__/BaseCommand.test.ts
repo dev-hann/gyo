@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import type { BaseCommandOptions, CommandMeta } from '../commands/base/BaseCommand';
 import { BaseCommand } from '../commands/base/BaseCommand';
 import { PlatformCommand } from '../commands/base/PlatformCommand';
-import type { GyoConfig, Platform } from '../core/index';
+import type { GyoConfig } from '../core/index';
 import { GyoError } from '../core/index';
 import { logger } from '../utils/logger';
 import { silenceLogger } from './helpers/logger';
@@ -111,14 +111,6 @@ class ProjectCommand extends PlatformCommand {
   ran = false;
   /** `this.config` as `run()` saw it. */
   configAtRun: GyoConfig | null | undefined;
-
-  getMeta(): CommandMeta {
-    return { name: 'project', description: 'A command that needs a project' };
-  }
-
-  protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
-  }
 
   protected async run(): Promise<void> {
     this.ran = true;

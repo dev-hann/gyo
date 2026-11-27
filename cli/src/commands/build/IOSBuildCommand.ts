@@ -1,15 +1,13 @@
 import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
-import type { CommandMeta } from '../base/BaseCommand';
+import type { Platform } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand, requireTool, checkCommandExists } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
 import { showXtoolError } from '../xtool-output';
 
 export class IOSBuildCommand extends AbstractBuildCommand {
-  getMeta(): CommandMeta {
-    return { name: 'build-ios', description: 'Build iOS app' };
-  }
+  protected platform: Platform = 'ios';
 
   /** `--release` is refused before the steps every build shares: none of them should run for a build that cannot be made. */
   protected override async run(): Promise<void> {

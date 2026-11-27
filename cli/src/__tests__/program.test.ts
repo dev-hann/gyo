@@ -2,7 +2,7 @@ import type { Command } from 'commander';
 import { CommanderError } from 'commander';
 import { createProgram } from '../program';
 import { BaseCommand } from '../commands/base';
-import type { CommandMeta } from '../commands/base';
+import type { CommandMeta, RegisteredCommand } from '../commands/base';
 import { BuildCommand } from '../commands/build';
 import { CleanCommand } from '../commands/clean';
 import { ConfigCommand } from '../commands/config';
@@ -98,7 +98,7 @@ async function route(argv: string[]): Promise<Parsed> {
     }
   }
 
-  parsed.routed = executed.mock.contexts.map((command: BaseCommand) => {
+  parsed.routed = executed.mock.contexts.map((command: BaseCommand & RegisteredCommand) => {
     const [options] = callsOn(setOptions, command)[0] ?? [];
     const [action] = callsOn(setAction, command)[0] ?? [];
     const [key, value] = callsOn(setKeyValue, command)[0] ?? [];

@@ -26,7 +26,9 @@ commands/
 
 ## Pattern
 
-Every command implements `getMeta()` and `run()`. A command with positional arguments takes them in `setPositionalArgs()`, in the order `getMeta().arguments` spells them. The name in `getMeta()` is the command's word alone: the arguments are listed apart, once.
+A command that Commander runs implements `getMeta()` and `run()`. A command with positional arguments takes them in `setPositionalArgs()`, in the order `getMeta().arguments` spells them. The name in `getMeta()` is the command's word alone: the arguments are listed apart, once.
+
+The command of a platform that `gyo build` or `gyo run` delegates to (`AndroidBuildCommand`, `IOSRunCommand`, ...) is not run by Commander: it implements `run()` and says which platform it is for in `platform`.
 
 ```typescript
 export class MyCommand extends BaseCommand<MyCommandOptions> {
@@ -37,10 +39,11 @@ export class MyCommand extends BaseCommand<MyCommandOptions> {
 
 | Member | Role |
 |--------|------|
-| `getMeta()` | Name, description, arguments and options, as Commander takes them |
+| `getMeta()` | Name, description, arguments and options, as Commander takes them. Only a command Commander runs has one |
+| `platform` | `PlatformCommand` only: the platform the command is for. Declared by the command; `gyo debug <platform>` takes it as its argument |
 | `setPositionalArgs(args)` | Where the positional arguments arrive |
 | `setOptions(options)` | Where the options arrive; merges, so the order of the two does not matter |
-| `beforeRun()` | Checks that run before `run()`: a platform, a project, a config |
+| `beforeRun()` | Checks that run before `run()`: for `PlatformCommand`, the project and its config |
 | `run()` | The command |
 | `handleError(error)` | Reports once and rethrows; the entry point only exits |
 

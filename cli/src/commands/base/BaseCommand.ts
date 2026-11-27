@@ -26,6 +26,15 @@ export interface BaseCommandOptions {
   verbose?: boolean;
 }
 
+/**
+ * A command Commander runs itself: it says how it is named and which
+ * arguments and options it takes. A command another command runs, such as
+ * the one that builds a platform, says nothing of the kind.
+ */
+export interface RegisteredCommand {
+  getMeta(): CommandMeta;
+}
+
 export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOptions> {
   protected options: T;
   protected spinner: ora.Ora;
@@ -38,8 +47,6 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     this.config = null;
     this.projectPath = process.cwd();
   }
-
-  abstract getMeta(): CommandMeta;
 
   /** The positional arguments of the invocation, in the order of `getMeta().arguments`. */
   setPositionalArgs(_args: string[]): void {}

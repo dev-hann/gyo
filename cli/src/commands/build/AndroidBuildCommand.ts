@@ -1,6 +1,6 @@
 import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
-import type { CommandMeta } from '../base/BaseCommand';
+import type { Platform } from '../base/index';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
@@ -13,9 +13,7 @@ import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
 import { isLoopbackHost } from '../../core/index';
 
 export class AndroidBuildCommand extends AbstractBuildCommand {
-  getMeta(): CommandMeta {
-    return { name: 'build-android', description: 'Build Android APK' };
-  }
+  protected platform: Platform = 'android';
 
   protected async buildPlatform(): Promise<void> {
     const androidPath = path.join(this.projectPath, 'android');

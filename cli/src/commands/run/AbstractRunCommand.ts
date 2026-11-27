@@ -1,6 +1,6 @@
 import * as path from 'path';
 import type { ChildProcess } from 'child_process';
-import type { Platform, PlatformCommandOptions } from '../base/index';
+import type { PlatformCommandOptions } from '../base/index';
 import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
@@ -42,10 +42,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   private parentWatch: ReturnType<typeof setInterval> | null = null;
 
   protected readonly webServerService = new WebServerService();
-
-  protected getValidPlatforms(): Platform[] {
-    return ['android', 'ios'];
-  }
 
   protected cleanupPlatformOnly(): void {
     if (!this.platformProcess || this.platformProcess.killed) {

@@ -223,7 +223,6 @@ describe('IOSRunCommand', () => {
     project.setWebApp({ start: 'npm run dev' });
 
     command = new IOSRunCommand();
-    command.setPlatform('ios');
     command.setOptions({ profile: 'development', device: 'abc123' });
 
     // Not what `gyo create` logged.

@@ -64,7 +64,6 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
     const selectedDevice = await this.selectDevice(devices);
 
     const command = new RUN_COMMANDS[selectedDevice.platform]();
-    command.setPlatform(selectedDevice.platform);
     command.setOptions({
       ...this.options,
       device: selectedDevice.id,

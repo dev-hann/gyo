@@ -3,12 +3,7 @@ import type { BaseCommandOptions } from './BaseCommand';
 import { BaseCommand } from './BaseCommand';
 import { pathExists, ensureDir, writeFile } from '../../utils/fs';
 import type { GyoConfig, Platform } from '../../core/index';
-import {
-  InvalidPlatformError,
-  PlatformNotFoundError,
-  PlatformDisabledError,
-  toWebViewSettings,
-} from '../../core/index';
+import { PlatformNotFoundError, PlatformDisabledError, toWebViewSettings } from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -17,22 +12,15 @@ export interface PlatformCommandOptions extends BaseCommandOptions {
 export abstract class PlatformCommand<
   T extends PlatformCommandOptions = PlatformCommandOptions,
 > extends BaseCommand<T> {
+  /**
+   * The platform the command is for. A command says so where it is
+   * declared; one that takes the platform as its argument sets it.
+   */
   protected platform: Platform = 'android';
   /** The project's gyo.config.json. `beforeRun()` loads it before `run()`. */
   declare protected config: GyoConfig;
 
-  setPlatform(platform: Platform): void {
-    this.platform = platform;
-  }
-
-  setPositionalArgs([platform]: string[]): void {
-    if (platform) {
-      this.setPlatform(platform as Platform);
-    }
-  }
-
   protected async beforeRun(): Promise<void> {
-    this.validatePlatform();
     await this.requireGyoProject();
     await this.loadConfiguration();
     this.validatePlatformEnabled();
@@ -42,15 +30,6 @@ export abstract class PlatformCommand<
     await this.beforeRun();
     await this.run();
   }
-
-  protected validatePlatform(): void {
-    const validPlatforms = this.getValidPlatforms();
-    if (!validPlatforms.includes(this.platform)) {
-      throw new InvalidPlatformError(this.platform, validPlatforms);
-    }
-  }
-
-  protected abstract getValidPlatforms(): Platform[];
 
   protected validatePlatformEnabled(): void {
     const platformConfig = this.config.platforms[this.platform];

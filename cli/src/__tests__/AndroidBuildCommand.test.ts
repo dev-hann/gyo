@@ -55,7 +55,6 @@ describe('AndroidBuildCommand', () => {
   /** Runs `gyo build android` with the production profile, as `gyo build` does. */
   function build(release: boolean): Promise<void> {
     const command = new AndroidBuildCommand();
-    command.setPlatform('android');
     command.setOptions({ profile: 'production', release });
     return command.runDirectly();
   }

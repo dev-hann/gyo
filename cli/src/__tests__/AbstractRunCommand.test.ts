@@ -20,7 +20,6 @@ jest.mock('child_process', () => ({ spawn: jest.fn() }));
 import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
 import fs from 'fs-extra';
-import type { CommandMeta } from '../commands/base';
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
 import { DEFAULT_PORT, PARENT_WATCH_INTERVAL_MS, PROCESS_KILL_TIMEOUT_MS } from '../core/constants';
 import { GyoError, ServerStartError } from '../core/errors';
@@ -58,10 +57,6 @@ class RecordingRunCommand extends AbstractRunCommand {
   public readonly serverUrls: string[] = [];
   /** Resolves once the log process is running, which is where a run waits. */
   public readonly following = deferred();
-
-  getMeta(): CommandMeta {
-    return { name: 'test-run', description: 'Runs nothing' };
-  }
 
   protected async runPlatform(serverUrl: string): Promise<void> {
     this.serverUrls.push(serverUrl);
@@ -149,7 +144,6 @@ describe('AbstractRunCommand', () => {
     signalled = new Promise<void>((resolve) => mockedSignal.mockImplementation(() => resolve()));
 
     command = new RecordingRunCommand();
-    command.setPlatform('android');
     command.setOptions({ profile: 'development' });
     effects = watchRun();
   });
@@ -667,14 +661,6 @@ describe('AbstractRunCommand', () => {
       expect(logger.debug).toHaveBeenCalledWith(
         expect.stringMatching(/^Error: dev server is gone\n\s+at /)
       );
-    });
-  });
-
-  describe('the platform', () => {
-    it('should refuse a platform it cannot run and name those it can', async () => {
-      command.setPositionalArgs(['web']);
-
-      await expect(command.runDirectly()).rejects.toThrow('Valid platforms are: android, ios');
     });
   });
 });
