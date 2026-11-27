@@ -43,7 +43,7 @@ Build the app for `android` or `ios`. Bakes `profiles.<profile>.serverUrl` into 
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `-r, --release` | boolean | false | Release build. Android only: `gyo build ios --release` fails |
+| `-r, --release` | boolean | false | Release build. Android only: `gyo build ios --release` fails before anything is built |
 | `-p, --profile <profile>` | string | development | Build profile |
 | `-v, --verbose` | boolean | false | Detailed logs |
 

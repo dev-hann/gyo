@@ -95,6 +95,15 @@ describe('IOSBuildCommand', () => {
 
   afterEach(() => project.remove());
 
+  it('should refuse --release before the web app is built or the profile is asked for', async () => {
+    project.setWebApp({ build: 'vite build' });
+    await project.setConfig({ profiles: {} });
+
+    await expect(build(true)).rejects.toThrow('--release is not supported for iOS');
+
+    expect(executeCommand).not.toHaveBeenCalled();
+  });
+
   it('should refuse --release before the iOS project is touched', async () => {
     await expect(build(true)).rejects.toThrow('--release is not supported for iOS');
 
