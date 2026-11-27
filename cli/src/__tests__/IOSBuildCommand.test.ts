@@ -192,5 +192,14 @@ describe('IOSBuildCommand', () => {
 
       await expect(command['buildPlatform']()).rejects.toThrow();
     });
+
+    it('should refuse --release instead of passing a development build off as one', async () => {
+      (command as any).options = { profile: 'production', release: true };
+
+      await expect(command['buildPlatform']()).rejects.toThrow(
+        '--release is not supported for iOS'
+      );
+      expect(mockedExec).not.toHaveBeenCalled();
+    });
   });
 });

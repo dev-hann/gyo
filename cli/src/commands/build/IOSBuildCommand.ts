@@ -16,6 +16,13 @@ export class IOSBuildCommand extends AbstractBuildCommand {
   }
 
   protected async buildPlatform(): Promise<void> {
+    if (this.options.release) {
+      throw new BuildFailedError(
+        '--release is not supported for iOS: gyo builds a development build with `xtool dev`. ' +
+          'Run without --release.'
+      );
+    }
+
     const iosPath = path.join(this.projectPath, 'ios');
 
     await this.checkPlatformDirectoryExists();

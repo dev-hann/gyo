@@ -7,7 +7,8 @@ import { pathExists, removeDir } from '../utils/fs';
 import { GyoError, getErrorMessage } from '../core/index';
 
 export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptions> {
-  private hadWarnings = false;
+  /** What could not be removed; fails the command once every platform was tried. */
+  private readonly failures: { path: string; error?: unknown }[] = [];
 
   getMeta(): CommandMeta {
     return {
@@ -24,23 +25,16 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
   protected async run(): Promise<void> {
     this.startSpinner('Cleaning build artifacts...');
-    this.hadWarnings = false;
+    const platforms = this.getPlatformsToProcess();
 
-    try {
-      await this.processAllPlatforms((p) => this.cleanPlatform(p));
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (this.hadWarnings) {
-        this.warnSpinner('Clean completed with warnings');
-      } else {
-        this.succeedSpinner('Clean complete!');
-      }
-    } catch (error) {
-      if (error instanceof GyoError) {
-        throw error;
-      }
-      const message = getErrorMessage(error);
-      throw new GyoError(message, 1, { cause: error });
+    await Promise.all(platforms.map((platform) => this.cleanPlatform(platform)));
+
+    if (this.failures.length > 0) {
+      throw new GyoError(`Could not clean: ${this.failures.map((f) => f.path).join(', ')}`, 1, {
+        cause: this.failures[0].error,
+      });
     }
+    this.succeedSpinner('Clean complete!');
   }
 
   private async cleanPlatform(platform: string): Promise<void> {
@@ -57,6 +51,20 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     }
   }
 
+  /** Removes a directory, or remembers it when that fails. */
+  private async removeDir(dirPath: string, label: string): Promise<void> {
+    if (!(await pathExists(dirPath))) {
+      return;
+    }
+    try {
+      await removeDir(dirPath);
+      logger.success(`${label} cleaned`);
+    } catch (error) {
+      logger.warn(`Failed to remove ${dirPath}: ${getErrorMessage(error)}`);
+      this.failures.push({ path: dirPath, error });
+    }
+  }
+
   private async cleanAndroid(): Promise<void> {
     const androidPath = path.join(this.projectPath, 'android');
 
@@ -67,30 +75,19 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
 
     this.updateSpinner('Cleaning Android build...');
 
-    const gradlew = getGradlew();
-    const cleanResult = await executeCommand(gradlew, ['clean'], {
+    const gradleResult = await executeCommand(getGradlew(), ['clean'], {
       cwd: androidPath,
       stdio: 'pipe',
     });
-
-    if (!cleanResult.success) {
-      this.hadWarnings = true;
-      logger.warn('Android clean failed');
-      logger.error(cleanResult.stderr);
-    } else {
+    if (gradleResult.success) {
       logger.success('Android build cleaned');
+    } else {
+      logger.warn('Android clean failed');
+      logger.error(gradleResult.stderr);
+      this.failures.push({ path: `${androidPath} (gradle clean)` });
     }
 
-    const buildPath = path.join(androidPath, 'app/build');
-    if (await pathExists(buildPath)) {
-      try {
-        await removeDir(buildPath);
-      } catch (error) {
-        this.hadWarnings = true;
-        const message = getErrorMessage(error);
-        logger.warn(`Failed to remove build directory: ${message}`);
-      }
-    }
+    await this.removeDir(path.join(androidPath, 'app/build'), 'Android app/build');
   }
 
   private async cleanIOS(): Promise<void> {
@@ -102,69 +99,8 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     }
 
     this.updateSpinner('Cleaning iOS build...');
-
-    const buildPath = path.join(iosPath, 'build');
-    const podsPath = path.join(iosPath, 'Pods');
-
-    const cleanupTasks = [
-      { path: buildPath, name: 'build' },
-      { path: podsPath, name: 'Pods' },
-    ];
-
-    const existingTasks: Array<{ path: string; name: string }> = [];
-    for (const task of cleanupTasks) {
-      if (await pathExists(task.path)) {
-        existingTasks.push(task);
-      }
-    }
-
-    const results = await Promise.allSettled(
-      existingTasks.map(({ path, name }) =>
-        removeDir(path)
-          .then(() => ({ path, success: true, name }))
-          .catch((error) => ({ path, success: false, name, error }))
-      )
-    );
-
-    this.processCleanupResults(results, 'iOS', 'iOS cleanup failed');
-  }
-
-  private processCleanupResults(
-    results: PromiseSettledResult<{
-      path: string;
-      success: boolean;
-      name: string;
-      error?: unknown;
-    }>[],
-    platform: string,
-    errorMessage: string
-  ): void {
-    const failures: Array<{ path: string; error: unknown }> = [];
-
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        if (result.value.success) {
-          logger.success(`${platform} ${result.value.name} cleaned`);
-        } else {
-          this.hadWarnings = true;
-          const value = result.value as {
-            path: string;
-            success: false;
-            name: string;
-            error: unknown;
-          };
-          const message = getErrorMessage(value.error);
-          logger.warn(`Failed to remove ${value.path}: ${message}`);
-          failures.push({ path: value.path, error: value.error });
-        }
-      }
-    }
-
-    if (failures.length > 0) {
-      throw new GyoError(`${errorMessage}: ${failures.map((f) => f.path).join(', ')}`, 1, {
-        cause: failures[0].error,
-      });
-    }
+    // xtool builds through SwiftPM, which keeps everything in .build.
+    await this.removeDir(path.join(iosPath, '.build'), 'iOS .build');
   }
 
   private async cleanLib(): Promise<void> {
@@ -176,35 +112,12 @@ export class CleanCommand extends MultiPlatformCommand<MultiPlatformCommandOptio
     }
 
     this.updateSpinner('Cleaning lib build...');
+    await this.removeDir(path.join(libPath, 'dist'), 'Lib dist');
 
-    const distPath = path.join(libPath, 'dist');
     const nodeModulesPath = path.join(libPath, 'node_modules');
-
-    const cleanupTasks: Array<{ path: string; name: string }> = [{ path: distPath, name: 'dist' }];
-
     if (await pathExists(nodeModulesPath)) {
       logger.warn('Removing node_modules/ — you will need to run npm install before next run');
-      cleanupTasks.push({
-        path: nodeModulesPath,
-        name: 'node_modules',
-      });
+      await this.removeDir(nodeModulesPath, 'Lib node_modules');
     }
-
-    const existingTasks: Array<{ path: string; name: string }> = [];
-    for (const task of cleanupTasks) {
-      if (await pathExists(task.path)) {
-        existingTasks.push(task);
-      }
-    }
-
-    const results = await Promise.allSettled(
-      existingTasks.map(({ path, name }) =>
-        removeDir(path)
-          .then(() => ({ path, success: true, name }))
-          .catch((error) => ({ path, success: false, name, error }))
-      )
-    );
-
-    this.processCleanupResults(results, 'Lib', 'Lib cleanup failed');
   }
 }

@@ -83,7 +83,7 @@ describe('CleanCommand', () => {
       expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Android'));
     });
 
-    it('should warn on gradle failure', async () => {
+    it('should fail the clean when gradle fails', async () => {
       mockedPathExists.mockImplementation((p: string) => {
         if (typeof p === 'string' && p.includes('android')) return Promise.resolve(true);
         return Promise.resolve(false);
@@ -96,8 +96,7 @@ describe('CleanCommand', () => {
       });
       command.setPlatform('android');
 
-      await command['run']();
-
+      await expect(command['run']()).rejects.toThrow('gradle clean');
       expect(logger.warn).toHaveBeenCalledWith('Android clean failed');
     });
   });
@@ -112,16 +111,18 @@ describe('CleanCommand', () => {
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('not found'));
     });
 
-    it('should remove build and Pods directories', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('ios')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
+    it('should remove the .build directory xtool builds into', async () => {
+      mockedPathExists.mockImplementation((p: string) =>
+        Promise.resolve(
+          typeof p === 'string' && (/[/\\]ios$/.test(p) || /ios[/\\]\.build$/.test(p))
+        )
+      );
       command.setPlatform('ios');
 
       await command['run']();
 
-      expect(mockedRemoveDir).toHaveBeenCalled();
+      expect(mockedRemoveDir).toHaveBeenCalledTimes(1);
+      expect(mockedRemoveDir).toHaveBeenCalledWith(expect.stringMatching(/ios[/\\]\.build$/));
     });
   });
 
@@ -177,14 +178,14 @@ describe('CleanCommand', () => {
       mockedRemoveDir.mockRejectedValue(new Error('permission denied'));
       command.setPlatform('android');
 
-      await command['run']();
+      await expect(command['run']()).rejects.toThrow('app/build');
 
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove'));
     });
   });
 
   describe('run error handling', () => {
-    it('should wrap non-GyoError in GyoError when clean throws', async () => {
+    it('should fail with a GyoError that keeps the removal error as its cause', async () => {
       mockedPathExists.mockImplementation((p: string) => {
         if (typeof p === 'string' && p.includes('ios')) return Promise.resolve(true);
         return Promise.resolve(false);
@@ -199,12 +200,22 @@ describe('CleanCommand', () => {
       } catch (error) {
         thrownError = error;
       }
-      expect(thrownError).toBeDefined();
       expect(thrownError).toBeInstanceOf(GyoError);
       const err = thrownError as InstanceType<typeof GyoError>;
-      expect(err.cause).toBeDefined();
+      expect(err.message).toContain('ios');
       expect(err.cause).toBeInstanceOf(Error);
       expect((err.cause as Error).message).toContain('disk error');
+    });
+
+    it('should try every platform even when one of them fails', async () => {
+      mockedPathExists.mockResolvedValue(true);
+      mockedExec.mockResolvedValue({ success: true, stdout: '', stderr: '', code: 0 });
+      mockedRemoveDir.mockRejectedValue(new Error('disk error'));
+      command.setPlatform('all');
+
+      await expect(command['run']()).rejects.toThrow('Could not clean');
+
+      expect(mockedRemoveDir).toHaveBeenCalledTimes(4);
     });
   });
 });
