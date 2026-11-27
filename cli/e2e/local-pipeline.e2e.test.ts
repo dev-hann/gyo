@@ -234,3 +234,53 @@ console.log('Bridge name:', bridge.getName());
     console.log('[e2e:local] Bridge build successful');
   }, 90_000);
 });
+
+// These commands went through the unit tests untouched while the bundle was
+// broken: the unit tests run as CommonJS and mock the file system.
+describe('E2E Local: commands on the built bundle', () => {
+  function occurrences(text: string, part: string): number {
+    return text.split(part).length - 1;
+  }
+
+  it('should print the version of the installed CLI', async () => {
+    const cliPackage = await fs.readJson(path.resolve(__dirname, '../package.json'));
+
+    const result = await execCLI(['--version']);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe(cliPackage.version);
+  });
+
+  it('should keep a string a string in gyo config set', async () => {
+    const { projectDir } = getSharedState();
+
+    const result = await execCLI(['config', 'set', 'version', '2'], { cwd: projectDir });
+
+    expect(result.exitCode).toBe(0);
+    expect((await fs.readJson(path.join(projectDir, 'gyo.config.json'))).version).toBe('2');
+  });
+
+  it('should refuse an invalid value once and leave the config alone', async () => {
+    const { projectDir } = getSharedState();
+
+    const result = await execCLI(['config', 'set', 'displayName', ''], { cwd: projectDir });
+
+    expect(result.exitCode).not.toBe(0);
+    const output = `${result.stdout}${result.stderr}`;
+    expect(occurrences(output, "'displayName' must be a non-empty string")).toBe(1);
+    expect(output).not.toContain('Command failed');
+    expect(await fs.readJson(path.join(projectDir, 'gyo.config.json'))).not.toHaveProperty(
+      'displayName'
+    );
+  });
+
+  it('should report an invalid platform once', async () => {
+    const { projectDir } = getSharedState();
+
+    const result = await execCLI(['build', 'windows'], { cwd: projectDir });
+
+    expect(result.exitCode).not.toBe(0);
+    const output = `${result.stdout}${result.stderr}`;
+    expect(output.match(/Invalid platform: windows/g)).toHaveLength(1);
+  });
+});
