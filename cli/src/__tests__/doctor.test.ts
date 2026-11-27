@@ -324,6 +324,16 @@ describe('DoctorCommand', () => {
       expect(logger.success).toHaveBeenCalledWith(`  [✓] JDK: 17.0.20 (${jdk})`);
     });
 
+    it('should leave the location out where Java cannot be looked for', async () => {
+      onPlatform('win32');
+      delete process.env.JAVA_HOME;
+      have('java');
+
+      await doctor({ verbose: true });
+
+      expect(logger.success).toHaveBeenCalledWith('  [✓] JDK: 17.0.20');
+    });
+
     it('should report xtool as optional iOS dependency', async () => {
       have('node', 'npm', 'git');
 
@@ -379,6 +389,16 @@ describe('DoctorCommand', () => {
 
       expect(logger.success).toHaveBeenCalledWith(
         '  [✓] Android SDK Licenses: Accepted (2 license file(s))'
+      );
+    });
+
+    it('should not take another licence for the one a build needs', async () => {
+      sdk('licenses/android-sdk-arm-dbt-license');
+
+      await doctor();
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '  [✗] Android SDK Licenses: Found 1 license file(s) but android-sdk-license is missing'
       );
     });
 
@@ -487,6 +507,25 @@ describe('DoctorCommand', () => {
       have(...TOOLS);
       completeSdk();
     }
+
+    it('should call what it installs and what it leaves optional when only optional tools are missing', async () => {
+      onPlatform('linux');
+      everythingInstalled();
+      // The iOS tools are the ones a machine may lack and still be ready.
+      machine.onPath = machine.onPath.filter(
+        (tool) => !['xtool', 'swift', 'idevice_id', 'idevicesyslog', 'ideviceinfo'].includes(tool)
+      );
+
+      await doctor({ fix: true });
+
+      expect(mockedExec).toHaveBeenCalledWith(
+        'sudo',
+        ['apt', 'install', '-y', 'libimobiledevice-utils'],
+        { stdio: 'inherit' }
+      );
+      expect(logger.info).toHaveBeenCalledWith('Installing optional tools...\n');
+      expect(logger.info).toHaveBeenCalledWith('\nOptional tools to install by hand:');
+    });
 
     it('should install with apt what apt can get, and leave the rest as a hint', async () => {
       onPlatform('linux');

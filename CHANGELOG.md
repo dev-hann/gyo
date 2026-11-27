@@ -67,5 +67,8 @@
 - `gyo run -d <id>` had no effect on iOS: xtool was not told which device to use. It gets the device with `--udid`
 - `gyo run` on Android printed each line of the page's console with the tag and the process that `adb logcat` adds, and with where WebView says the line came from
 - `gyo upgrade` installed the version npm calls latest even when the installed one is newer, a local build or a pre-release, and `--check` called that version new. What npm calls latest is installed only when it is newer; a version asked for with `--version` is installed whatever it is
+- `gyo doctor` took `android-sdk-arm-dbt-license` for the licence a build needs. Only `android-sdk-license` counts
+- `gyo doctor --fix` called the optional iOS tools missing dependencies. It names them optional, as `gyo doctor` does, both what it installs and what it leaves
 - `gyo config` outside a project says that it is not a gyo project and which command makes one, as the other commands do
+- `gyo doctor -v` printed an empty pair of brackets after the JDK version where Java cannot be looked for
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later

@@ -385,10 +385,12 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     }
 
     const version = javaVersion(output.stderr || output.stdout);
+    // Shown only where Java can be looked for: not on a platform without `which`.
+    const location = this.options.verbose ? await this.javaLocation() : '';
     return {
       ...base,
       passed: javaMajor(version) >= REQUIRED_JDK_MAJOR,
-      message: `${version}${this.options.verbose ? ` (${await this.javaLocation()})` : ''}`,
+      message: `${version}${location ? ` (${location})` : ''}`,
     };
   }
 
@@ -595,9 +597,8 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       };
     }
 
-    const accepted = files.some(
-      (file) => file === 'android-sdk-license' || file === 'android-sdk-arm-dbt-license'
-    );
+    // The licence a build needs; the preview licences next to it do not stand in for it.
+    const accepted = files.includes('android-sdk-license');
     if (!accepted) {
       return {
         ...base,
@@ -745,8 +746,14 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       return;
     }
 
+    // As in the list without `--fix`: what a machine may lack and still be
+    // ready is not called a missing dependency.
+    const optionalOnly = failed.every((item) => item.optional);
+
     logger.info('\n' + '='.repeat(60));
-    logger.info('Auto-fixing missing dependencies...\n');
+    logger.info(
+      optionalOnly ? 'Installing optional tools...\n' : 'Auto-fixing missing dependencies...\n'
+    );
 
     const manager: PackageManager | undefined = this.isLinux
       ? 'apt'
@@ -783,7 +790,11 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     }
 
     if (manual.length > 0) {
-      logger.info('\nManual installation required for:');
+      logger.info(
+        optionalOnly
+          ? '\nOptional tools to install by hand:'
+          : '\nManual installation required for:'
+      );
       for (const item of manual) {
         logger.info(`  ${item.name}: ${item.installHint}`);
       }
