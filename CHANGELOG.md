@@ -27,6 +27,7 @@
 - The unit tests of every command run it the way the entry point does, on a project `gyo create` makes. They used to reach into private members over a mocked file system, which is how most of the fixes above stayed invisible
 - `platforms.ios.bundleId` is gone from the gyo.config.json of a new project. Nothing read it, and its default did not match the bundle ID `gyo create` writes into `ios/xtool.yml`. The bundle ID of an iOS app is `bundleID` in that file; a `bundleId` left in an older config does no harm
 - The command of a platform says which platform it is for. `gyo build` and `gyo run` no longer pass it along, and it no longer validates a platform that was chosen for it. A command that only another command runs no longer declares a name for Commander
+- The Android module of every plugin names its Kotlin sources the way Android Gradle Plugin 9 wants: `srcDirs` is deprecated there and warned about on every build
 - `@gyo-framework/test-utils` 0.2.0: `createBridgeMock(name)` answers requests of the real `Bridge` through `requests()`, `resolve()`, `reject()` and `emitEvent()`. The mock of 0.1.0 could not answer anything, and kept the `Bridge` from installing what settles its promises
 - Plugin naming unified to `@gyo-framework/*` scope
 - Clean architecture: core, services, utils, commands layers
