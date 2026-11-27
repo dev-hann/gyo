@@ -222,3 +222,23 @@ export function itIfAndroid(): jest.It {
 export function itIfIOS(): jest.It {
   return skipIf(!hasIOSDevice, 'No iOS device connected');
 }
+
+/** True when the SDK has the platform the template compiles against, and Java is installed. */
+function hasAndroidSdk(): boolean {
+  const template = path.join(ROOT_DIR, 'cli/templates/android/app/build.gradle');
+  const compileSdk = fs.readFileSync(template, 'utf-8').match(/compileSdk\s+(\d+)/)?.[1];
+  const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+
+  return Boolean(
+    compileSdk &&
+      sdk &&
+      fs.existsSync(path.join(sdk, 'platforms', `android-${compileSdk}`)) &&
+      commandSucceeds('java -version')
+  );
+}
+
+const androidSdk = hasAndroidSdk();
+
+export function itIfAndroidSdk(): jest.It {
+  return skipIf(!androidSdk, 'No Android SDK with the template compileSdk, or no Java');
+}

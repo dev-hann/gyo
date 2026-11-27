@@ -36,3 +36,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:e2e:local
+
+  android:
+    name: generated Android project with every plugin compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npm run test:e2e:android

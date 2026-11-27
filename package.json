@@ -30,6 +30,7 @@
     "test:e2e": "npm run build && npm run test:e2e -w @gyo-framework/cli",
     "test:e2e:local": "npm run build && npm run test:e2e:local -w @gyo-framework/cli",
     "test:e2e:device": "npm run build && npm run test:e2e:device -w @gyo-framework/cli",
+    "test:e2e:android": "npm run build && npm run test:e2e:android -w @gyo-framework/cli",
     "test:all": "npm run test && npm run test:e2e:local",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

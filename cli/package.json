@@ -29,6 +29,7 @@
     "test:e2e": "npm run test:e2e:local && npm run test:e2e:device",
     "test:e2e:local": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPattern='local-pipeline'",
     "test:e2e:device": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPattern='device-pipeline'",
+    "test:e2e:android": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPattern='android-compile'",
     "test:all": "npm run test && npm run test:e2e:local"
   },
   "keywords": [
