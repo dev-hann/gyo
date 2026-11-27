@@ -157,6 +157,7 @@ describe('CreateCommand', () => {
     const gitignore = read('my-app/.gitignore');
     for (const rule of [
       'android/app/src/main/assets/gyo-config.json',
+      'ios/Sources/Resources/gyo-config.json',
       'android/keystore.properties',
       '*.jks',
       '*.keystore',

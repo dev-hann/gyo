@@ -11,7 +11,9 @@ build/
 local.properties
 android/build/
 android/.gradle/
+# The server the app loads, written by gyo run and gyo build; a development build names this machine.
 android/app/src/main/assets/gyo-config.json
+ios/Sources/Resources/gyo-config.json
 # Release signing: secrets, never committed.
 android/keystore.properties
 *.jks
