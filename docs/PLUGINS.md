@@ -1,17 +1,23 @@
 # Plugin API Specifications
 
-Type signatures and contracts for Gyo plugins.
+Type signatures and contracts of the JS packages: the `@gyo-framework/bridge` core and the `@gyo-community` plugins.
 
 ## @gyo-framework/bridge
 
-Core bridge for web-native communication.
+Core bridge for web-native communication. Every plugin depends on it as a peer dependency.
 
 ### Exports
+
+| Export | Kind | Role |
+|--------|------|------|
+| `Bridge` | class | One named channel to the native side |
+| `requestPermissions` | function | Asks the user for Android run-time permissions |
+| Types | interfaces and type aliases | `BridgeRequest`, `BridgeResponse`, `BridgeEvent`, `EventCallback`, `Unsubscribe`, `BridgeOptions`, `BridgeInterceptor`, `AndroidBridge`, `IOSMessageHandler`, `PermissionResult` |
 
 ```typescript
 class Bridge {
   constructor(name: string, options?: BridgeOptions)
-  invoke<T>(method: string, data?: unknown): Promise<T>
+  invoke<T = unknown>(method: string, data?: unknown): Promise<T>
   listen(callback: EventCallback): Unsubscribe
   getName(): string
   isAvailable(): boolean
@@ -20,6 +26,12 @@ class Bridge {
 
 interface BridgeOptions {
   timeout?: number // default: 30000
+  interceptors?: BridgeInterceptor[]
+}
+
+interface BridgeInterceptor {
+  beforeInvoke?(request: BridgeRequest): BridgeRequest | Promise<BridgeRequest>
+  onError?(request: BridgeRequest, error: Error): void
 }
 
 interface BridgeRequest {
@@ -44,24 +56,253 @@ interface BridgeEvent {
 type EventCallback = (data: unknown) => void
 type Unsubscribe = () => void
 
-function requestPermissions(permissions: string[]): Promise<PermissionResult>
+interface AndroidBridge {
+  postMessage(message: string): void
+}
+
+interface IOSMessageHandler {
+  postMessage(message: unknown): void
+}
 
 interface PermissionResult {
   granted: string[]
   denied: string[]
 }
+
+function requestPermissions(permissions: string[]): Promise<PermissionResult>
 ```
 
-`requestPermissions` asks the user for Android run-time permissions and resolves once the user has answered. Only a permission the app declares in `android/app/src/main/AndroidManifest.xml` can be granted. It rejects outside the Android shell.
+| Member | Behaviour |
+|--------|-----------|
+| Native object | `window.androidBridge` (Android) or `window.webkit.messageHandlers.gyoBridge` (iOS) |
+| `invoke` | Posts a `BridgeRequest` and resolves with what native answers for `callbackId`. Rejects when native rejects the call, when an interceptor throws, when there is no native object, and `timeout` ms after a call native has not answered |
+| `listen` | Called for every event native publishes for this bridge name; returns what removes the listener. A listener that throws does not hold up the others |
+| `isAvailable` | Whether the native object is present and the bridge is not destroyed |
+| `destroy` | Rejects every call native has not answered and drops the listeners and the interceptors; `invoke` rejects from then on |
+| `requestPermissions` | Invokes `request` on the `permissions` bridge with `{ permissions }` and resolves once the user has answered; a permission granted before is in `granted` without a prompt. Only a permission the app declares in `android/app/src/main/AndroidManifest.xml` can be granted. Rejects outside the Android shell |
 
-> See `plugins/bridge/src/Bridge.ts` and `plugins/bridge/src/permissions.ts` for full type definitions.
-> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for native handler protocols.
+> See `bridge/src/Bridge.ts`, `bridge/src/types.ts` and `bridge/src/permissions.ts` for the full definitions.
+> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for the native handler protocols and the `permissions` handler.
 
-## @gyo-framework/app-launcher
+### `./testing` Subpath
 
-App launching and URL opening via Android PackageManager.
+A stand-in for the native side of the bridge, for the tests of an app. It ships with `@gyo-framework/bridge`; there is nothing to install apart from it. The real `Bridge` stays in place, so a test runs the path the app runs in the WebView.
+
+| Export | Kind | Role |
+|--------|------|------|
+| `createBridgeMock` | function | Replaces the native side of the bridge called `name` |
+| `setPlatform` | function | Puts the native object of a platform on `window`, recording nothing |
+| `cleanupPlatform` | function | Removes from `window` every native object and what a `Bridge` installed |
+| `BridgeMock` | interface | What the mock of a bridge lets a test do |
+| `Platform` | type | `'android'`, `'ios'` or `'none'` |
+
+```typescript
+interface BridgeMock {
+  requests(): BridgeRequest[]
+  resolve(data: unknown, request?: BridgeRequest): void
+  reject(message: string, request?: BridgeRequest): void
+  emitEvent(data: unknown): void
+  restore(): void
+}
+
+type Platform = 'android' | 'ios' | 'none'
+
+function createBridgeMock(name: string): BridgeMock
+function setPlatform(platform: Platform): void
+function cleanupPlatform(): void
+```
+
+| Member | Behaviour |
+|--------|-----------|
+| `createBridgeMock` | Brings `window.androidBridge` itself and records every `BridgeRequest` the page posts |
+| `requests()` | What was posted, oldest first |
+| `resolve`, `reject` | Answer one request, the latest by default, as native answers on success and on failure |
+| `emitEvent` | Publishes an event to the listeners of the bridge called `name` |
+| `setPlatform` | `android`: `window.androidBridge`; `ios`: `window.webkit.messageHandlers.gyoBridge`; `none`: no native object. Each call runs `cleanupPlatform()` first |
+| `restore`, `cleanupPlatform` | Delete `window.gyoBridge`, `window.androidBridge` and `window.webkit`, so that the next test gets its own |
+
+> See `bridge/src/testing/` for the definitions.
+> See [TESTING.md](./TESTING.md) for their use in a test.
+
+## @gyo-community/accessibility
+
+The accessibility service, and reading, finding and acting on the screen (Android). The four classes post to the one `accessibility` bridge; each creates its own `Bridge`.
 
 ### Exports
+
+| Export | Kind | Role |
+|--------|------|------|
+| `Accessibility` | class | Whether the service is enabled; opens its settings |
+| `ScreenReader` | class | Reads the node tree of the active window; finds the nodes that hold a text |
+| `ScreenAction` | class | Tap, type, swipe and global actions |
+| `ScreenFind` | class | Finds elements by text or by view ID |
+| Types | interfaces | `AccessibilityStatus`, `NodeInfo`, `ReadResult`, `FindParams`, `ScreenReaderFindResult`, `TapParams`, `TypeParams`, `SwipeParams`, `GlobalActionParams`, `FindByTextParams`, `FindByIdParams`, `ElementInfo`, `ScreenFindResult` |
+
+```typescript
+class Accessibility {
+  constructor()
+  isEnabled(): Promise<AccessibilityStatus>
+  openSettings(): Promise<{ opened: boolean }>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class ScreenReader {
+  constructor()
+  read(): Promise<ReadResult>
+  find(params: FindParams): Promise<ScreenReaderFindResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class ScreenAction {
+  constructor()
+  tap(params: TapParams): Promise<boolean>
+  type(params: TypeParams): Promise<boolean>
+  swipe(params: SwipeParams): Promise<boolean>
+  globalAction(params: GlobalActionParams): Promise<boolean>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class ScreenFind {
+  constructor()
+  findByText(params: FindByTextParams): Promise<ScreenFindResult>
+  findById(params: FindByIdParams): Promise<ScreenFindResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+interface AccessibilityStatus {
+  enabled: boolean
+}
+
+interface NodeInfo {
+  text: string
+  contentDescription: string
+  className: string
+  bounds: string
+  isClickable: boolean
+  isEditable: boolean
+  children: NodeInfo[]
+}
+
+interface ReadResult {
+  root: NodeInfo | null
+  windowName: string
+  packageName: string
+}
+
+interface FindParams {
+  text: string
+}
+
+interface ScreenReaderFindResult {
+  nodes: NodeInfo[]
+  count: number
+}
+
+interface TapParams {
+  x: number
+  y: number
+}
+
+interface TypeParams {
+  text: string
+}
+
+interface SwipeParams {
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+  duration: number
+}
+
+interface GlobalActionParams {
+  action: string
+}
+
+interface FindByTextParams {
+  text: string
+  exact: boolean
+}
+
+interface FindByIdParams {
+  id: string
+}
+
+interface ElementInfo {
+  text: string
+  contentDescription: string
+  className: string
+  bounds: string
+  isClickable: boolean
+  isFocusable: boolean
+  isEditable: boolean
+  centerX: number
+  centerY: number
+}
+
+interface ScreenFindResult {
+  elements: ElementInfo[]
+  count: number
+}
+```
+
+### Native Handler
+
+**Android**: `gyo.plugins.accessibility.AccessibilityBridge`, behind the bridge `accessibility`.
+
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `Accessibility` | `is_enabled` | — | `AccessibilityStatus` |
+| `Accessibility` | `open_settings` | — | `{ opened: boolean }`, with `error` as well when it did not open |
+| `ScreenReader` | `read` | — | `ReadResult` |
+| `ScreenReader` | `find` | `FindParams` | `ScreenReaderFindResult` |
+| `ScreenAction` | `tap` | `TapParams` | `boolean` |
+| `ScreenAction` | `type` | `TypeParams` | `boolean` |
+| `ScreenAction` | `swipe` | `SwipeParams` | `boolean` |
+| `ScreenAction` | `global` | `GlobalActionParams` | `boolean` |
+| `ScreenFind` | `find_by_text` | `FindByTextParams` | `ScreenFindResult` |
+| `ScreenFind` | `find_by_id` | `FindByIdParams` | `ScreenFindResult` |
+
+| Rule | Value |
+|------|-------|
+| `global` | `action` is one of the names below, matched without regard to case; any other name returns `false` |
+| `swipe` | `duration` in milliseconds, 300 by default |
+| `find` | The nodes of the active window that hold `text`, each with its children |
+| `find_by_text` | With `exact`, only the nodes whose text is `text` |
+| `find_by_id` | The nodes with the view resource ID `id` |
+| `tap`, `swipe` | `false` for a negative coordinate |
+
+| `action` | Android global action |
+|----------|-----------------------|
+| `back` | `GLOBAL_ACTION_BACK` |
+| `home` | `GLOBAL_ACTION_HOME` |
+| `recents` | `GLOBAL_ACTION_RECENTS` |
+| `notifications` | `GLOBAL_ACTION_NOTIFICATIONS` |
+| `quick_settings` | `GLOBAL_ACTION_QUICK_SETTINGS` |
+| `power_dialog` | `GLOBAL_ACTION_POWER_DIALOG` |
+
+### Setup
+
+| Item | Value |
+|------|-------|
+| Permissions | None |
+| Service | `GyoAccessibilityService`, declared by the module's manifest with its configuration. The user enables it under Settings, Accessibility; `Accessibility.openSettings()` opens that screen |
+| Until the service is enabled | `is_enabled` answers `{ enabled: false }`; `read` a `null` root with an empty `windowName` and `packageName`; `find`, `find_by_text` and `find_by_id` an empty result; `tap`, `type`, `swipe` and `global` `false` |
+
+## @gyo-community/app-launcher
+
+App launching and URL opening through Android's `PackageManager` (Android).
+
+### Exports
+
+| Export | Kind | Role |
+|--------|------|------|
+| `AppLauncher` | class | Lists, opens and searches the apps; opens a URL |
+| Types | interfaces | `AppInfo`, `ListAppsResult`, `OpenAppParams`, `OpenUrlParams`, `SearchAppsParams`, `SearchAppsResult` |
 
 ```typescript
 class AppLauncher {
@@ -104,77 +345,62 @@ interface SearchAppsResult {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.app_launcher.AppLauncherBridge`
+**Android**: `gyo.plugins.app_launcher.AppLauncherBridge`, behind the bridge `app_launcher`.
 
-| Method | Input | Output | Android API |
-|--------|-------|--------|-------------|
-| `list_apps` | — | `{ apps: AppInfo[], count: number }` | `PackageManager.getInstalledApplications()` |
-| `open_app` | `{ packageName: string }` | `boolean` | `PackageManager.getLaunchIntentForPackage()` |
-| `open_url` | `{ url: string }` | `boolean` | `Intent.ACTION_VIEW` |
-| `search_apps` | `{ query: string }` | `{ apps: AppInfo[], count: number }` | `PackageManager` + filter |
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `AppLauncher` | `list_apps` | — | `ListAppsResult` |
+| `AppLauncher` | `open_app` | `OpenAppParams` | `boolean` |
+| `AppLauncher` | `open_url` | `OpenUrlParams` | `boolean` |
+| `AppLauncher` | `search_apps` | `SearchAppsParams` | `SearchAppsResult` |
+
+| Rule | Value |
+|------|-------|
+| `list_apps` | Every app with a launcher icon, found through the launcher intent and through the installed list |
+| `search_apps` | The launchable apps whose name or package name contains `query`, matched without regard to case; all of them for an empty `query` |
+| `open_app` | `false` for an empty `packageName`, for an app without a launch intent, and when the app cannot be started |
+| `open_url` | `Intent.ACTION_VIEW`, answered by the app that takes the URL; `false` for an empty `url` and when no app can take it |
 
 ### Setup
 
-```kotlin
-// MainActivity.kt
-import gyo.plugins.app_launcher.AppLauncherBridge
-import gyo.plugins.bridge.BridgeRegistry
+| Item | Value |
+|------|-------|
+| Permissions | None |
+| Manifest | The module declares a `<queries>` element for the apps with a launcher icon, which makes them visible on Android 11 and later; the build merges it into the app's manifest |
 
-BridgeRegistry.register("app_launcher", AppLauncherBridge(this))
-```
+## @gyo-community/communication
 
-## @gyo-framework/device-info
-
-Device metadata (Android).
+Contacts search, SMS send and read, calls and the call log (Android). The three classes post to the one `communication` bridge; each creates its own `Bridge`.
 
 ### Exports
 
-```typescript
-class DeviceInfo {
-  constructor()
-  getInfo(): Promise<GetInfoResult>
-  isAvailable(): boolean
-  destroy(): void
-}
-
-interface DeviceInfoData {
-  manufacturer: string
-  model: string
-  brand: string
-  device: string
-  androidVersion: string
-  sdkVersion: number
-  securityPatch: string
-  screenDensity: number
-  screenWidth: number
-  screenHeight: number
-  batteryLevel: number
-  isCharging: boolean
-}
-
-interface GetInfoResult {
-  info: DeviceInfoData
-}
-```
-
-### Native Handler
-
-**Android**: `gyo.plugins.device_info.DeviceInfoBridge` — no permissions required.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `get_info` | — | `{ info: DeviceInfoData }` |
-
-## @gyo-framework/contact-search
-
-Contacts search (Android).
-
-### Exports
+| Export | Kind | Role |
+|--------|------|------|
+| `ContactSearch` | class | Searches contacts by name |
+| `SmsSender` | class | Sends an SMS; reads the inbox |
+| `PhoneCaller` | class | Places a call; reads the call log |
+| Types | interfaces | `ContactInfo`, `SearchParams`, `SearchResult`, `SendParams`, `ReadParams`, `SmsMessage`, `ReadResult`, `CallParams`, `GetCallLogParams`, `CallLogEntry`, `CallLogResult` |
 
 ```typescript
 class ContactSearch {
   constructor()
   search(params: { query: string }): Promise<SearchResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class SmsSender {
+  constructor()
+  send(params: { phoneNumber: string; message: string }): Promise<boolean>
+  read(params: { limit: number }): Promise<ReadResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class PhoneCaller {
+  constructor()
+  call(params: { phoneNumber: string }): Promise<boolean>
+  getCallLog(params: { limit: number }): Promise<CallLogResult>
   isAvailable(): boolean
   destroy(): void
 }
@@ -186,70 +412,22 @@ interface ContactInfo {
   emails: string[]
 }
 
+interface SearchParams {
+  query: string
+}
+
 interface SearchResult {
   contacts: ContactInfo[]
   count: number
 }
-```
 
-### Native Handler
-
-**Android**: `gyo.plugins.contact_search.ContactSearchBridge` — requires `READ_CONTACTS`.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `search` | `{ query: string }` | `{ contacts: ContactInfo[], count: number }` |
-
-## @gyo-framework/notification-reader
-
-Notification reading (Android).
-
-### Exports
-
-```typescript
-class NotificationReader {
-  constructor()
-  list(): Promise<ListResult>
-  isAvailable(): boolean
-  destroy(): void
+interface SendParams {
+  phoneNumber: string
+  message: string
 }
 
-interface NotificationInfo {
-  packageName: string
-  title: string
-  text: string
-  postTime: number
-  category: string
-  id: number
-}
-
-interface ListResult {
-  notifications: NotificationInfo[]
-  count: number
-}
-```
-
-### Native Handler
-
-**Android**: `gyo.plugins.notification_reader.NotificationReaderBridge` — reads through `@gyo-framework/notification-listener`, which it brings. Until the user grants notification access, `list` returns an empty result.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `list` | — | `{ notifications: NotificationInfo[], count: number }` |
-
-## @gyo-framework/sms-sender
-
-SMS send and read (Android).
-
-### Exports
-
-```typescript
-class SmsSender {
-  constructor()
-  send(params: { phoneNumber: string; message: string }): Promise<boolean>
-  read(params: { limit: number }): Promise<ReadResult>
-  isAvailable(): boolean
-  destroy(): void
+interface ReadParams {
+  limit: number
 }
 
 interface SmsMessage {
@@ -264,30 +442,13 @@ interface ReadResult {
   messages: SmsMessage[]
   count: number
 }
-```
 
-### Native Handler
+interface CallParams {
+  phoneNumber: string
+}
 
-**Android**: `gyo.plugins.sms_sender.SmsSenderBridge` — requires `SEND_SMS`, `READ_SMS`.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `send` | `{ phoneNumber: string, message: string }` | `boolean` |
-| `read` | `{ limit: number }` | `{ messages: SmsMessage[], count: number }` |
-
-## @gyo-framework/phone-caller
-
-Calls and call log (Android).
-
-### Exports
-
-```typescript
-class PhoneCaller {
-  constructor()
-  call(params: { phoneNumber: string }): Promise<boolean>
-  getCallLog(params: { limit: number }): Promise<CallLogResult>
-  isAvailable(): boolean
-  destroy(): void
+interface GetCallLogParams {
+  limit: number
 }
 
 interface CallLogEntry {
@@ -306,145 +467,114 @@ interface CallLogResult {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.phone_caller.PhoneCallerBridge` — requires `CALL_PHONE`, `READ_CALL_LOG`.
+**Android**: `gyo.plugins.communication.CommunicationBridge`, behind the bridge `communication`. Every method answers with a result, also when a permission is missing: nothing is thrown to the web side.
 
-| Method | Input | Output |
-|--------|-------|--------|
-| `call` | `{ phoneNumber: string }` | `boolean` |
-| `get_call_log` | `{ limit: number }` | `{ entries: CallLogEntry[], count: number }` |
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `ContactSearch` | `search` | `SearchParams` | `SearchResult` |
+| `SmsSender` | `send` | `SendParams` | `boolean` |
+| `SmsSender` | `read` | `ReadParams` | `ReadResult` |
+| `PhoneCaller` | `call` | `CallParams` | `boolean` |
+| `PhoneCaller` | `get_call_log` | `GetCallLogParams` | `CallLogResult` |
 
-## @gyo-framework/screen-reader
+| Rule | Value |
+|------|-------|
+| `search` | The contacts whose display name contains `query`, in the order of the display name; an empty result for an empty `query` |
+| `send` | `false` for an empty `phoneNumber` or `message` |
+| `read` | The SMS inbox, the newest first; `limit` between 1 and 100, 10 by default. `type` is `inbox`, `sent`, `draft`, `outbox`, `failed` or `queued`, else `unknown` |
+| `call` | `Intent.ACTION_CALL`, which places the call at once; `false` for an empty `phoneNumber` |
+| `get_call_log` | The call log, the newest first; `limit` 20 by default. `type` is `INCOMING`, `OUTGOING`, `MISSED`, `REJECTED`, `BLOCKED`, else `UNKNOWN` |
 
-Screen UI tree reading (Android, accessibility).
+### Setup
+
+| Item | Value |
+|------|-------|
+| Permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`: `android.permission.READ_CONTACTS`, `android.permission.SEND_SMS`, `android.permission.READ_SMS`, `android.permission.CALL_PHONE`, `android.permission.READ_CALL_LOG` |
+| Run time | The system asks the user, once the app calls `requestPermissions()` of `@gyo-framework/bridge` |
+| Services | None; the module's manifest is empty |
+| Hard-restricted | `READ_SMS`, `SEND_SMS` and `READ_CALL_LOG`: an app holds them only once its installer allowlists them; asking the user at run time does not change that |
+
+| Class | Permissions | Without them |
+|-------|-------------|--------------|
+| `ContactSearch` | `READ_CONTACTS` | `search` answers an empty result |
+| `SmsSender` | `SEND_SMS`, `READ_SMS` | `send` answers `false`; `read` an empty result |
+| `PhoneCaller` | `CALL_PHONE`, `READ_CALL_LOG` | `call` answers `false`; `getCallLog` an empty result |
+
+## @gyo-community/device-info
+
+Device metadata (Android).
 
 ### Exports
 
+| Export | Kind | Role |
+|--------|------|------|
+| `DeviceInfo` | class | Reads the device information |
+| `GetInfoResult` | interface | What `getInfo()` resolves with |
+| `DeviceInfoType` | interface | The information itself; exported under this name because the class has the name `DeviceInfo` |
+
 ```typescript
-class ScreenReader {
+class DeviceInfo {
   constructor()
-  read(): Promise<ReadResult>
-  find(params: { text: string }): Promise<FindResult>
+  getInfo(): Promise<GetInfoResult>
   isAvailable(): boolean
   destroy(): void
 }
 
-interface NodeInfo {
-  text: string
-  contentDescription: string
-  className: string
-  bounds: string
-  isClickable: boolean
-  isEditable: boolean
-  children: NodeInfo[]
+interface DeviceInfoType {
+  manufacturer: string
+  model: string
+  brand: string
+  device: string
+  androidVersion: string
+  sdkVersion: number
+  securityPatch: string
+  screenDensity: number
+  screenWidth: number
+  screenHeight: number
+  batteryLevel: number
+  isCharging: boolean
 }
 
-interface ReadResult {
-  root: NodeInfo | null
-  windowName: string
-  packageName: string
-}
-
-interface FindResult {
-  nodes: NodeInfo[]
-  count: number
+interface GetInfoResult {
+  info: DeviceInfoType
 }
 ```
 
 ### Native Handler
 
-**Android**: `gyo.plugins.screen_reader.ScreenReaderBridge` — reads through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, `read` and `find` return an empty result.
+**Android**: `gyo.plugins.device_info.DeviceInfoBridge`, behind the bridge `device_info`.
 
-| Method | Input | Output |
-|--------|-------|--------|
-| `read` | — | `{ root, windowName, packageName }` |
-| `find` | `{ text: string }` | `{ nodes: NodeInfo[], count: number }` |
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `DeviceInfo` | `get_info` | — | `GetInfoResult` |
 
-## @gyo-framework/screen-action
+| Field | Source |
+|-------|--------|
+| `manufacturer`, `model`, `brand`, `device`, `androidVersion`, `sdkVersion`, `securityPatch` | `android.os.Build` |
+| `screenDensity` | The density of the display in dpi |
+| `screenWidth`, `screenHeight` | The window in pixels on Android 11 and later; the real display before |
+| `batteryLevel`, `isCharging` | `BatteryManager`; charging or full |
+| A string the device does not provide | `"Unknown"` |
 
-UI automation: tap, type, swipe, global actions (Android, accessibility).
+### Setup
 
-### Exports
+| Item | Value |
+|------|-------|
+| Permissions | None |
+| Services | None; the module's manifest is empty |
 
-```typescript
-class ScreenAction {
-  constructor()
-  tap(params: { x: number; y: number }): Promise<boolean>
-  type(params: { text: string }): Promise<boolean>
-  swipe(params: SwipeParams): Promise<boolean>
-  globalAction(params: { action: string }): Promise<boolean>
-  isAvailable(): boolean
-  destroy(): void
-}
+## @gyo-community/http
 
-interface SwipeParams {
-  startX: number
-  startY: number
-  endX: number
-  endY: number
-  duration: number
-}
-```
-
-### Native Handler
-
-**Android**: `gyo.plugins.screen_action.ScreenActionBridge` — acts through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, every method returns `false`.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `tap` | `{ x, y }` | `boolean` |
-| `type` | `{ text }` | `boolean` |
-| `swipe` | `SwipeParams` | `boolean` |
-| `global_action` | `{ action }` | `boolean` |
-
-## @gyo-framework/screen-find
-
-Screen element location (Android, accessibility).
+GET requests that run outside the WebView, with the headers the caller chooses (Android). The WebView cannot make them itself: CORS hides cross-origin responses, and many servers answer a WebView's own user agent or a foreign `Referer` with a redirect or a 403.
 
 ### Exports
 
-```typescript
-class ScreenFind {
-  constructor()
-  findByText(params: { text: string; exact: boolean }): Promise<FindResult>
-  findById(params: { id: string }): Promise<FindResult>
-  isAvailable(): boolean
-  destroy(): void
-}
-
-interface ElementInfo {
-  text: string
-  contentDescription: string
-  className: string
-  bounds: string
-  isClickable: boolean
-  isFocusable: boolean
-  isEditable: boolean
-  centerX: number
-  centerY: number
-}
-
-interface FindResult {
-  elements: ElementInfo[]
-  count: number
-}
-```
-
-### Native Handler
-
-**Android**: `gyo.plugins.screen_find.ScreenFindBridge` — finds elements through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, every method returns an empty result.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `find_by_text` | `{ text, exact }` | `{ elements: ElementInfo[], count: number }` |
-| `find_by_id` | `{ id }` | `{ elements: ElementInfo[], count: number }` |
-
-## @gyo-framework/http
-
-GET requests that run outside the WebView, with the headers the caller chooses (Android). The
-WebView cannot make them itself: CORS hides cross-origin responses, and many servers answer a
-WebView's own user agent or a foreign `Referer` with a redirect or a 403.
-
-### Exports
+| Export | Kind | Role |
+|--------|------|------|
+| `Http` | class | Makes a request |
+| `decodeText` | function | Decodes the body of a response |
+| `base64ToBytes` | function | The body of a response as bytes |
+| Types | interfaces | `HttpRequest`, `HttpResponse` |
 
 ```typescript
 class Http {
@@ -456,6 +586,7 @@ class Http {
 
 interface HttpRequest {
   url: string
+  // Sent as given: `User-Agent` and `Referer` included
   headers?: Record<string, string>
   // Requests that share a jar name share their cookies, which survive app
   // restarts. Without a jar no cookie is stored or sent.
@@ -475,52 +606,44 @@ function decodeText(response: HttpResponse, encoding?: string): string
 function base64ToBytes(base64: string): Uint8Array
 ```
 
-`request` resolves with whatever status the server answered, 404 and 503 included, and rejects when
-no response arrived at all, such as a timeout or a connection that could not be made. After 60
-seconds without an answer it rejects on its own.
+| Rule | Value |
+|------|-------|
+| Method | GET; redirects are followed |
+| Resolves | With whatever status the server answered, 404 and 503 included |
+| Rejects | When no response arrived at all, such as a timeout or a connection that could not be made |
+| Timeouts | The call rejects on its own after 60 seconds; native gives up after 15 seconds without a connection or 20 seconds without data |
+| `decodeText` | Decodes with the page's `TextDecoder`; `encoding` is `utf-8` by default; malformed bytes become U+FFFD |
+| `bodyBase64` | The raw body; decoding is left to the caller, who knows the charset |
 
 ### Native Handler
 
-**Android**: `gyo.plugins.http.HttpBridge` — needs no permission beyond INTERNET. Its module brings OkHttp.
+**Android**: `gyo.plugins.http.HttpBridge`, behind the bridge `http`.
 
-| Method | Input | Output |
-|--------|-------|--------|
-| `request` | `HttpRequest` | `HttpResponse` |
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `Http` | `request` | `HttpRequest` | `HttpResponse` |
 
-## @gyo-framework/accessibility
+Any other method throws, so the call rejects.
 
-The accessibility service the screen plugins read and act through, and whether it is enabled (Android).
+### Setup
 
-### Exports
+| Item | Value |
+|------|-------|
+| Permissions | None beyond `INTERNET`, which the manifest of a generated app declares |
+| Services | None; the module's manifest is empty |
+| Dependencies | The module brings `com.squareup.okhttp3:okhttp:4.12.0` |
 
-```typescript
-class Accessibility {
-  constructor()
-  isEnabled(): Promise<AccessibilityStatus>
-  openSettings(): Promise<{ opened: boolean }>
-  isAvailable(): boolean
-  destroy(): void
-}
+## @gyo-community/notifications
 
-interface AccessibilityStatus {
-  enabled: boolean
-}
-```
-
-### Native Handler
-
-**Android**: `gyo.plugins.accessibility.AccessibilityBridge`. The module declares `GyoAccessibilityService`; the user enables it in the system settings. `@gyo-framework/screen-reader`, `screen-action` and `screen-find` depend on it.
-
-| Method | Input | Output |
-|--------|-------|--------|
-| `is_enabled` | — | `{ enabled: boolean }` |
-| `open_settings` | — | `{ opened: boolean }` |
-
-## @gyo-framework/notification-listener
-
-The notification listener service, whether access is granted, and the active notifications (Android).
+The notification listener service, and the active notifications read through it (Android). The two classes post to the one `notifications` bridge; each creates its own `Bridge`.
 
 ### Exports
+
+| Export | Kind | Role |
+|--------|------|------|
+| `NotificationListener` | class | Whether notification access is granted; the most recent notifications; opens the settings |
+| `NotificationReader` | class | Lists the active notifications |
+| Types | interfaces | `NotificationListenerStatus`, `NotificationInfo`, `NotificationListResult`, `ListResult` |
 
 ```typescript
 class NotificationListener {
@@ -528,6 +651,13 @@ class NotificationListener {
   isEnabled(): Promise<NotificationListenerStatus>
   getNotifications(limit?: number): Promise<NotificationListResult>
   openSettings(): Promise<{ opened: boolean }>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class NotificationReader {
+  constructor()
+  list(): Promise<ListResult>
   isAvailable(): boolean
   destroy(): void
 }
@@ -549,77 +679,124 @@ interface NotificationListResult {
   notifications: NotificationInfo[]
   count: number
 }
+
+interface ListResult {
+  notifications: NotificationInfo[]
+  count: number
+}
 ```
 
 ### Native Handler
 
-**Android**: `gyo.plugins.notification_listener.NotificationListenerBridge`. The module declares `GyoNotificationListenerService`; the user grants the app notification access in the system settings. `@gyo-framework/notification-reader` depends on it.
+**Android**: `gyo.plugins.notifications.NotificationsBridge`, behind the bridge `notifications`.
 
-| Method | Input | Output |
-|--------|-------|--------|
-| `is_enabled` | — | `{ enabled: boolean }` |
-| `get_notifications` | `{ limit }` | `{ notifications: NotificationInfo[], count: number }` |
-| `open_settings` | — | `{ opened: boolean }` |
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `NotificationListener` | `is_enabled` | — | `NotificationListenerStatus` |
+| `NotificationListener` | `get_notifications` | `{ limit }` | `NotificationListResult` |
+| `NotificationListener` | `open_settings` | — | `{ opened: boolean }`, with `error` as well when it did not open |
+| `NotificationReader` | `list` | — | `ListResult` |
+
+| Rule | Value |
+|------|-------|
+| Order | The active notifications, the newest first |
+| `limit` | 50 by default for `get_notifications`, 20 for `list`; kept between 1 and 200 |
+| `text` | The expanded text when there is one, else the text |
+| `id` | The id the posting app gave the notification |
+
+### Setup
+
+| Item | Value |
+|------|-------|
+| Permissions | None |
+| Service | `GyoNotificationListenerService`, declared by the module's manifest. The user grants the app notification access under Settings, Notifications; `NotificationListener.openSettings()` opens that screen |
+| Until access is granted | `is_enabled` answers `{ enabled: false }`; `get_notifications` and `list` an empty result |
 
 ## Plugin Development Conventions
 
+The framework is what the shell cannot run without, `cli` and `bridge`, under `@gyo-framework/`. Every add-on feature is a community plugin under `@gyo-community/`.
+
 ### Naming
 
-| Scope | Usage | Example |
-|-------|-------|---------|
-| `@gyo-framework/` | Official | `@gyo-framework/app-launcher` |
-| `@gyo-community/` | Community | `@gyo-community/analytics` |
+| Element | Convention | Example |
+|---------|-----------|---------|
+| Scope `@gyo-framework/` | The core | `@gyo-framework/bridge` |
+| Scope `@gyo-community/` | Plugins, one package per feature | `@gyo-community/app-launcher` |
+| Directory | `plugins/<name>/` | `plugins/app-launcher/` |
+| Bridge name | `<name>` with hyphens as underscores; an identifier | `app_launcher` |
+| Android package | `gyo.plugins.<name>` with hyphens as underscores | `gyo.plugins.app_launcher` |
+| Handler class | `<Name>` in Pascal case and `Bridge` | `AppLauncherBridge` |
+| Gradle project | `:gyo-plugin-<name>`, as gyo includes the module | `:gyo-plugin-app-launcher` |
 
 ### Structure
 
 ```
-@gyo-framework/<name>/
-├── package.json               # `gyo` field: the declaration below
+plugins/<name>/                 # @gyo-community/<name>
+├── package.json                # The `gyo` field: the declaration below
 ├── src/
-│   ├── index.ts               # Exported API
+│   ├── index.ts                # Exported API
+│   ├── types.ts                # Input and output interfaces
+│   ├── <Class>.ts              # One per exported class
 │   └── __tests__/
-├── android/                   # Android library module (optional)
+├── android/                    # Android library module (optional)
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       └── kotlin/gyo/plugins/<name>/
-└── ios/                       # Swift implementation (optional)
+│       ├── kotlin/gyo/plugins/<name>/
+│       │   ├── <Name>Bridge.kt # The one handler
+│       │   └── ...             # What only the handler needs
+│       └── res/                # Strings and configurations the manifest names (optional)
+└── ios/                        # Swift implementation (optional)
     └── Sources/
 ```
 
 ### Rules
 
-1. Must depend on `@gyo-framework/bridge` as `peerDependencies`.
-2. Export a class with methods wrapping `Bridge.invoke()`.
-3. Define and export all TypeScript interfaces for input/output.
-4. Declare the native handler in package.json. `gyo run`, `gyo build` and `gyo install` include it and register it; no file of the app is edited by hand.
+1. Depends on `@gyo-framework/bridge` as a `peerDependency`, and on the same version as a `devDependency` for its tests.
+2. Exports one class per ability. Each creates its own `Bridge` under the bridge name of the package, wraps `Bridge.invoke()` and has `isAvailable()` and `destroy()`.
+3. Defines and exports the TypeScript interfaces of every input and output.
+4. Declares the native handler in the `gyo` field of package.json. `gyo run`, `gyo build` and `gyo install` include it and register it; no file of the app is edited by hand.
+5. One bridge and one handler class per plugin: the classes of a package post to the same bridge name, answered by the same class.
+6. No dependency on the module of another plugin: the module brings everything its handler needs.
+7. In the repository: a workspace of the root `package.json`, under `plugins/<name>/`, and listed in `plugins/README.md`.
+8. The npm package ships `dist/` and `android/` (`files`): gyo includes the module from where `node_modules` keeps the package.
 
 ### Declaration
+
+| Rule | Value |
+|------|-------|
+| Where | Installed in `lib/node_modules/` under `@gyo-community/` or `@gyo-framework/`, as a directory or a symlink |
+| What makes it a plugin | The `gyo` field of its package.json; a package without it is skipped |
+| Android module | Included when `android/src/` exists and `android.handlerClass` is declared; it needs `android/build.gradle.kts` or `android/build.gradle`, or the sync fails |
+| Gradle project | `:gyo-plugin-<name>`; two plugins with the same `<name>` fail the sync |
 
 The `gyo` field of package.json:
 
 | Path | Type | Required | Description |
 |------|------|----------|-------------|
-| `bridgeName` | string | yes | Name the web side passes to `new Bridge(name)`; an identifier |
+| `bridgeName` | string | yes | An identifier (`[A-Za-z_][A-Za-z0-9_]*`): the name the web side passes to `new Bridge(name)` |
 | `android.handlerClass` | string | with `android/` | Fully qualified class implementing `BridgeHandler`; its constructor takes a `Context` |
-| `android.permissions` | string[] | no | Run-time permissions the handler needs; a sync warns while the app manifest lacks them |
+| `android.permissions` | string[] | no | Run-time permissions the handler needs (`android.permission.<NAME>`); a sync warns while the app manifest lacks them. They are never written into the app |
 | `ios` | object | no | Not read |
 
 ### Android Module
 
 | Rule | Value |
 |------|-------|
-| Plugins | `com.android.library`, `org.jetbrains.kotlin.android` |
+| Plugins | `com.android.library`; Kotlin comes built into the Android Gradle Plugin |
+| Sources | `src/main/kotlin/`, declared as a source directory of `main` |
 | Bridge | `compileOnly(project(":gyo-bridge"))`; the app brings the module |
-| Manifest | Install-time declarations only, such as `<queries>`; merged into the app's |
+| Handler | One class implementing `BridgeHandler`, taking a `Context` in its constructor; `PluginRegistry.kt` registers it under the `bridgeName` |
+| Manifest | Install-time declarations only, such as `<queries>` and services; merged into the app's |
 | Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`, never by the plugin |
 | Dependencies | Declared in the module; the app gets them through it |
-| Another plugin's module | `implementation(project(":gyo-plugin-<name>"))`; gyo includes every installed plugin under that name and fails when that plugin is not installed |
+| Another plugin's module | Not depended on. gyo includes every installed plugin as `:gyo-plugin-<name>` and fails the sync when a module names one that is not installed |
 
 > See [CLI.md](./CLI.md#plugin-modules) for what a sync writes into the app.
+> See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for `BridgeHandler`.
 
 ### Publishing
 
-There is no publish workflow. Publish a package from its directory once `npm run verify` passes.
+There is no publish workflow. Publish a package from its directory once `npm run verify` passes: `npm publish` builds and type-checks it first (`prepublishOnly`), with public access (`publishConfig`).
 
-> See `plugins/README.md` for package listing.
+> See [plugins/README.md](../plugins/README.md) for the package index.

@@ -16,11 +16,13 @@ class Bridge {
   invoke<T>(method: string, data?: unknown): Promise<T>
   listen(callback: EventCallback): Unsubscribe
   getName(): string
+  isAvailable(): boolean
   destroy(): void
 }
 
 interface BridgeOptions {
   timeout?: number // default: 30000
+  interceptors?: BridgeInterceptor[]
 }
 
 function requestPermissions(permissions: string[]): Promise<PermissionResult>
@@ -33,7 +35,15 @@ interface PermissionResult {
 
 `requestPermissions` asks the user for Android run-time permissions and resolves once the user has answered. Only a permission the app declares in `android/app/src/main/AndroidManifest.xml` can be granted.
 
-> See `src/Bridge.ts`, `src/permissions.ts` and `src/types.ts` for full type definitions.
+| Type | Role |
+|------|------|
+| `BridgeRequest`, `BridgeResponse`, `BridgeEvent` | A call, its answer and an event, as they cross the bridge |
+| `EventCallback`, `Unsubscribe` | What `listen()` takes and returns |
+| `BridgeOptions`, `BridgeInterceptor` | What a `Bridge` is made with: a timeout, and what sees every call and every failure |
+| `AndroidBridge`, `IOSMessageHandler` | The native object of each platform |
+| `PermissionResult` | What `requestPermissions()` resolves with |
+
+> See [PLUGINS.md](../docs/PLUGINS.md#gyo-frameworkbridge) for every field of every type.
 
 ## Testing an app
 
@@ -69,7 +79,7 @@ afterEach(() => mock.restore());
 | `restore()` | Removes the native object, so that the next test starts clean |
 | `setPlatform(platform)`, `cleanupPlatform()` | Put the native object of `android`, `ios` or neither (`none`) on `window`, without recording anything |
 
-> See [docs/TESTING.md](../docs/TESTING.md) for how a test of the CLI uses them.
+> See [docs/TESTING.md](../docs/TESTING.md) for how a test of an app uses them.
 
 ## Native Integration
 

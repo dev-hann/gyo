@@ -15,7 +15,8 @@ Read the appropriate documents before starting work. Each layer has an index fil
 | Root | `README.md` | Project overview, requirements, quick start |
 | docs/ | `docs/README.md` | User-facing specifications |
 | cli/ | `cli/README.md` | CLI development environment and source map |
-| plugins/ | `plugins/README.md` | Plugin packages and development |
+| bridge/ | `bridge/README.md` | The bridge package: exports and testing an app |
+| plugins/ | `plugins/README.md` | Community plugins |
 
 ## Task Routing
 
@@ -28,6 +29,12 @@ Read the appropriate documents before starting work. Each layer has an index fil
 1. `cli/README.md` — layer index and dev setup
 2. `cli/src/README.md` — source structure and layer responsibilities
 3. `docs/CLI.md` — command specifications (signatures, options, behavior)
+
+### Working on the bridge (`bridge/`)
+
+1. `bridge/README.md` — layer index and package contract
+2. `docs/PLUGINS.md` — exports and the `./testing` subpath
+3. `docs/BRIDGE_INTEGRATION.md` — the native side of the bridge
 
 ### Working on plugins (`plugins/`)
 
@@ -54,7 +61,7 @@ Read the appropriate documents before starting work. Each layer has an index fil
 ### Adding a new plugin
 
 1. `docs/PLUGINS.md` — plugin conventions and API patterns
-2. `plugins/README.md` — package naming and structure
+2. `plugins/README.md` — the index to list it in, and the naming convention
 3. An existing plugin's `README.md` as reference
 
 ## Development Workflow
@@ -62,7 +69,7 @@ Read the appropriate documents before starting work. Each layer has an index fil
 - TDD: write test → confirm failure → implement → confirm pass → refactor
 - Never commit without passing `npm run verify`
 - Commit message follows Conventional Commits
-- Adding a plugin or command requires updating the layer indexes in the same commit: `plugins/README.md`, `docs/PLUGINS.md`, `docs/CLI.md`, `docs/ARCHITECTURE.md` directory tree, and the root `README.md` structure section
+- Adding a plugin requires updating in the same commit: `plugins/README.md`, `docs/PLUGINS.md`, the directory tree of `docs/ARCHITECTURE.md`, and the structure section of the root `README.md`. Adding a command requires `docs/CLI.md` and the command class hierarchy of `docs/ARCHITECTURE.md`
 - The CLI holds no web-framework knowledge: framework-specific behavior must live in project configuration (`gyo.config.json`), not in CLI code
 
 ## Build & Test Commands
@@ -70,10 +77,10 @@ Read the appropriate documents before starting work. Each layer has an index fil
 | Command | Purpose |
 |---------|---------|
 | `npm run verify` | lint + typecheck + test + build (pre-push) |
-| `npm run build` | Build all packages |
+| `npm run build` | Build the bridge and the CLI |
 | `npm run build:cli` | Build CLI only |
 | `npm run build:bridge` | Build bridge only |
 | `npm run test` | Test all packages |
 | `npm run test:cli` | Test CLI only |
-| `npm run lint` | Lint CLI source |
-| `npm run typecheck` | Type check CLI (run in cli/) |
+| `npm run lint` | Lint every TypeScript source |
+| `npm run typecheck` | Type-check every workspace |

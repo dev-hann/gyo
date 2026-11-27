@@ -44,7 +44,7 @@ deviceInfo.destroy();
 ### Types
 
 ```typescript
-interface DeviceInfo {
+interface DeviceInfoType {
   manufacturer: string;
   model: string;
   brand: string;
@@ -60,7 +60,7 @@ interface DeviceInfo {
 }
 
 interface GetInfoResult {
-  info: DeviceInfo;
+  info: DeviceInfoType;
 }
 ```
 

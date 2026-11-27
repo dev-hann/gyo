@@ -187,7 +187,7 @@ An Android project without `android/gyo-bridge/` cannot include plugins. It need
 | `build.gradle` | `id 'com.android.library' version <AGP version> apply false` |
 | `settings.gradle` | `include ':gyo-bridge'` and `apply from: 'gyo.settings.gradle'` |
 | `app/build.gradle` | `implementation project(':gyo-bridge')` and `apply from: "gyo.build.gradle"` |
-| `app/src/main/java/.../MainActivity.kt` | `PluginRegistry.registerAll(this)` after `BridgeRegistry.initialize()`; no hand-written `BridgeRegistry.register` |
+| `app/src/main/java/<package path>/MainActivity.kt` | `PluginRegistry.registerAll(this)` after `BridgeRegistry.initialize()`; no hand-written `BridgeRegistry.register` |
 | `app/src/main/java/gyo/plugins/<name>/` | Removed: the plugins bring their own sources |
 
 > See [PLUGINS.md](./PLUGINS.md) for the plugin side of the contract.

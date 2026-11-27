@@ -30,8 +30,9 @@ gyo run
 
 ```
 gyo/
-├── cli/          # @gyo-framework/cli — CLI tool (create/run/build native shells)
-├── plugins/      # bridge + test-utils + 12 feature plugins (Android native)
+├── cli/          # @gyo-framework/cli — CLI tool and Android/iOS shell templates
+├── bridge/       # @gyo-framework/bridge — the JS bridge for apps and plugins
+├── plugins/      # Six community plugins (@gyo-community/*), each with an Android module
 └── docs/         # Specifications
 ```
 
@@ -43,7 +44,7 @@ gyo/
 |----------|-------------|
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture and command hierarchy |
 | [docs/CLI.md](./docs/CLI.md) | CLI command reference |
-| [docs/PLUGINS.md](./docs/PLUGINS.md) | Plugin API specifications |
+| [docs/PLUGINS.md](./docs/PLUGINS.md) | Bridge and plugin API specifications |
 | [docs/BRIDGE_INTEGRATION.md](./docs/BRIDGE_INTEGRATION.md) | Native handler protocols and WebView security model |
 | [docs/DOC_CONVENTIONS.md](./docs/DOC_CONVENTIONS.md) | Documentation writing conventions |
 

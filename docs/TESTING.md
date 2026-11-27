@@ -8,7 +8,7 @@ Test conventions for the Gyo framework.
 |------------|-------|
 | Location | `src/__tests__/*.test.ts` (co-located with source) |
 | Framework | Jest + ts-jest |
-| Environment | `node` (CLI), `jsdom` (bridge/plugins) |
+| Environment | `node` (`cli/`), `jsdom` (`bridge/`, `plugins/`) |
 | Config | `jest.config.cjs` per package |
 
 ## Naming
@@ -60,7 +60,7 @@ it('should ...', async () => {
 | `fs-extra` operations | File system I/O |
 | `child_process` (`exec`) | Shell command execution |
 | `logger` | Side effect (console output) |
-| `Bridge` (plugins) | Native communication |
+| The native object of the bridge (`window.androidBridge`) | Native communication; the real `Bridge` stays in place |
 | External API calls | Network I/O |
 
 ### What NOT to mock
@@ -93,17 +93,36 @@ const mockedReadJson = readJson as jest.MockedFunction<typeof readJson>;
 
 ### Plugin Mock Pattern
 
-```typescript
-jest.mock('@gyo-framework/bridge', () => {
-  const mockInvoke = jest.fn();
-  const mockListen = jest.fn().mockReturnValue(() => {});
+The tests of the bridge and of the plugins keep the real `Bridge` and replace only the native side. Before each test, remove from `window` what the previous test left behind.
 
-  return {
-    Bridge: jest.fn().mockImplementation(() => ({
-      invoke: mockInvoke,
-      listen: mockListen,
-    })),
-  };
+```typescript
+import { ScreenAction } from '../ScreenAction';
+import type { BridgeRequest } from '@gyo-framework/bridge';
+
+describe('ScreenAction', () => {
+  let action: ScreenAction;
+  let postMessage: jest.Mock;
+
+  beforeEach(() => {
+    delete (window as unknown as Record<string, unknown>).gyoBridge;
+    postMessage = jest.fn();
+    window.androidBridge = { postMessage }; // what the real Bridge posts to
+    action = new ScreenAction();
+  });
+
+  afterEach(() => {
+    action.destroy(); // rejects the calls native has not answered
+  });
+
+  it('should ask the bridge to tap', async () => {
+    const pending = action.tap({ x: 100, y: 200 });
+    await Promise.resolve(); // the Bridge posts on the next microtasks
+
+    const request = JSON.parse(postMessage.mock.calls[0][0]) as BridgeRequest;
+    window.gyoBridge?.resolve(request.callbackId, true);
+
+    await expect(pending).resolves.toBe(true);
+  });
 });
 ```
 
@@ -149,8 +168,6 @@ Apps created with `gyo create` use `@gyo-framework/bridge/testing` to stand in f
 
 ### Bridge Mocking
 
-### Bridge Mocking
-
 ```typescript
 import { AppLauncher } from '@gyo-community/app-launcher';
 import { createBridgeMock } from '@gyo-framework/bridge/testing';
@@ -173,7 +190,7 @@ afterEach(() => mock.restore());
 
 The real `Bridge` stays in place: the mock replaces only the native side, so the test runs the path the app runs in the WebView.
 
-> See [Native Integration](#native-integration) of the bridge's README for the members of the mock.
+> See [Testing an app](../bridge/README.md#testing-an-app) in the README of the bridge for the members of the mock.
 
 ### Platform Simulation
 
@@ -211,7 +228,7 @@ E2E tests validate the full CLI pipeline against real file system and build tool
 | Suite | File | Device Required | Description |
 |-------|------|:---:|-------------|
 | Local | `cli/e2e/local-pipeline.e2e.test.ts` | No | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle |
-| Android | `cli/e2e/android-compile.e2e.test.ts` | No | `gyo create` with every official plugin → `gyo install` → `./gradlew :app:assembleDebug` |
+| Android | `cli/e2e/android-compile.e2e.test.ts` | No | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug` |
 | Device | `cli/e2e/device-pipeline.e2e.test.ts` | Yes | Android APK build/install/run, iOS xtool build/install |
 
 The Android suite needs the SDK platform the template compiles against and Java; it is skipped without them. It is the only test that compiles Kotlin, so it is where a plugin that does not build shows.
@@ -236,7 +253,7 @@ Run from the repository root. The end-to-end scripts build first: the plugins re
 |---------|---------|
 | `npm run test` | Unit tests of every package |
 | `npm run test:e2e:local` | Local E2E, on the built bundle; no device |
-| `npm run test:e2e:android` | Compiles a generated Android project with every official plugin; needs the Android SDK and Java |
+| `npm run test:e2e:android` | Compiles a generated Android project with every community plugin; needs the Android SDK and Java |
 | `npm run test:e2e:device` | Device E2E; needs a connected device |
 | `npm run test:e2e` | Local, Android and device E2E |
 | `npm run test:all` | Unit tests + local E2E |

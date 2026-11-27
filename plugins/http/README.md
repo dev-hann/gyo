@@ -7,7 +7,7 @@ servers answer a WebView's own user agent or a foreign `Referer` with a redirect
 plugin performs the request natively and hands back the status, the headers and the raw body.
 Decoding is left to the caller, who knows the charset.
 
-> See [PLUGINS.md](../../docs/PLUGINS.md#gyo-frameworkhttp) for the API contract.
+> See [PLUGINS.md](../../docs/PLUGINS.md#gyo-communityhttp) for the API contract.
 
 ## Install
 

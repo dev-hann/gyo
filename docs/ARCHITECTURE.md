@@ -21,15 +21,23 @@ gyo/
 │   │       ├── app/           # The app module
 │   │       └── gyo-bridge/    # The native bridge, a library module plugins compile against
 │   └── e2e/                   # E2E pipeline tests
-├── plugins/                   # bridge + test-utils + feature plugins
-│   ├── bridge/                # @gyo-framework/bridge
-│   ├── test-utils/            # @gyo-framework/test-utils
-│   └── <name>/                # Feature plugins; android/ is a Gradle library module
+├── bridge/                    # @gyo-framework/bridge: the JS bridge for apps and plugins
+│   └── src/
+│       ├── index.ts           # Bridge, requestPermissions
+│       └── testing/           # The ./testing subpath: a stand-in for the native side in tests
+├── plugins/                   # Community plugins, @gyo-community/<name>
+│   ├── accessibility/
+│   ├── app-launcher/
+│   ├── communication/
+│   ├── device-info/
+│   ├── http/
+│   └── notifications/         # Each: src/ for the web side; android/ a Gradle library module
 └── docs/                      # Specifications
 ```
 
 > See `cli/src/README.md` for CLI source structure.
-> See `plugins/README.md` for plugin package listing.
+> See `bridge/README.md` for the bridge package.
+> See [plugins/README.md](../plugins/README.md) for the plugin packages.
 
 ## Command Class Hierarchy
 
@@ -74,9 +82,10 @@ The dev server's process group and the log process are killed on `Ctrl+C`, on `S
 
 ### Plugins
 
-A plugin with an `android/` directory is a Gradle library module. Before every Android build, gyo includes the module of each plugin installed in `lib/` in the app build and registers its handler.
+A plugin is a package under `@gyo-community/` or `@gyo-framework/` installed in `lib/`, with a `gyo` field in its `package.json`. A plugin with an `android/` directory is a Gradle library module. Before every Android build, gyo includes the module of each plugin installed in `lib/` in the app build and registers its handler.
 
 > See [CLI.md](./CLI.md#plugin-modules) for the files a sync writes and their rules.
+> See [PLUGINS.md](./PLUGINS.md) for the packages and the plugin conventions.
 
 ### Production (`gyo build`)
 
