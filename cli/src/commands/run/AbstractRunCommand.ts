@@ -63,10 +63,6 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected async run(): Promise<void> {
-    if (!this.config) {
-      throw new GyoError('Config not loaded');
-    }
-
     this.setupSignalHandlers();
 
     const startLocalServer = shouldStartLocalServer(this.options.profile);
@@ -117,7 +113,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected getStartCommand(): string {
-    const command = this.config?.script?.start;
+    const command = this.config.script?.start;
 
     if (!command || command.trim() === '') {
       throw new ServerStartError(
@@ -129,7 +125,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
   }
 
   protected getPortFromProfile(profile: string): number {
-    if (!this.config?.profiles?.[profile]) {
+    if (!this.config.profiles?.[profile]) {
       return DEFAULT_PORT;
     }
 
@@ -152,12 +148,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
     // A profile that names a machine says which address devices should load;
     // with localhost, the LAN address of this machine is found instead.
-    const profileUrl = this.config?.profiles?.[this.options.profile]?.serverUrl;
+    const profileUrl = this.config.profiles?.[this.options.profile]?.serverUrl;
     const handle = await this.webServerService.start({
       webPath,
       port,
       startCommand,
-      preStartCleanup: this.config?.script?.preStartCleanup,
+      preStartCleanup: this.config.script?.preStartCleanup,
       advertiseHost: profileUrl ? namedHostOf(profileUrl) : undefined,
     });
 

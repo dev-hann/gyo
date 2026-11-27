@@ -18,6 +18,8 @@ export abstract class PlatformCommand<
   T extends PlatformCommandOptions = PlatformCommandOptions,
 > extends BaseCommand<T> {
   protected platform: Platform = 'android';
+  /** The project's gyo.config.json. `beforeRun()` loads it before `run()`. */
+  declare protected config: GyoConfig;
 
   setPlatform(platform: Platform): void {
     this.platform = platform;
@@ -51,10 +53,6 @@ export abstract class PlatformCommand<
   protected abstract getValidPlatforms(): Platform[];
 
   protected validatePlatformEnabled(): void {
-    if (this.config == null) {
-      return;
-    }
-
     const platformConfig = this.config.platforms[this.platform];
     if (platformConfig && platformConfig.enabled === false) {
       throw new PlatformDisabledError(this.platform);

@@ -5,7 +5,7 @@ import type { CommandMeta } from '../base/BaseCommand';
 import { logger, EMOJI } from '../../utils/logger';
 import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
-import { BuildFailedError, GyoError, getErrorMessage } from '../../core/errors';
+import { BuildFailedError, getErrorMessage } from '../../core/errors';
 import { syncAndroidAppIdentity, toAndroidAppIdentity } from '../../services/android-shell.service';
 import { syncAndroidPluginsIfNeeded } from '../../services/plugin.service';
 
@@ -21,10 +21,6 @@ export class AndroidRunCommand extends AbstractRunCommand {
     await this.checkAdbAvailable();
     await this.updateServerUrl(androidPath, serverUrl);
     await syncAndroidPluginsIfNeeded(this.projectPath);
-
-    if (!this.config) {
-      throw new GyoError('Configuration not loaded');
-    }
     await syncAndroidAppIdentity(androidPath, toAndroidAppIdentity(this.config, this.projectPath));
 
     const selectedDevice = this.options.device || '';
@@ -42,7 +38,7 @@ export class AndroidRunCommand extends AbstractRunCommand {
 
   private async updateServerUrl(androidPath: string, serverUrl: string): Promise<void> {
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
-    await this.writeConfigFile(configPath, serverUrl, this.config?.webview);
+    await this.writeConfigFile(configPath, serverUrl, this.config.webview);
   }
 
   private async buildApp(androidPath: string): Promise<void> {

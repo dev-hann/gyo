@@ -41,10 +41,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
    * 2. Otherwise prompt for the deploy URL and save it to the config
    */
   protected async resolveServerUrl(): Promise<string> {
-    if (!this.config) {
-      throw new GyoError('Configuration not loaded');
-    }
-
     const existing = this.config.profiles?.[this.options.profile]?.serverUrl.trim();
     if (existing) {
       return this.toDeviceUrl(existing);

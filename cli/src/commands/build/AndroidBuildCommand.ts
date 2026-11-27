@@ -3,7 +3,7 @@ import { AbstractBuildCommand } from './AbstractBuildCommand';
 import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
 import { executeCommand, getGradlew } from '../../utils/exec';
-import { BuildFailedError, GyoError } from '../../core/errors';
+import { BuildFailedError } from '../../core/errors';
 import {
   prepareReleaseSigning,
   syncAndroidAppIdentity,
@@ -22,10 +22,6 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
 
     await this.checkPlatformDirectoryExists();
     await syncAndroidPluginsIfNeeded(this.projectPath);
-
-    if (!this.config) {
-      throw new GyoError('Configuration not loaded');
-    }
     await syncAndroidAppIdentity(androidPath, toAndroidAppIdentity(this.config, this.projectPath));
 
     const serverUrl = this.getServerUrl();
