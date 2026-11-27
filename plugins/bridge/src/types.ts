@@ -74,6 +74,16 @@ export interface IOSMessageHandler {
 }
 
 /**
+ * What `requestPermissions` resolves with once the user has answered.
+ */
+export interface PermissionResult {
+  /** The permissions that are granted now, with or without a prompt. */
+  granted: string[];
+  /** The permissions that are not. */
+  denied: string[];
+}
+
+/**
  * Extended window interface
  */
 declare global {

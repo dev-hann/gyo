@@ -78,7 +78,9 @@ Add to `android/app/src/main/AndroidManifest.xml`:
 <uses-permission android:name="android.permission.CALL_PHONE" />
 <uses-permission android:name="android.permission.READ_CALL_LOG" />
 ```
-`gyo install` points them out when the lines are missing. The system asks the user for them at run time; `call` returns `false` and `getCallLog` returns an empty result until they are granted.
+
+`gyo install` points them out when the lines are missing. The system asks the user for them at run time; `call` returns `false` and `getCallLog` returns an empty result until they are granted. Ask for them with `requestPermissions(['android.permission.CALL_PHONE', 'android.permission.READ_CALL_LOG'])` from `@gyo-framework/bridge`.
+
 ## Peer Dependencies
 
 - `@gyo-framework/bridge@^0.1.3`

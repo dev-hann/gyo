@@ -13,6 +13,8 @@
 - Android: release signing through `android/keystore.properties`, which `gyo build android --release` writes from the `GYO_ANDROID_KEYSTORE_*` variables
 - `@gyo-framework/http` plugin: GET requests that run outside the WebView with the caller's headers. Redirects are followed, the raw body comes back as base64, and requests that name the same `jar` share cookies that survive app restarts
 - End-to-end suites for the built bundle (`test:e2e:local`) and for an Android build with every official plugin (`test:e2e:android`)
+- `requestPermissions()` in `@gyo-framework/bridge`: asks the user for Android run-time permissions through a handler the Android shell registers in every app. Android handlers can answer a call later through `handleAsync`
+- Android: a WebView too old to restrict the bridge per frame is told apart in the log, and the fallback checks the main frame's host
 
 ### Changed
 
@@ -26,6 +28,8 @@
 - `gyo build ios --release` fails; it used to produce the same development build as without the flag
 - `gyo config set` gives the value the type of the one it replaces, so `version 2` stays a string; only a new key is read as a boolean or a number
 - Each command error is reported once
+- Android: the native bridge is registered as a WebView message listener for the origin of `serverUrl`, so Android never injects it into another origin, third-party iframes included. Navigation to another origin opens outside the WebView
+- iOS: `IOSBridgeInterface` no longer implements the script message handler; that path had no origin check. `WebViewController` is the handler, as the template always used it
 - GitHub Actions runs lint, typecheck, unit tests, the build, the bundle tests and an Android build with every official plugin. Build artifacts, nested lockfiles and the auto-improve skill are no longer tracked
 
 ### Fixed

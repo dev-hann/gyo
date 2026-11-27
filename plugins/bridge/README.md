@@ -22,9 +22,18 @@ class Bridge {
 interface BridgeOptions {
   timeout?: number // default: 30000
 }
+
+function requestPermissions(permissions: string[]): Promise<PermissionResult>
+
+interface PermissionResult {
+  granted: string[]
+  denied: string[]
+}
 ```
 
-> See `src/Bridge.ts` and `src/types.ts` for full type definitions.
+`requestPermissions` asks the user for Android run-time permissions and resolves once the user has answered. Only a permission the app declares in `android/app/src/main/AndroidManifest.xml` can be granted.
+
+> See `src/Bridge.ts`, `src/permissions.ts` and `src/types.ts` for full type definitions.
 
 ## Native Integration
 

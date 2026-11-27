@@ -28,4 +28,4 @@ templates/
 
 ## Security
 
-The Android and iOS templates restrict the native bridge to the origin (host) of `serverUrl` and block external navigation inside the WebView. Changes to this behavior require updating `docs/BRIDGE_INTEGRATION.md`.
+The Android and iOS templates restrict the native bridge to the origin of `serverUrl`. On Android a WebView message listener does that per frame, so a third-party iframe never gets the bridge; an older WebView falls back to checking the main frame. Navigation to another origin is cancelled and opened outside the WebView. Changes to this behavior require updating `docs/BRIDGE_INTEGRATION.md`.

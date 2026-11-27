@@ -1,4 +1,5 @@
 export { Bridge } from './Bridge';
+export { requestPermissions } from './permissions';
 export type {
   BridgeRequest,
   BridgeResponse,
@@ -9,4 +10,5 @@ export type {
   BridgeInterceptor,
   AndroidBridge,
   IOSMessageHandler,
+  PermissionResult,
 } from './types';

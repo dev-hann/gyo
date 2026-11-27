@@ -43,9 +43,18 @@ interface BridgeEvent {
 
 type EventCallback = (data: unknown) => void
 type Unsubscribe = () => void
+
+function requestPermissions(permissions: string[]): Promise<PermissionResult>
+
+interface PermissionResult {
+  granted: string[]
+  denied: string[]
+}
 ```
 
-> See `plugins/bridge/src/types.ts` for full type definitions.
+`requestPermissions` asks the user for Android run-time permissions and resolves once the user has answered. Only a permission the app declares in `android/app/src/main/AndroidManifest.xml` can be granted. It rejects outside the Android shell.
+
+> See `plugins/bridge/src/Bridge.ts` and `plugins/bridge/src/permissions.ts` for full type definitions.
 > See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for native handler protocols.
 
 ## @gyo-framework/app-launcher

@@ -49,7 +49,7 @@ Every Gyo plugin installed in `lib/` is a Gradle library module. `gyo run`, `gyo
 | `app/gyo.build.gradle` | Makes the app depend on each one |
 | `app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt` | Registers each handler |
 
-Run-time permissions (contacts, SMS, call log, ...) are not written by gyo. Declare them in `app/src/main/AndroidManifest.xml`; `gyo install` lists the ones an installed plugin needs.
+Run-time permissions are not written by gyo. Declare them in `app/src/main/AndroidManifest.xml`; `gyo install` lists the ones an installed plugin needs. Ask the user for them from the web layer with `requestPermissions` from `@gyo-framework/bridge`.
 
 ## Version, Name and Icon
 

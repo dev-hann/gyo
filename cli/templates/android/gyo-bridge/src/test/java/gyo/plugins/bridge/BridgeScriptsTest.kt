@@ -1,6 +1,9 @@
 package gyo.plugins.bridge
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BridgeScriptsTest {
@@ -35,5 +38,33 @@ class BridgeScriptsTest {
             "window.gyoBridge.publish(\"it's\", 1);",
             BridgeScripts.publish("it's", "1")
         )
+    }
+
+    @Test
+    fun aHandlerResultKeepsItsShape() {
+        // The order of an object's keys carries no meaning: compare parsed.
+        assertTrue(
+            JSONObject("""{"granted":["a"],"denied":[]}""").similar(
+                JSONObject(toJson(mapOf("granted" to listOf("a"), "denied" to emptyList<String>())))
+            )
+        )
+        assertEquals("""["a","b"]""", toJson(listOf("a", "b")))
+        assertEquals("null", toJson(null))
+        assertEquals("\"it's\"", toJson("it's"))
+        assertEquals("42", toJson(42))
+        assertEquals("true", toJson(true))
+    }
+
+    @Test
+    fun aHandlerThatOnlyImplementsHandleTakesNoAsyncCall() {
+        val handler = object : BridgeHandler {
+            override fun handle(method: String, data: JSONObject): Any? = null
+        }
+        val call = object : PendingCall {
+            override fun resolve(result: Any?) = Unit
+            override fun reject(message: String) = Unit
+        }
+
+        assertFalse(handler.handleAsync("any", JSONObject(), call))
     }
 }

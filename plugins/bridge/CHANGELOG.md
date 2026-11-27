@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `requestPermissions(permissions)`: asks the user for Android run-time permissions through the handler the Android shell registers in every app, and resolves with what is granted and what is not
+
 ### Fixed
 
 - A call that native has answered no longer reports a timeout to the interceptors once its timeout elapses

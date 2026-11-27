@@ -68,7 +68,9 @@ Add to `android/app/src/main/AndroidManifest.xml`:
 ```xml
 <uses-permission android:name="android.permission.READ_CONTACTS" />
 ```
-`gyo install` points it out when the line is missing. The system asks the user for the permission at run time; `search` returns an empty result until it is granted.
+
+`gyo install` points it out when the line is missing. The system asks the user for the permission at run time; `search` returns an empty result until it is granted. Ask for it with `requestPermissions(['android.permission.READ_CONTACTS'])` from `@gyo-framework/bridge`.
+
 ## Peer Dependencies
 
 - `@gyo-framework/bridge@^0.1.3`

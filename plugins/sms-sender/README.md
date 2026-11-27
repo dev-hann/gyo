@@ -79,7 +79,9 @@ Add to `android/app/src/main/AndroidManifest.xml`:
 <uses-permission android:name="android.permission.SEND_SMS" />
 <uses-permission android:name="android.permission.READ_SMS" />
 ```
-`gyo install` points them out when the lines are missing. The system asks the user for them at run time; `send` returns `false` and `read` returns an empty result until they are granted.
+
+`gyo install` points them out when the lines are missing. The system asks the user for them at run time; `send` returns `false` and `read` returns an empty result until they are granted. Ask for them with `requestPermissions(['android.permission.SEND_SMS', 'android.permission.READ_SMS'])` from `@gyo-framework/bridge`.
+
 ## Peer Dependencies
 
 - `@gyo-framework/bridge@^0.1.3`

@@ -6,7 +6,7 @@ import WebKit
  * Routes messages to registered bridge handlers via BridgeRegistry
  */
 @MainActor
-public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
+public class IOSBridgeInterface: NSObject {
     private weak var webView: WKWebView?
 
     public init(webView: WKWebView) {
@@ -15,15 +15,8 @@ public class IOSBridgeInterface: NSObject, WKScriptMessageHandler {
     }
 
     /**
-     * WKScriptMessageHandler protocol method
-     * This is called when JavaScript sends a message via window.webkit.messageHandlers
-     */
-    public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        handleMessage(message.body)
-    }
-
-    /**
-     * Main entry point from JavaScript
+     * Main entry point: WebViewController hands over the messages whose
+     * origin it has checked.
      * Routes requests to registered bridge handlers
      */
     public func handleMessage(_ body: Any) {

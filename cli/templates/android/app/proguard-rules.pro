@@ -5,11 +5,11 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
-# The WebView reaches the bridge through the @JavascriptInterface methods
-# by name. AGP's default rules already keep annotated methods; this states
-# the dependency so a change to the defaults cannot silently break the
+# The WebView reaches the fallback bridge through the @JavascriptInterface
+# methods by name. AGP's default rules already keep annotated methods; this
+# states the dependency so a change to the defaults cannot silently break the
 # bridge in release builds.
--keepclassmembers class gyo.plugins.bridge.AndroidBridgeInterface {
+-keepclassmembers class gyo.plugins.bridge.MainFrameCheckedInterface {
     @android.webkit.JavascriptInterface <methods>;
 }
 

@@ -307,7 +307,7 @@ function renderRegistry(plugins: AndroidPlugin[]): string {
 
   const body =
     plugins.length === 0
-      ? ['    fun registerAll(context: Context) {}']
+      ? ['    @Suppress("UNUSED_PARAMETER")', '    fun registerAll(context: Context) {}']
       : ['    fun registerAll(context: Context) {', ...registrations, '    }'];
 
   const lines = [

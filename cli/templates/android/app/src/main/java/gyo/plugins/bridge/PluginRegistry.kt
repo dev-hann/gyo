@@ -7,5 +7,6 @@ import android.content.Context
  * and gyo install rewrite it; handlers of your own belong elsewhere.
  */
 object PluginRegistry {
+    @Suppress("UNUSED_PARAMETER")
     fun registerAll(context: Context) {}
 }

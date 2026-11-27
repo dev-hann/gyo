@@ -68,6 +68,7 @@ dependencies {
     implementation project(':gyo-bridge')
 
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'com.google.android.material:material:1.10.0'
 }
 
