@@ -361,12 +361,13 @@ describe('config.service', () => {
       expect(validateConfig(config)).toBe(false);
     });
 
-    it('should reject ios platform with non-string bundleId', () => {
+    it('should accept a bundleId an earlier gyo wrote into the ios platform', () => {
+      // Nothing reads it: the bundle ID of the app is the one in ios/xtool.yml.
       const config = {
         ...validConfig,
         platforms: { ios: { enabled: true, bundleId: false } },
       };
-      expect(validateConfig(config)).toBe(false);
+      expect(validateConfig(config)).toBe(true);
     });
 
     it('should accept ios platform without bundleId', () => {

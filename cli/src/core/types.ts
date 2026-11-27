@@ -16,10 +16,6 @@ export interface AndroidPlatformConfig extends BasePlatformConfig {
   icon?: string;
 }
 
-export interface IOSPlatformConfig extends BasePlatformConfig {
-  bundleId?: string;
-}
-
 export interface GyoConfig {
   name: string;
   version: string;
@@ -30,7 +26,8 @@ export interface GyoConfig {
   };
   platforms: {
     android?: AndroidPlatformConfig;
-    ios?: IOSPlatformConfig;
+    /** Whether `gyo run ios` and `gyo build ios` may run. The bundle ID of the app is `bundleID` in ios/xtool.yml. */
+    ios?: BasePlatformConfig;
     [key: string]: BasePlatformConfig | undefined;
   };
   webview?: {

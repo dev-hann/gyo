@@ -12,11 +12,12 @@ function validateServerUrl(url: unknown): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
+/** `idProperty`, when the platform has one, must be a string when it is set. */
 function validatePlatform(
   platform: unknown,
   platformName: string,
-  idProperty: string,
-  errors: string[]
+  errors: string[],
+  idProperty?: string
 ): void {
   if (typeof platform !== 'object' || platform === null) {
     errors.push(`'platforms.${platformName}' must be an object`);
@@ -25,7 +26,11 @@ function validatePlatform(
     if (typeof platformObj.enabled !== 'boolean') {
       errors.push(`'platforms.${platformName}.enabled' must be a boolean`);
     }
-    if (platformObj[idProperty] !== undefined && typeof platformObj[idProperty] !== 'string') {
+    if (
+      idProperty !== undefined &&
+      platformObj[idProperty] !== undefined &&
+      typeof platformObj[idProperty] !== 'string'
+    ) {
       errors.push(`'platforms.${platformName}.${idProperty}' must be a string`);
     }
   }
@@ -73,11 +78,11 @@ function collectConfigErrors(raw: unknown): string[] {
   } else {
     const platforms = obj.platforms as Record<string, unknown>;
     if (platforms.android !== undefined) {
-      validatePlatform(platforms.android, 'android', 'packageName', errors);
+      validatePlatform(platforms.android, 'android', errors, 'packageName');
       validateAndroidExtras(platforms.android, errors);
     }
     if (platforms.ios !== undefined) {
-      validatePlatform(platforms.ios, 'ios', 'bundleId', errors);
+      validatePlatform(platforms.ios, 'ios', errors);
     }
   }
 

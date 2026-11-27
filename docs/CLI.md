@@ -112,7 +112,7 @@ What npm calls latest is installed only when it is newer than the installed vers
 | `displayName` | string | no | Launcher label; non-empty; defaults to `name` |
 | `profiles` | object | no | Profile → `{ serverUrl: string }` mapping |
 | `platforms.android` | object | no | `{ enabled: boolean, packageName?: string, versionCode?: number, icon?: string }` |
-| `platforms.ios` | object | no | `{ enabled: boolean, bundleId?: string }` |
+| `platforms.ios` | object | no | `{ enabled: boolean }`. The bundle ID of the iOS app is `bundleID` in `ios/xtool.yml` |
 | `webview` | object | no | `{ allowFileAccess, allowUniversalAccessFromFileURLs, userAgent }` |
 | `script.start` | string | no | Dev server start command (e.g. `npm run dev -- --host 0.0.0.0`) |
 | `script.preStartCleanup` | string[] | no | Paths removed in `lib/` before the dev server starts (e.g. stale lock files) |

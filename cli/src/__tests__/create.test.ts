@@ -123,6 +123,8 @@ describe('CreateCommand', () => {
       script: { start: 'npm run dev' },
     });
     expect(config.platforms.android.packageName).toBe('com.example.my_app');
+    // The bundle ID of the iOS app lives in ios/xtool.yml; the config names none.
+    expect(config.platforms.ios).toEqual({ enabled: true });
   });
 
   it('should leave no placeholder behind', async () => {

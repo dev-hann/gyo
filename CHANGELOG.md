@@ -25,6 +25,7 @@
 - Every package is versioned above what is on npm, and the plugins require `@gyo-framework/bridge@^0.2.0`. The newer versions on npm had been published from work that was never committed to the repository; their Kotlin is brought back: `app-launcher` lists the apps through the launcher intent, `notification-reader` returns the notifications newest first with their ids and the expanded text
 - ESLint has one configuration for every TypeScript source; it used to list each package
 - The unit tests of every command run it the way the entry point does, on a project `gyo create` makes. They used to reach into private members over a mocked file system, which is how most of the fixes above stayed invisible
+- `platforms.ios.bundleId` is gone from the gyo.config.json of a new project. Nothing read it, and its default did not match the bundle ID `gyo create` writes into `ios/xtool.yml`. The bundle ID of an iOS app is `bundleID` in that file; a `bundleId` left in an older config does no harm
 - `@gyo-framework/test-utils` 0.2.0: `createBridgeMock(name)` answers requests of the real `Bridge` through `requests()`, `resolve()`, `reject()` and `emitEvent()`. The mock of 0.1.0 could not answer anything, and kept the `Bridge` from installing what settles its promises
 - Plugin naming unified to `@gyo-framework/*` scope
 - Clean architecture: core, services, utils, commands layers
