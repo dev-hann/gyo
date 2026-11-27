@@ -12,7 +12,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Every TypeScript source in the repository, CLI and plugins alike. Each
 // file is type-checked through the tsconfig nearest to it.
 const sources = ['cli/src/**/*.ts', 'plugins/*/src/**/*.ts'];
-const tests = ['**/src/**/__tests__/**/*.test.ts'];
+// Tests and what they share, such as the helpers under `__tests__/helpers/`.
+const tests = ['**/src/**/__tests__/**/*.ts'];
 
 export default [
   js.configs.recommended,
