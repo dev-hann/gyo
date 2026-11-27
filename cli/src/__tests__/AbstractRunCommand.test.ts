@@ -2,6 +2,7 @@ jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
   getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
+  signalProcessTree: jest.requireActual('../utils/exec').signalProcessTree,
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -440,6 +441,23 @@ describe('AbstractRunCommand', () => {
 
       expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
       expect(process.kill).toHaveBeenCalledWith(-1002, 'SIGKILL');
+    });
+
+    it('should clean up on every signal that ends the CLI', () => {
+      const exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
+
+      // SIGHUP is a closed terminal, SIGQUIT is Ctrl+\: neither runs the
+      // 'exit' handler, and the detached dev server would outlive the CLI.
+      for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT']) {
+        (command as any).isCleaningUp = false;
+        (process.kill as jest.Mock).mockClear();
+
+        handlers[signal]?.();
+
+        expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
+        expect(exit).toHaveBeenCalledWith(0);
+      }
     });
 
     it('should fall back to the process itself when it leads no process group', () => {

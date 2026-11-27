@@ -1,5 +1,6 @@
 jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
+  signalProcessTree: jest.requireActual('../utils/exec').signalProcessTree,
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -43,7 +44,7 @@ import { WebServerService } from '../services/web-server.service';
 import { executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import { connect } from 'net';
-import { LOCALHOST, DEFAULT_PORT } from '../core/index';
+import { LOCALHOST, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS } from '../core/index';
 import { EventEmitter } from 'events';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
@@ -298,6 +299,36 @@ describe('WebServerService', () => {
 
       await expect(startPromise).rejects.toThrow('Web server exited with code 1');
       expect(socket.destroy).toHaveBeenCalled();
+    });
+
+    it('should stop the server it started when the port never gets ready', async () => {
+      jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+
+      const { spawn } = jest.requireMock('child_process');
+      const mockProcess = createMockProcess();
+      mockProcess.pid = 4242;
+      spawn.mockReturnValue(mockProcess);
+
+      const freeSocket = mockPortFree();
+      const socket = createMockSocket();
+      mockedConnect.mockReturnValueOnce(socket as any);
+
+      const startPromise = service.start({
+        webPath: '/project/lib',
+        port: 3000,
+        startCommand: 'npm run dev',
+      });
+
+      await refuse(freeSocket);
+      await new Promise((r) => setImmediate(r));
+      jest.advanceTimersByTime(WEB_SERVER_TIMEOUT_MS);
+
+      await expect(startPromise).rejects.toThrow('failed to start within');
+      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
+
+      kill.mockRestore();
+      jest.useRealTimers();
     });
   });
 });

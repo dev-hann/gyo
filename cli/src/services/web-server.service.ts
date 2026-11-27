@@ -5,7 +5,7 @@ import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
 import * as fs from 'fs-extra';
 import { logger } from '../utils/logger';
-import { executeCommand } from '../utils/exec';
+import { executeCommand, signalProcessTree } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import {
   ServerStartError,
@@ -51,9 +51,15 @@ export class WebServerService {
       detached: true,
     });
 
-    const url = await this.waitForServerReady(serverProcess, port);
-
-    return { process: serverProcess, url };
+    try {
+      const url = await this.waitForServerReady(serverProcess, port);
+      return { process: serverProcess, url };
+    } catch (error) {
+      // The caller never receives the process, so nothing else would stop
+      // what it started.
+      signalProcessTree(serverProcess, 'SIGKILL');
+      throw error;
+    }
   }
 
   private isPortOpen(port: number): Promise<boolean> {

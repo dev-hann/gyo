@@ -1,4 +1,4 @@
-import type { SpawnOptions } from 'child_process';
+import type { ChildProcess, SpawnOptions } from 'child_process';
 import { spawn } from 'child_process';
 import { logger } from './logger';
 import { getErrorMessage, ToolRequiredError } from '../core/errors';
@@ -14,8 +14,37 @@ export interface ExecOptions extends SpawnOptions {
   timeout?: number;
 }
 
+type Signals = Parameters<ChildProcess['kill']>[0];
+
 export function getGradlew(): string {
   return process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+}
+
+/**
+ * Signals a child together with everything it spawned. A child started
+ * detached leads its own process group, so the negative pid reaches the
+ * shell, the package manager and the server it started. A child without its
+ * own group, such as a log process, is signalled directly.
+ */
+export function signalProcessTree(proc: ChildProcess, signal: Signals): void {
+  const pid = proc.pid;
+  if (!pid) {
+    return;
+  }
+
+  const signalOrLog = (signalFn: () => void, description: string): boolean => {
+    try {
+      signalFn();
+      return true;
+    } catch (e) {
+      logger.debug(`Failed to ${description}: ${getErrorMessage(e)}`);
+      return false;
+    }
+  };
+
+  if (!signalOrLog(() => process.kill(-pid, signal), `signal process group ${pid}`)) {
+    signalOrLog(() => proc.kill(signal), `signal process ${pid}`);
+  }
 }
 
 export function executeCommand(

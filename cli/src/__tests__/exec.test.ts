@@ -1,4 +1,10 @@
-import { executeCommand, checkCommandExists, getGradlew, requireTool } from '../utils/exec';
+import {
+  executeCommand,
+  checkCommandExists,
+  getGradlew,
+  requireTool,
+  signalProcessTree,
+} from '../utils/exec';
 
 jest.mock('child_process', () => {
   const { EventEmitter } = jest.requireActual('events');
@@ -232,6 +238,45 @@ describe('exec utils', () => {
       mockProcess.emit('close', 1);
 
       await expect(promise).rejects.toThrow('Required tool');
+    });
+  });
+
+  describe('signalProcessTree', () => {
+    let kill: jest.SpyInstance;
+
+    beforeEach(() => {
+      kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    });
+
+    afterEach(() => {
+      kill.mockRestore();
+    });
+
+    it('should signal the process group a detached child leads', () => {
+      mockProcess.pid = 1001;
+
+      signalProcessTree(mockProcess, 'SIGTERM');
+
+      expect(kill).toHaveBeenCalledWith(-1001, 'SIGTERM');
+      expect(mockProcess.kill).not.toHaveBeenCalled();
+    });
+
+    it('should signal the child itself when it leads no process group', () => {
+      mockProcess.pid = 1001;
+      kill.mockImplementation(() => {
+        throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
+      });
+
+      signalProcessTree(mockProcess, 'SIGKILL');
+
+      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
+    });
+
+    it('should do nothing when the child has no pid', () => {
+      signalProcessTree(mockProcess, 'SIGKILL');
+
+      expect(kill).not.toHaveBeenCalled();
+      expect(mockProcess.kill).not.toHaveBeenCalled();
     });
   });
 });

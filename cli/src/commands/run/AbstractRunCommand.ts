@@ -4,6 +4,7 @@ import type { Platform, PlatformCommandOptions } from '../base/index';
 import { PlatformCommand } from '../base/index';
 import { logger } from '../../utils/logger';
 import { pathExists } from '../../utils/fs';
+import { signalProcessTree } from '../../utils/exec';
 import { shouldStartLocalServer } from '../../services/config.service';
 import { WebServerService } from '../../services/web-server.service';
 import {
@@ -214,8 +215,12 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
       process.exit(0);
     };
 
-    process.on('SIGINT', interruptCleanup);
-    process.on('SIGTERM', interruptCleanup);
+    // Every one of these ends the CLI without running the 'exit' handlers
+    // by itself: Ctrl+C, `kill`, a closed terminal, Ctrl+\. The dev server
+    // leads its own process group and would outlive all of them.
+    for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'] as const) {
+      process.on(signal, interruptCleanup);
+    }
 
     // Exit handlers must be synchronous. This is the safety net for the paths
     // that never see a signal — an uncaught exception, an explicit exit —
@@ -250,33 +255,7 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     await Promise.all(promises);
   }
 
-  /**
-   * Signals a child together with everything it spawned. The dev server is
-   * started detached and leads its own process group, so the negative pid
-   * reaches the shell, the package manager and the server. A child without
-   * its own group, such as the log process, is signalled directly.
-   */
-  private signalProcessTree(proc: ChildProcess, signal: 'SIGTERM' | 'SIGKILL'): void {
-    const pid = proc.pid;
-    if (!pid) {
-      return;
-    }
-
-    const signalOrLog = (signalFn: () => void, description: string): boolean => {
-      try {
-        signalFn();
-        return true;
-      } catch (e) {
-        logger.debug(`Failed to ${description}: ${getErrorMessage(e)}`);
-        return false;
-      }
-    };
-
-    if (!signalOrLog(() => process.kill(-pid, signal), `signal process group ${pid}`)) {
-      signalOrLog(() => proc.kill(signal), `signal process ${pid}`);
-    }
-  }
-
+  /** Asks the process tree to stop, and kills it when it has not after PROCESS_KILL_TIMEOUT_MS. */
   private killProcessWithTimeout(proc: ChildProcess): Promise<void> {
     return new Promise<void>((resolve) => {
       let exited = false;
@@ -284,11 +263,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
         exited = true;
         resolve();
       });
-      this.signalProcessTree(proc, 'SIGTERM');
+      signalProcessTree(proc, 'SIGTERM');
 
       const killTimeout = setTimeout(() => {
         if (!exited) {
-          this.signalProcessTree(proc, 'SIGKILL');
+          signalProcessTree(proc, 'SIGKILL');
         }
         resolve();
       }, PROCESS_KILL_TIMEOUT_MS);
@@ -298,11 +277,11 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
 
   protected cleanupSync(): void {
     if (this.webServerProcess && !this.webServerProcess.killed) {
-      this.signalProcessTree(this.webServerProcess, 'SIGKILL');
+      signalProcessTree(this.webServerProcess, 'SIGKILL');
     }
 
     if (this.platformProcess && !this.platformProcess.killed) {
-      this.signalProcessTree(this.platformProcess, 'SIGKILL');
+      signalProcessTree(this.platformProcess, 'SIGKILL');
     }
   }
 
