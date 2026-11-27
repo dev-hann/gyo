@@ -113,7 +113,7 @@ export class IOSRunCommand extends AbstractRunCommand {
     }
 
     if (fullBundleId === bundleId) {
-      match = combinedOutput.match(/(XTL-[A-Z0-9]+\.[a-z0-9.]+)/i);
+      match = combinedOutput.match(/(XTL-[A-Z0-9]+\.[a-z0-9._]+)/i);
       if (
         match &&
         match[1].toLowerCase().includes(bundleId.split('.').pop()?.toLowerCase() || '')

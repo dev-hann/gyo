@@ -461,20 +461,25 @@ describe('IOSRunCommand', () => {
     });
 
     it('should take an XTL-… bundle ID xtool dev printed on stderr', async () => {
-      // Arrange: no bundleIDs line, only the line about the installed app
-      await fs.writeFile(project.ios('xtool.yml'), 'bundleID: com.example.app\n');
+      // Arrange: the xtool.yml gyo create wrote, with its underscore; no bundleIDs line, only the
+      // line about the installed app
       mockedCheck.mockResolvedValue(true);
-      xtoolPrints({ stderr: 'Installed XTL-ABC123.com.example.app successfully' });
+      xtoolPrints({ stderr: `Installed XTL-ABC123.${BUNDLE_ID} successfully` });
       const run = command.runDirectly();
-      const logProcess = await spawnedProcess(1);
+      const first = await spawnedProcess(1);
+      // Ends a syslog search, should the run have started one instead of the log process.
+      first.emit('exit', 0);
+      await flush();
+      const logProcess = spawned.length > 1 ? await spawnedProcess(2) : first;
 
       // Act
       await endRun(run, logProcess);
 
       // Assert
+      expect(mockedSpawn).toHaveBeenCalledTimes(1);
       expect(mockedSpawn).toHaveBeenLastCalledWith(
         'idevicesyslog',
-        ['-m', 'XTL-ABC123.com.example.app'],
+        ['-m', `XTL-ABC123.${BUNDLE_ID}`],
         LOG_PROCESS_OPTIONS
       );
     });
