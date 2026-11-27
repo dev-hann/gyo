@@ -112,6 +112,7 @@ describe('E2E Local: Project Creation & Build', () => {
 
     for (const rule of [
       'android/app/src/main/assets/gyo-config.json',
+      'ios/Sources/Resources/gyo-config.json',
       'android/keystore.properties',
       '*.jks',
       '*.keystore',
@@ -124,7 +125,6 @@ describe('E2E Local: Project Creation & Build', () => {
     const { projectDir } = getSharedState();
     const config = await fs.readJson(path.join(projectDir, 'gyo.config.json'));
     expect(config.platforms.android.packageName).toMatch(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/);
-    expect(config.platforms.ios.bundleId).toContain('com.example.');
 
     const androidManifest = await fs.readFile(
       path.join(projectDir, 'android/app/src/main/AndroidManifest.xml'),

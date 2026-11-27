@@ -1,37 +1,9 @@
 // `start` runs `npm install`, and signals the server's process group when it
-// cannot return the server: both would act on this machine.
+// cannot return the server: both would act on this machine. What it finds
+// installed, and what it removes, are real paths in a temporary directory.
 jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
   signalProcessTree: jest.fn(),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    verbose: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(true),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-jest.mock('fs-extra', () => ({
-  remove: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('child_process', () => ({
@@ -42,19 +14,28 @@ jest.mock('net', () => ({
   connect: jest.fn(),
 }));
 
-import { WebServerService, REACHABLE_TIMEOUT_MS } from '../services/web-server.service';
-import { isLoopbackHost, namedHostOf } from '../core/index';
-import { executeCommand, signalProcessTree } from '../utils/exec';
-import { pathExists } from '../utils/fs';
-import { connect } from 'net';
-import { LOCALHOST, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS } from '../core/index';
+import * as os from 'os';
+import * as path from 'path';
 import { EventEmitter } from 'events';
+import fs from 'fs-extra';
+import { connect } from 'net';
+import {
+  DEFAULT_PORT,
+  LOCALHOST,
+  WEB_SERVER_TIMEOUT_MS,
+  isLoopbackHost,
+  namedHostOf,
+  ServerStartError,
+} from '../core/index';
+import { WebServerService, REACHABLE_TIMEOUT_MS } from '../services/web-server.service';
+import { executeCommand, signalProcessTree } from '../utils/exec';
+import { logger } from '../utils/logger';
+import { silenceLogger } from './helpers/logger';
 import { fakeChildProcess } from './helpers/process';
 import type { FakeChildProcess } from './helpers/process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
 const mockedSignalProcessTree = signalProcessTree as jest.MockedFunction<typeof signalProcessTree>;
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedConnect = jest.mocked(connect);
 
 interface MockSocket extends EventEmitter {
@@ -98,11 +79,24 @@ function silent(): MockSocket {
   return socket;
 }
 
-/** Lets the service run until `condition` holds, instead of guessing when it gets there. */
+/**
+ * Lets the service run until `condition` holds, instead of guessing when it
+ * gets there. Bounded by time, not by turns: the service looks at real files
+ * before its first socket, which takes as long as the disk takes.
+ */
 async function until(condition: () => boolean): Promise<void> {
-  for (let tries = 0; tries < 200 && !condition(); tries++) {
+  const deadline = Date.now() + 1000;
+  while (!condition()) {
+    if (Date.now() > deadline) {
+      throw new Error('The service did not get there within a second');
+    }
     await new Promise((resolve) => setImmediate(resolve));
   }
+}
+
+/** Fakes the timers the service arms; what waits for it still runs on real ones and the real clock. */
+function fakeServiceTimers(): void {
+  jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'Date'] });
 }
 
 /** The dev server, once `start` has spawned it. */
@@ -117,8 +111,14 @@ describe('WebServerService', () => {
   let service: WebServerService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Reset, not clear: the answers queued for the next sockets must not outlive the test that queued them.
+    jest.resetAllMocks();
+    silenceLogger();
     service = new WebServerService();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('namedHostOf', () => {
@@ -171,23 +171,36 @@ describe('WebServerService', () => {
   });
 
   describe('start', () => {
-    const options = { webPath: '/project/lib', port: 3000, startCommand: 'npm run dev' };
+    let project: string;
+    let webPath: string;
+    let options: { webPath: string; port: number; startCommand: string };
 
     beforeEach(() => {
+      project = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-web-server-'));
+      webPath = path.join(project, 'lib');
+      // The dependencies are installed, as after the first run.
+      fs.ensureDirSync(path.join(webPath, 'node_modules'));
+      options = { webPath, port: 3000, startCommand: 'npm run dev' };
+
       // Nothing reaches process.kill while signalProcessTree is mocked: the guard keeps
       // a fake pid from the real one for as long as one is around.
       jest.spyOn(process, 'kill').mockImplementation(() => true);
     });
 
     afterEach(() => {
-      jest.restoreAllMocks();
       jest.useRealTimers();
+      fs.removeSync(project);
     });
+
+    /** The web app was never installed: the dependencies have to be put in before the server. */
+    const withoutDependencies = (): void => {
+      fs.removeSync(path.join(webPath, 'node_modules'));
+    };
 
     function expectSpawned(command: string): void {
       const { spawn } = jest.requireMock('child_process');
       expect(spawn).toHaveBeenCalledWith(command, [], {
-        cwd: '/project/lib',
+        cwd: webPath,
         stdio: 'pipe',
         shell: true,
         detached: true,
@@ -195,7 +208,7 @@ describe('WebServerService', () => {
     }
 
     it('should throw ServerStartError when npm install fails', async () => {
-      mockedPathExists.mockResolvedValueOnce(false);
+      withoutDependencies();
       mockedExec.mockResolvedValueOnce({
         success: false,
         stdout: '',
@@ -203,11 +216,18 @@ describe('WebServerService', () => {
         code: 1,
       });
 
-      await expect(service.start(options)).rejects.toThrow('Failed to install web dependencies');
+      const failing = service.start(options);
+
+      await expect(failing).rejects.toThrow('Failed to install web dependencies');
+      await expect(failing).rejects.toBeInstanceOf(ServerStartError);
+      expect(mockedExec).toHaveBeenCalledWith('npm', ['install'], {
+        cwd: webPath,
+        stdio: 'inherit',
+      });
     });
 
     it('should install node_modules when not found and resolve on the port probe', async () => {
-      mockedPathExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      withoutDependencies();
       mockedExec.mockResolvedValueOnce({
         success: true,
         stdout: 'added 100 packages',
@@ -221,8 +241,25 @@ describe('WebServerService', () => {
 
       const handle = await service.start(options);
 
-      expect(mockedExec).toHaveBeenCalledWith('npm', ['install'], expect.any(Object));
+      expect(mockedExec).toHaveBeenCalledWith('npm', ['install'], {
+        cwd: webPath,
+        stdio: 'inherit',
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        'node_modules not found. Installing dependencies (this may take a minute)...'
+      );
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
+    });
+
+    it('should leave the dependencies alone when node_modules is there', async () => {
+      spawnServer();
+      answering('error');
+      answering('connect');
+      answering('connect');
+
+      await service.start(options);
+
+      expect(mockedExec).not.toHaveBeenCalled();
     });
 
     it('should reject without spawning when the port is already in use', async () => {
@@ -271,7 +308,7 @@ describe('WebServerService', () => {
     });
 
     it("should give up when the device's address never answers", async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      fakeServiceTimers();
       const server = spawnServer();
       answering('error');
       answering('connect');
@@ -298,21 +335,49 @@ describe('WebServerService', () => {
       expect(mockedConnect).toHaveBeenCalledWith({ host: LOCALHOST, port: 5173 });
     });
 
-    it('should remove pre-start cleanup paths when they exist', async () => {
-      const { remove } = jest.requireMock('fs-extra');
+    it('should remove the pre-start cleanup paths that are there, and skip the rest', async () => {
+      const lock = path.join(webPath, '.next', 'dev', 'lock');
+      const cache = path.join(webPath, '.vite');
+      fs.outputFileSync(lock, '');
+      fs.outputFileSync(path.join(cache, 'deps.json'), '');
       spawnServer();
-      mockedPathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(true);
       answering('error');
       answering('connect');
       answering('connect');
 
-      await service.start({ ...options, preStartCleanup: ['.next/dev/lock'] });
+      await service.start({ ...options, preStartCleanup: ['.next/dev/lock', '.vite', 'dist'] });
 
-      expect(remove).toHaveBeenCalledWith('/project/lib/.next/dev/lock');
+      expect(fs.pathExistsSync(lock)).toBe(false);
+      expect(fs.pathExistsSync(cache)).toBe(false);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should start anyway when a cleanup path cannot be removed, and say so', async () => {
+      const dev = path.join(webPath, '.next', 'dev');
+      const lock = path.join(dev, 'lock');
+      fs.outputFileSync(lock, '');
+      // Read-only parent makes removing what is inside it fail.
+      fs.chmodSync(dev, 0o500);
+      spawnServer();
+      answering('error');
+      answering('connect');
+      answering('connect');
+
+      try {
+        const handle = await service.start({ ...options, preStartCleanup: ['.next/dev/lock'] });
+
+        expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
+        expect(fs.pathExistsSync(lock)).toBe(true);
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringMatching(/^Could not remove \.next\/dev\/lock: /)
+        );
+      } finally {
+        fs.chmodSync(dev, 0o700);
+      }
     });
 
     it('should retry the port probe when connection is refused', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      fakeServiceTimers();
       spawnServer();
       answering('error');
       const refused = answering('error');
@@ -344,7 +409,7 @@ describe('WebServerService', () => {
     });
 
     it('should stop the server it started when the port never gets ready', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      fakeServiceTimers();
       const server = spawnServer();
       answering('error');
       const probe = silent();

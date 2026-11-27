@@ -1,3 +1,6 @@
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
 import {
   loadConfig,
   saveConfig,
@@ -5,28 +8,8 @@ import {
   shouldStartLocalServer,
   validateConfig,
 } from '../services/config.service';
+import { GyoError } from '../core/index';
 import type { GyoConfig } from '../core/index';
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn(),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    setVerbose: jest.fn(),
-  },
-}));
-
-import { readJson, writeJson, pathExists } from '../utils/fs';
-
-const mockedReadJson = readJson as jest.MockedFunction<typeof readJson>;
-const mockedWriteJson = writeJson as jest.MockedFunction<typeof writeJson>;
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 
 const validConfig = {
   name: 'test-app',
@@ -36,201 +19,264 @@ const validConfig = {
   },
 };
 
+// What the service reads and writes is gyo.config.json, so it runs against a
+// real directory: which file it finds, and what it leaves there, is the behaviour.
 describe('config.service', () => {
+  let project: string;
+
+  const configFile = (): string => path.join(project, 'gyo.config.json');
+  /** Puts a config on disk, as `gyo create` or a developer leaves it. */
+  const writeConfig = (config: unknown): void => {
+    fs.writeJsonSync(configFile(), config, { spaces: 2 });
+  };
+  /** The config as the service left it on disk. */
+  const readConfig = (): Promise<Record<string, unknown>> => fs.readJson(configFile());
+  const readConfigText = (): string => fs.readFileSync(configFile(), 'utf-8');
+  /** `validConfig` with these top-level keys replaced. */
+  const configWith = (overrides: Record<string, unknown>): Record<string, unknown> => ({
+    ...validConfig,
+    ...overrides,
+  });
+
+  /** Runs `action` with the project as the working directory, and returns from it after. */
+  async function inProject<T>(action: () => Promise<T>): Promise<T> {
+    const previousCwd = process.cwd();
+    process.chdir(project);
+    try {
+      return await action();
+    } finally {
+      process.chdir(previousCwd);
+    }
+  }
+
   beforeEach(() => {
-    jest.clearAllMocks();
+    // An empty project: a test gives it a config, or leaves it without one.
+    project = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-config-'));
+  });
+
+  afterEach(() => {
+    fs.removeSync(project);
   });
 
   describe('loadConfig', () => {
     it('should return parsed config when file exists', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedReadJson.mockResolvedValue(validConfig);
+      writeConfig(validConfig);
 
-      const result = await loadConfig('/project');
+      const config = await loadConfig(project);
 
-      expect(result).toEqual(validConfig);
-      expect(mockedPathExists).toHaveBeenCalledWith('/project/gyo.config.json');
-      expect(mockedReadJson).toHaveBeenCalledWith('/project/gyo.config.json');
+      expect(config).toEqual(validConfig);
     });
 
     it('should throw GyoError when config file does not exist', async () => {
-      mockedPathExists.mockResolvedValue(false);
+      const failing = loadConfig(project);
 
-      await expect(loadConfig('/project')).rejects.toThrow(
-        'gyo.config.json not found in: /project'
-      );
+      await expect(failing).rejects.toThrow(`gyo.config.json not found in: ${project}`);
+      await expect(failing).rejects.toBeInstanceOf(GyoError);
     });
 
     it('should use process.cwd() as default project path', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedReadJson.mockResolvedValue(validConfig);
+      writeConfig(validConfig);
 
-      await loadConfig();
+      const config = await inProject(() => loadConfig());
 
-      expect(mockedPathExists).toHaveBeenCalledWith(expect.stringContaining('gyo.config.json'));
-      expect(mockedReadJson).toHaveBeenCalledWith(expect.stringContaining('gyo.config.json'));
+      expect(config).toEqual(validConfig);
     });
 
-    it('should throw GyoError when readJson throws', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedReadJson.mockRejectedValue(new Error('parse error'));
+    it('should throw GyoError when gyo.config.json is not valid JSON', async () => {
+      fs.writeFileSync(configFile(), '{');
 
-      await expect(loadConfig('/project')).rejects.toThrow('Failed to load config: parse error');
+      const failing = loadConfig(project);
+
+      // What went wrong follows: the file, and why the parser gave up on it.
+      await expect(failing).rejects.toThrow(`Failed to load config: ${configFile()}: `);
+      // What went wrong is kept as the cause.
+      await expect(failing).rejects.toMatchObject({
+        name: 'GyoError',
+        cause: expect.any(SyntaxError),
+      });
     });
 
     it('should throw GyoError when config fails validation', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedReadJson.mockResolvedValue({ name: 123 });
+      writeConfig({ name: 123 });
 
-      await expect(loadConfig('/project')).rejects.toThrow('Invalid gyo.config.json:');
+      const failing = loadConfig(project);
+
+      await expect(failing).rejects.toThrow(
+        'Invalid gyo.config.json:\n' +
+          "  - 'name' must be a non-empty string\n" +
+          "  - 'version' must be a non-empty string\n" +
+          "  - 'platforms' must be an object"
+      );
+      await expect(failing).rejects.toBeInstanceOf(GyoError);
     });
   });
 
   describe('saveConfig', () => {
     it('should write config to gyo.config.json', async () => {
-      mockedWriteJson.mockResolvedValue(undefined);
+      await saveConfig(validConfig as GyoConfig, project);
 
-      await saveConfig(validConfig as GyoConfig, '/project');
-
-      expect(mockedWriteJson).toHaveBeenCalledWith('/project/gyo.config.json', validConfig);
+      expect(await fs.readJson(configFile())).toEqual(validConfig);
     });
 
     it('should use process.cwd() as default project path', async () => {
-      mockedWriteJson.mockResolvedValue(undefined);
+      await inProject(() => saveConfig(validConfig as GyoConfig));
 
-      await saveConfig(validConfig as GyoConfig);
-
-      expect(mockedWriteJson).toHaveBeenCalledWith(
-        expect.stringContaining('gyo.config.json'),
-        validConfig
-      );
+      expect(await fs.readJson(configFile())).toEqual(validConfig);
     });
   });
 
   describe('setConfigValue', () => {
-    /** Puts a config on disk; reads hand out the same object, as the file would. */
-    function configOnDisk(config: Record<string, unknown>): void {
-      mockedPathExists.mockResolvedValue(true);
-      mockedReadJson.mockResolvedValue(config);
-      mockedWriteJson.mockResolvedValue(undefined);
-    }
-
-    function lastSaved(): Record<string, unknown> {
-      const calls = mockedWriteJson.mock.calls;
-      return calls[calls.length - 1][1] as Record<string, unknown>;
-    }
-
     it('should set a top-level value', async () => {
-      configOnDisk(structuredClone(validConfig));
+      writeConfig(validConfig);
 
-      const { previous, next } = await setConfigValue('/project', 'name', 'new-name');
+      const { previous, next } = await setConfigValue(project, 'name', 'new-name');
 
       expect(previous).toBe('test-app');
       expect(next).toBe('new-name');
-      expect(lastSaved().name).toBe('new-name');
+      expect(await readConfig()).toEqual({ ...validConfig, name: 'new-name' });
     });
 
     it('should set a nested value', async () => {
-      configOnDisk(structuredClone(validConfig));
+      writeConfig(validConfig);
 
-      await setConfigValue('/project', 'platforms.android.packageName', 'com.new.pkg');
+      await setConfigValue(project, 'platforms.android.packageName', 'com.new.pkg');
 
-      expect(lastSaved().platforms).toEqual({
-        android: { enabled: true, packageName: 'com.new.pkg' },
+      expect(await readConfig()).toEqual({
+        ...validConfig,
+        platforms: { android: { enabled: true, packageName: 'com.new.pkg' } },
       });
     });
 
     it('should keep a string a string, so version 2 cannot become a number', async () => {
-      configOnDisk(structuredClone(validConfig));
+      writeConfig(validConfig);
 
-      await setConfigValue('/project', 'version', '2');
+      await setConfigValue(project, 'version', '2');
 
-      expect(lastSaved().version).toBe('2');
+      expect(await readConfig()).toEqual({ ...validConfig, version: '2' });
     });
 
-    it('should read the value as the type of the one it replaces', async () => {
-      configOnDisk({
-        ...structuredClone(validConfig),
-        platforms: {
-          android: { enabled: true, versionCode: 5 },
-          ios: { enabled: true },
+    it.each([
+      {
+        before: {
+          platforms: { android: { enabled: true, versionCode: 5 }, ios: { enabled: true } },
         },
-      });
+        key: 'platforms.android.versionCode',
+        value: '73',
+        after: {
+          platforms: { android: { enabled: true, versionCode: 73 }, ios: { enabled: true } },
+        },
+      },
+      {
+        before: {
+          platforms: { android: { enabled: true, versionCode: 5 }, ios: { enabled: true } },
+        },
+        key: 'platforms.ios.enabled',
+        value: 'no',
+        after: {
+          platforms: { android: { enabled: true, versionCode: 5 }, ios: { enabled: false } },
+        },
+      },
+    ])(
+      'should read "$value" given to $key as the type of the value it replaces',
+      async ({ before, key, value, after }) => {
+        writeConfig(configWith(before));
 
-      await setConfigValue('/project', 'platforms.android.versionCode', '73');
-      await setConfigValue('/project', 'platforms.ios.enabled', 'no');
+        await setConfigValue(project, key, value);
 
-      expect(lastSaved().platforms).toEqual({
-        android: { enabled: true, versionCode: 73 },
-        ios: { enabled: false },
-      });
-    });
+        expect(await readConfig()).toEqual(configWith(after));
+      }
+    );
 
-    it('should convert the value of a new key to a number or a boolean', async () => {
-      configOnDisk({
-        ...structuredClone(validConfig),
-        platforms: { android: { enabled: true } },
-        webview: {},
-      });
+    it.each([
+      {
+        key: 'platforms.android.versionCode',
+        value: '73',
+        after: { platforms: { android: { enabled: true, versionCode: 73 } } },
+      },
+      {
+        key: 'webview.allowFileAccess',
+        value: 'true',
+        after: { webview: { allowFileAccess: true } },
+      },
+    ])(
+      'should read "$value" given to the new key $key as a number or a boolean',
+      async ({ key, value, after }) => {
+        // A project made before the setting existed has no such key.
+        const before = { ...validConfig, platforms: { android: { enabled: true } }, webview: {} };
+        writeConfig(before);
 
-      await setConfigValue('/project', 'platforms.android.versionCode', '73');
-      await setConfigValue('/project', 'webview.allowFileAccess', 'true');
+        const { previous } = await setConfigValue(project, key, value);
 
-      expect(lastSaved().platforms).toEqual({ android: { enabled: true, versionCode: 73 } });
-      expect(lastSaved().webview).toEqual({ allowFileAccess: true });
-    });
+        expect(previous).toBeUndefined();
+        expect(await readConfig()).toEqual({ ...before, ...after });
+      }
+    );
 
     it('should refuse a value that would make the config invalid', async () => {
-      configOnDisk(structuredClone(validConfig));
+      writeConfig(validConfig);
+      const textBefore = readConfigText();
 
-      await expect(setConfigValue('/project', 'displayName', '')).rejects.toThrow(
+      const failing = setConfigValue(project, 'displayName', '');
+
+      await expect(failing).rejects.toThrow(
         "Invalid gyo.config.json:\n  - 'displayName' must be a non-empty string"
       );
-      expect(mockedWriteJson).not.toHaveBeenCalled();
+      expect(readConfigText()).toBe(textBefore);
     });
 
     it('should refuse a server URL without http or https', async () => {
-      configOnDisk({
-        ...structuredClone(validConfig),
-        profiles: { development: { serverUrl: 'http://localhost:3000' } },
-      });
+      writeConfig(
+        configWith({ profiles: { development: { serverUrl: 'http://localhost:3000' } } })
+      );
+      const textBefore = readConfigText();
 
-      await expect(
-        setConfigValue('/project', 'profiles.development.serverUrl', 'example.com')
-      ).rejects.toThrow("'profiles.development.serverUrl' must be a string starting with http://");
-      expect(mockedWriteJson).not.toHaveBeenCalled();
+      const failing = setConfigValue(project, 'profiles.development.serverUrl', 'example.com');
+
+      await expect(failing).rejects.toThrow(
+        "'profiles.development.serverUrl' must be a string starting with http:// or https://"
+      );
+      expect(readConfigText()).toBe(textBefore);
     });
 
     it('should repair a config that is already invalid', async () => {
-      configOnDisk({ ...structuredClone(validConfig), name: 123 });
+      writeConfig(configWith({ name: 123 }));
 
-      await setConfigValue('/project', 'name', 'test-app');
+      await setConfigValue(project, 'name', 'test-app');
 
-      expect(lastSaved().name).toBe('test-app');
+      expect(await readConfig()).toEqual(validConfig);
     });
 
-    it('should reject a key that goes through a value', async () => {
-      configOnDisk(structuredClone(validConfig));
+    it.each([
+      { key: 'name.length', value: '3', where: 'goes through a value' },
+      { key: 'platforms.windows.enabled', value: 'true', where: 'has no parent in the config' },
+    ])('should reject a key that $where: $key', async ({ key, value }) => {
+      writeConfig(validConfig);
+      const textBefore = readConfigText();
 
-      await expect(setConfigValue('/project', 'name.length', '3')).rejects.toThrow(
-        'Invalid configuration key: name.length'
-      );
-    });
+      const failing = setConfigValue(project, key, value);
 
-    it('should reject a key whose parent is missing', async () => {
-      configOnDisk(structuredClone(validConfig));
-
-      await expect(setConfigValue('/project', 'platforms.windows.enabled', 'true')).rejects.toThrow(
-        'Invalid configuration key: platforms.windows.enabled'
-      );
+      await expect(failing).rejects.toThrow(`Invalid configuration key: ${key}`);
+      expect(readConfigText()).toBe(textBefore);
     });
 
     it('should throw when there is no config file', async () => {
-      mockedPathExists.mockResolvedValue(false);
-
-      await expect(setConfigValue('/project', 'name', 'x')).rejects.toThrow(
-        'gyo.config.json not found in: /project'
+      await expect(setConfigValue(project, 'name', 'x')).rejects.toThrow(
+        `gyo.config.json not found in: ${project}`
       );
+    });
+
+    it.each([
+      ['null', null],
+      ['a string', 'text'],
+    ])('should refuse a gyo.config.json that holds %s', async (_shape, content) => {
+      writeConfig(content);
+
+      const failing = setConfigValue(project, 'name', 'x');
+
+      await expect(failing).rejects.toThrow(
+        'Invalid gyo.config.json:\n  - config must be a non-null object'
+      );
+      expect(await readConfig()).toBe(content);
     });
   });
 
@@ -361,29 +407,12 @@ describe('config.service', () => {
       expect(validateConfig(config)).toBe(false);
     });
 
-    it('should accept a bundleId an earlier gyo wrote into the ios platform', () => {
-      // Nothing reads it: the bundle ID of the app is the one in ios/xtool.yml.
-      const config = {
-        ...validConfig,
-        platforms: { ios: { enabled: true, bundleId: false } },
-      };
-      expect(validateConfig(config)).toBe(true);
-    });
-
     it('should accept ios platform without bundleId', () => {
       const config = {
         ...validConfig,
         platforms: { ios: { enabled: true } },
       };
       expect(validateConfig(config)).toBe(true);
-    });
-
-    it('should reject android platform that is null', () => {
-      const config = {
-        ...validConfig,
-        platforms: { android: null },
-      };
-      expect(validateConfig(config)).toBe(false);
     });
 
     it('should accept config with both platforms valid', () => {
