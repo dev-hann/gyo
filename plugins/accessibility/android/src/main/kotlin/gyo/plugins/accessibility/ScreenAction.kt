@@ -39,19 +39,20 @@ internal fun tap(data: JSONObject): Boolean {
         .build()
 
     return try {
-        val result = BooleanArray(1)
         val callback = object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
-                result[0] = true
+                Log.d(TAG, "tap completed")
             }
 
             override fun onCancelled(gestureDescription: GestureDescription?) {
-                result[0] = false
+                Log.w(TAG, "tap cancelled")
             }
         }
-        service.dispatchGesture(gesture, callback, null)
-        Log.d(TAG, "tap dispatched at ($x, $y)")
-        true
+        // True once the system takes the gesture. Whether it runs to its end is
+        // only said in the callback, which the caller of `handle` cannot wait for.
+        val dispatched = service.dispatchGesture(gesture, callback, null)
+        if (dispatched) Log.d(TAG, "tap dispatched at ($x, $y)") else Log.w(TAG, "tap was not dispatched at ($x, $y)")
+        dispatched
     } catch (e: Exception) {
         Log.e(TAG, "tap: failed", e)
         false
@@ -138,9 +139,13 @@ internal fun swipe(data: JSONObject): Boolean {
                 Log.w(TAG, "swipe cancelled")
             }
         }
-        service.dispatchGesture(gesture, callback, null)
-        Log.d(TAG, "swipe dispatched from ($startX,$startY) to ($endX,$endY)")
-        true
+        val dispatched = service.dispatchGesture(gesture, callback, null)
+        if (dispatched) {
+            Log.d(TAG, "swipe dispatched from ($startX,$startY) to ($endX,$endY)")
+        } else {
+            Log.w(TAG, "swipe was not dispatched from ($startX,$startY) to ($endX,$endY)")
+        }
+        dispatched
     } catch (e: Exception) {
         Log.e(TAG, "swipe: failed", e)
         false

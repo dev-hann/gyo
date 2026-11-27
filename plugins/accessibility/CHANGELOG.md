@@ -2,6 +2,8 @@
 
 ## 0.2.0 - 2026-11-27
 
+- `tap()` and `swipe()` resolve to `false` when the system did not take the gesture. They resolved to `true` whenever nothing was thrown, whether the gesture had been dispatched or not
+- `Accessibility.openSettings()` is typed with the `error` the native side returns when it could not open the settings
 - Merges four packages into this one and replaces them: `@gyo-framework/accessibility`, `@gyo-framework/screen-reader`, `@gyo-framework/screen-action` and `@gyo-framework/screen-find`
 - `Accessibility`, `ScreenReader`, `ScreenAction` and `ScreenFind` keep their methods and are imported from `@gyo-community/accessibility` from now on
 - One bridge and one handler: every class posts to `accessibility`, answered by `gyo.plugins.accessibility.AccessibilityBridge`. Before, the three screen plugins posted to `screen_reader`, `screen_action` and `screen_find`, each with a handler of its own. The method names and the JSON they take and return are unchanged

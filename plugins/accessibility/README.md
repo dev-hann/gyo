@@ -59,7 +59,7 @@ Every class posts to the one `accessibility` bridge. Each creates its own bridge
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `isEnabled()` | `Promise<AccessibilityStatus>` | Whether the service is enabled and connected |
-| `openSettings()` | `Promise<{ opened: boolean }>` | Opens the Accessibility settings |
+| `openSettings()` | `Promise<{ opened: boolean; error?: string }>` | Opens the Accessibility settings. `error` says why when `opened` is `false` |
 | `isAvailable()` | `boolean` | Whether the native bridge is present |
 | `destroy()` | `void` | Releases the bridge |
 
@@ -113,9 +113,9 @@ interface ScreenReaderFindResult {
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `tap(params: TapParams)` | `Promise<boolean>` | Tap at (x, y) coordinates |
+| `tap(params: TapParams)` | `Promise<boolean>` | Tap at (x, y) coordinates. `false` when the system did not take the gesture |
 | `type(params: TypeParams)` | `Promise<boolean>` | Type text into focused input |
-| `swipe(params: SwipeParams)` | `Promise<boolean>` | Swipe from start to end over duration ms |
+| `swipe(params: SwipeParams)` | `Promise<boolean>` | Swipe from start to end over duration ms. `false` when the system did not take the gesture |
 | `globalAction(params: GlobalActionParams)` | `Promise<boolean>` | Perform global accessibility action |
 | `isAvailable()` | `boolean` | Check if native bridge is available |
 | `destroy()` | `void` | Clean up resources |

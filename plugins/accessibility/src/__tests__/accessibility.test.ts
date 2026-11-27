@@ -73,5 +73,15 @@ describe('Accessibility', () => {
         callbackId: expect.any(String),
       });
     });
+
+    it('should say why the settings could not be opened', async () => {
+      const pending = accessibility.openSettings();
+
+      await Promise.resolve();
+      const request = posted();
+      window.gyoBridge!.resolve(request.callbackId, { opened: false, error: 'No Activity found' });
+
+      await expect(pending).resolves.toEqual({ opened: false, error: 'No Activity found' });
+    });
   });
 });
