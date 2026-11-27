@@ -143,8 +143,11 @@ export class AndroidRunCommand extends AbstractRunCommand {
         logger.warn(line);
         return;
       }
-      // adb prefixes each line with the time, the device and the tag.
-      const message = line.match(/WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/)?.[1] ?? line;
+      // `adb logcat -v brief` prefixes each line with the tag and the
+      // process, and WebView appends where the line came from.
+      const message = line
+        .replace(/^.*?WebView-Console(?:\(\s*\d+\))?:\s*/, '')
+        .replace(/\s*--\s*From line \d+ of \S+$/, '');
       logger.info(`${EMOJI.PHONE} ${message}`);
     });
   }

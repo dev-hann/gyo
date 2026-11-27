@@ -34,7 +34,7 @@ import type { RunCommandOptions } from '../commands/run/AbstractRunCommand';
 import { BuildFailedError, PlatformNotFoundError, ToolRequiredError } from '../core/errors';
 import type { ExecResult } from '../utils/exec';
 import { executeCommand, requireTool } from '../utils/exec';
-import { logger } from '../utils/logger';
+import { EMOJI, logger } from '../utils/logger';
 import { WebServerService } from '../services/web-server.service';
 import { silenceLogger } from './helpers/logger';
 import { writePluginFixture } from './helpers/plugin';
@@ -499,8 +499,9 @@ describe('AndroidRunCommand', () => {
           )
         );
 
+        // What the page logged, without the tag, the process and where the line came from.
         expect(info.mock.calls.slice(reportedBefore).map(([message]) => message)).toEqual([
-          expect.stringContaining('App ready'),
+          `${EMOJI.PHONE} App ready`,
           expect.stringContaining('--------- beginning of main'),
         ]);
         await finish(pending);
