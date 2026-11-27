@@ -5,7 +5,7 @@
 | Package | Version | Description |
 |---------|---------|-------------|
 | [@gyo-framework/bridge](./bridge/README.md) | 0.2.0 | Web-native communication core (built-in) |
-| [@gyo-framework/test-utils](./test-utils/README.md) | 0.1.1 | Test utilities for Gyo apps (devDependency) |
+| [@gyo-framework/test-utils](./test-utils/README.md) | 0.2.0 | A stand-in for the native side of the bridge, for the tests of an app (devDependency) |
 | [@gyo-framework/app-launcher](./app-launcher/README.md) | 0.1.2 | App launching and URL opening via PackageManager |
 | [@gyo-framework/device-info](./device-info/README.md) | 0.1.2 | Device metadata (Android) |
 | [@gyo-framework/contact-search](./contact-search/README.md) | 0.1.2 | Contacts search (Android) |

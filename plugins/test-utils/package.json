@@ -1,7 +1,7 @@
 {
   "name": "@gyo-framework/test-utils",
-  "version": "0.1.1",
-  "description": "Test utilities for Gyo framework apps — bridge mocking, platform simulation",
+  "version": "0.2.0",
+  "description": "Test utilities for the tests of a Gyo app: a working stand-in for the native side of the bridge",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

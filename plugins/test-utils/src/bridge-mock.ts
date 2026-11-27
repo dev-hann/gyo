@@ -1,89 +1,73 @@
-/// <reference types="@gyo-framework/bridge" />
+import type { BridgeRequest } from '@gyo-framework/bridge';
 
-type MockedInvoke = jest.Mock<Promise<unknown>, [string, unknown?]>;
-type MockedListen = jest.Mock<() => void, [(data: unknown) => void]>;
-
-export interface BridgeMockResult {
-  mockInvoke: MockedInvoke;
-  mockListen: MockedListen;
-  simulateEvent: (data: unknown) => void;
-  simulateResponse: (callbackId: string, data: unknown) => void;
-  simulateError: (callbackId: string, error: string) => void;
-  restore: () => void;
+export interface BridgeMock {
+  /** What the page posted to native, oldest first. */
+  requests(): BridgeRequest[];
+  /** Answers a request, the latest by default, as native does on success. */
+  resolve(data: unknown, request?: BridgeRequest): void;
+  /** Answers a request, the latest by default, as native does on failure. */
+  reject(message: string, request?: BridgeRequest): void;
+  /** Publishes an event to the listeners the bridge called `name` registered. */
+  emitEvent(data: unknown): void;
+  restore(): void;
 }
 
-export function createBridgeMock(name: string): BridgeMockResult {
-  const invokeHandlers: Map<string, (data?: unknown) => unknown> = new Map();
-  const eventListeners: Set<(data: unknown) => void> = new Set();
-  const pendingResolvers: Map<
-    string,
-    { resolve: (value: unknown) => void; reject: (reason: unknown) => void }
-  > = new Map();
+/**
+ * Replaces the native side of the bridge for one bridge name. The real
+ * `Bridge` of the code under test stays in place: it is what turns a
+ * request into a promise, so that a test exercises the same path the app
+ * runs in the WebView.
+ *
+ * Call `setPlatform` first or not at all: the mock brings the Android
+ * native object itself.
+ */
+export function createBridgeMock(name: string): BridgeMock {
+  const posted: BridgeRequest[] = [];
 
-  const mockInvoke: MockedInvoke = jest.fn(async (method: string, data?: unknown) => {
-    const handler = invokeHandlers.get(method);
-    if (handler) {
-      return handler(data);
-    }
-    return undefined;
-  });
-
-  const mockListen: MockedListen = jest.fn((callback: (data: unknown) => void) => {
-    eventListeners.add(callback);
-    return () => {
-      eventListeners.delete(callback);
-    };
-  });
-
-  const simulateEvent = (data: unknown): void => {
-    eventListeners.forEach((listener) => listener(data));
+  (window as unknown as Record<string, unknown>).androidBridge = {
+    postMessage: (message: string) => {
+      posted.push(JSON.parse(message) as BridgeRequest);
+    },
   };
 
-  const simulateResponse = (callbackId: string, data: unknown): void => {
-    const pending = pendingResolvers.get(callbackId);
-    if (pending) {
-      pendingResolvers.delete(callbackId);
-      pending.resolve(data);
+  const answerable = (request: BridgeRequest | undefined): BridgeRequest => {
+    const target = request ?? posted.at(-1);
+    if (target === undefined) {
+      throw new Error('The page posted nothing to native: call a bridge method first.');
     }
+    return target;
   };
-
-  const simulateError = (callbackId: string, error: string): void => {
-    const pending = pendingResolvers.get(callbackId);
-    if (pending) {
-      pendingResolvers.delete(callbackId);
-      pending.reject(new Error(error));
-    }
-  };
-
-  if (!window.gyoBridge) {
-    window.gyoBridge = {
-      resolve: (callbackId: string, data: unknown) => {
-        simulateResponse(callbackId, data);
-      },
-      reject: (callbackId: string, error: string) => {
-        simulateError(callbackId, error);
-      },
-      publish: (bridgeName: string, data: unknown) => {
-        if (bridgeName === name) {
-          simulateEvent(data);
-        }
-      },
-    };
-  }
 
   return {
-    mockInvoke,
-    mockListen,
-    simulateEvent,
-    simulateResponse,
-    simulateError,
+    requests: () => [...posted],
+
+    resolve: (data, request) => {
+      const gyoBridge = window.gyoBridge;
+      if (!gyoBridge) {
+        throw new Error('No Bridge was created: the code under test has to make one.');
+      }
+      gyoBridge.resolve(answerable(request).callbackId, data);
+    },
+
+    reject: (message, request) => {
+      const gyoBridge = window.gyoBridge;
+      if (!gyoBridge) {
+        throw new Error('No Bridge was created: the code under test has to make one.');
+      }
+      gyoBridge.reject(answerable(request).callbackId, message);
+    },
+
+    emitEvent: (data) => {
+      window.gyoBridge?.publish(name, data);
+    },
+
     restore: () => {
-      invokeHandlers.clear();
-      eventListeners.clear();
-      pendingResolvers.clear();
-      mockInvoke.mockClear();
-      mockListen.mockClear();
+      posted.length = 0;
+      // The Bridge installs window.gyoBridge only where there is none, so
+      // the next test gets its own.
       delete (window as unknown as Record<string, unknown>).gyoBridge;
+      delete (window as unknown as Record<string, unknown>).androidBridge;
+      delete (window as unknown as Record<string, unknown>).webkit;
     },
   };
 }

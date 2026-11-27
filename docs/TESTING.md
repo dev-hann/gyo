@@ -146,32 +146,28 @@ npm install -D @gyo-framework/test-utils
 ### Bridge Mocking
 
 ```typescript
+import { AppLauncher } from '@gyo-framework/app-launcher';
 import { createBridgeMock } from '@gyo-framework/test-utils';
 
-describe('BarcodeScanner', () => {
-  let mock: ReturnType<typeof createBridgeMock>;
+const mock = createBridgeMock('app_launcher');
+const launcher = new AppLauncher();
 
-  beforeEach(() => {
-    mock = createBridgeMock('barcode');
-  });
+it('should list the apps', async () => {
+  const pending = launcher.listApps();
+  await Promise.resolve(); // the Bridge posts on the next microtasks
 
-  afterEach(() => {
-    mock.restore();
-  });
+  expect(mock.requests()[0].methodName).toBe('list_apps');
+  mock.resolve({ apps: [], count: 0 });
 
-  it('should handle scan result', async () => {
-    mock.mockInvoke('scan').mockResolvedValue({ data: '1234' });
-    // ...
-  });
-
-  it('should handle native events', () => {
-    const callback = jest.fn();
-    mock.mockListen(callback);
-    mock.simulateEvent({ type: 'onDetected', value: 'xxx' });
-    expect(callback).toHaveBeenCalled();
-  });
+  await expect(pending).resolves.toEqual({ apps: [], count: 0 });
 });
+
+afterEach(() => mock.restore());
 ```
+
+The real `Bridge` stays in place: the mock replaces only the native side, so the test runs the path the app runs in the WebView.
+
+> See `plugins/test-utils/README.md` for the members of the mock.
 
 ### Platform Simulation
 
