@@ -15,14 +15,13 @@ import { isLoopbackHost } from '../../core/index';
 export class AndroidBuildCommand extends AbstractBuildCommand {
   protected platform: Platform = 'android';
 
-  protected async buildPlatform(): Promise<void> {
+  protected async buildPlatform(serverUrl: string): Promise<void> {
     const androidPath = path.join(this.projectPath, 'android');
 
     await this.checkPlatformDirectoryExists();
     await syncAndroidPluginsIfNeeded(this.projectPath);
     await syncAndroidAppIdentity(androidPath, toAndroidAppIdentity(this.config, this.projectPath));
 
-    const serverUrl = this.getServerUrl();
     this.warnWhenReleaseCannotLoad(serverUrl);
     const configPath = path.join(androidPath, 'app/src/main/assets/gyo-config.json');
     await this.writeConfigFile(configPath, serverUrl, this.config.webview);

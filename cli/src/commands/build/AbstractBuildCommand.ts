@@ -16,19 +16,17 @@ export interface BuildCommandOptions extends PlatformCommandOptions {
 }
 
 export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandOptions> {
-  protected serverUrl: string = '';
-
   protected readonly webServerService = new WebServerService();
 
   protected async run(): Promise<void> {
     logger.info(`Building with profile: ${this.options.profile}`);
 
-    this.serverUrl = await this.resolveServerUrl();
+    const serverUrl = await this.resolveServerUrl();
 
     await this.buildLibAssets();
 
     this.startSpinner(`Building ${this.platform} app...`);
-    await this.buildPlatform();
+    await this.buildPlatform(serverUrl);
   }
 
   /**
@@ -90,10 +88,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
     return this.webServerService.resolveServerUrl(serverUrl);
   }
 
-  protected getServerUrl(): string {
-    return this.serverUrl;
-  }
-
   protected async buildLibAssets(): Promise<void> {
     this.updateSpinner('Building lib assets...');
     const libPath = path.join(this.projectPath, 'lib');
@@ -120,5 +114,6 @@ export abstract class AbstractBuildCommand extends PlatformCommand<BuildCommandO
     logger.verbose(libBuildResult.stdout);
   }
 
-  protected abstract buildPlatform(): Promise<void>;
+  /** Builds the platform for the app at `serverUrl`, after the web app was built. */
+  protected abstract buildPlatform(serverUrl: string): Promise<void>;
 }

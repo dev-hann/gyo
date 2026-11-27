@@ -20,13 +20,12 @@ export class IOSBuildCommand extends AbstractBuildCommand {
     await super.run();
   }
 
-  protected async buildPlatform(): Promise<void> {
+  protected async buildPlatform(serverUrl: string): Promise<void> {
     const iosPath = path.join(this.projectPath, 'ios');
 
     await this.checkPlatformDirectoryExists();
     await this.checkXtoolAvailable();
 
-    const serverUrl = this.getServerUrl();
     const configPath = path.join(iosPath, 'Sources/Resources/gyo-config.json');
     await this.writeConfigFile(configPath, serverUrl);
 
