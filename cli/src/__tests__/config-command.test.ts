@@ -3,7 +3,7 @@ import { ConfigCommand } from '../commands/config';
 jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn(),
   validateConfig: jest.fn(),
-  saveConfig: jest.fn().mockResolvedValue(undefined),
+  setConfigValue: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -28,14 +28,13 @@ jest.mock('../utils/fs', () => ({
   writeFile: jest.fn(),
   readFile: jest.fn(),
   removeDir: jest.fn(),
-  getTemplatesPath: jest.fn(),
 }));
 
-import { loadConfig, saveConfig } from '../services/config.service';
+import { loadConfig, setConfigValue } from '../services/config.service';
 import { logger } from '../utils/logger';
 
 const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
-const mockedSaveConfig = saveConfig as jest.MockedFunction<typeof saveConfig>;
+const mockedSetConfigValue = setConfigValue as jest.MockedFunction<typeof setConfigValue>;
 
 const sampleConfig = {
   name: 'my-app',
@@ -57,6 +56,46 @@ describe('ConfigCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     command = new ConfigCommand();
+  });
+
+  describe('getSubcommands', () => {
+    it('should return show, set, and get subcommands', () => {
+      const subcommands = ConfigCommand.getSubcommands();
+
+      expect(subcommands.map((s) => s.name)).toEqual(['show', 'set', 'get']);
+    });
+  });
+
+  describe('getMeta', () => {
+    it('should return the config command metadata', () => {
+      const meta = command.getMeta();
+
+      expect(meta.name).toBe('config');
+      expect(meta.description).toBe('Manage gyo configuration');
+    });
+  });
+
+  describe('setAction', () => {
+    it('should record the subcommand to run', () => {
+      command.setAction('set');
+
+      expect(command['options'].action).toBe('set');
+    });
+  });
+
+  describe('setKeyValue', () => {
+    it('should record the key and the value', () => {
+      command.setKeyValue('test.key', 'value');
+
+      expect(command['options']).toMatchObject({ key: 'test.key', value: 'value' });
+    });
+
+    it('should record a key without a value', () => {
+      command.setKeyValue('test.key');
+
+      expect(command['options'].key).toBe('test.key');
+      expect(command['options'].value).toBeUndefined();
+    });
   });
 
   describe('showConfig', () => {
@@ -83,75 +122,18 @@ describe('ConfigCommand', () => {
   });
 
   describe('setConfig', () => {
-    it('should set a top-level value', async () => {
-      command.setAction('set');
-      command.setKeyValue('name', 'new-name');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      expect(mockedSaveConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'new-name' }),
-        expect.any(String)
-      );
-    });
-
-    it('should set a nested value', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.android.packageName', 'com.new.pkg');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).android).toEqual(
-        expect.objectContaining({ packageName: 'com.new.pkg' })
-      );
-    });
-
-    it('should parse "true" as boolean true', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'true');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: true })
-      );
-    });
-
-    it('should parse "false" as boolean false', async () => {
+    it('should set the value through the config service', async () => {
       command.setAction('set');
       command.setKeyValue('platforms.ios.enabled', 'false');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
+      mockedSetConfigValue.mockResolvedValue({ previous: true, next: false });
 
       await command['run']();
 
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: false })
+      expect(mockedSetConfigValue).toHaveBeenCalledWith(
+        expect.any(String),
+        'platforms.ios.enabled',
+        'false'
       );
-    });
-
-    it('should parse numeric strings as numbers', async () => {
-      command.setAction('set');
-      command.setKeyValue('version', '2');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect(saved.version).toBe(2);
-    });
-
-    it('should throw for invalid intermediate key', async () => {
-      command.setAction('set');
-      command.setKeyValue('nonexistent.key', 'value');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await expect(command['run']()).rejects.toThrow('Invalid configuration key');
     });
 
     it('should throw when key is missing', async () => {
@@ -164,137 +146,36 @@ describe('ConfigCommand', () => {
       command.setAction('set');
       command.setKeyValue('name');
 
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
       await expect(command['run']()).rejects.toThrow('Key and value are required');
-    });
-
-    it('should throw GyoError when config not found on set', async () => {
-      command.setAction('set');
-      command.setKeyValue('name', 'value');
-      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
-
-      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
-    });
-
-    it('should keep empty string as string not convert to 0', async () => {
-      command.setAction('set');
-      command.setKeyValue('version', '');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect(saved.version).toBe('');
-    });
-
-    it('should parse "yes" as boolean true', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'yes');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: true })
-      );
-    });
-
-    it('should parse "on" as boolean true', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'on');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: true })
-      );
-    });
-
-    it('should parse "1" as boolean true', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', '1');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: true })
-      );
-    });
-
-    it('should parse "no" as boolean false', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'no');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: false })
-      );
-    });
-
-    it('should parse "0" as boolean false', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', '0');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: false })
-      );
-    });
-
-    it('should parse "off" as boolean false', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'off');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      const saved = mockedSaveConfig.mock.calls[0][0] as unknown as Record<string, unknown>;
-      expect((saved.platforms as Record<string, unknown>).ios).toEqual(
-        expect.objectContaining({ enabled: false })
-      );
     });
 
     it('should include previous value in success message when overwriting', async () => {
       command.setAction('set');
       command.setKeyValue('name', 'renamed-app');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
+      mockedSetConfigValue.mockResolvedValue({ previous: 'my-app', next: 'renamed-app' });
 
       await command['run']();
 
-      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('(was: "my-app")'));
+      expect(logger.success).toHaveBeenCalledWith('Set name = renamed-app (was: "my-app")');
     });
 
     it('should omit previous value in success message when key has no prior value', async () => {
-      const config = freshConfig();
-      (config as Record<string, unknown>).newKey = undefined;
       command.setAction('set');
-      command.setKeyValue('newKey', 'fresh');
-      mockedLoadConfig.mockResolvedValue(config);
+      command.setKeyValue('displayName', 'My App');
+      mockedSetConfigValue.mockResolvedValue({ previous: undefined, next: 'My App' });
 
       await command['run']();
 
-      expect(logger.success).toHaveBeenCalledWith(expect.not.stringContaining('(was:'));
+      expect(logger.success).toHaveBeenCalledWith('Set displayName = My App');
     });
 
-    it('should propagate error when saveConfig rejects', async () => {
+    it('should not report success when the config service refuses the value', async () => {
       command.setAction('set');
-      command.setKeyValue('name', 'new-name');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-      mockedSaveConfig.mockRejectedValue(new Error('disk full'));
+      command.setKeyValue('displayName', '');
+      mockedSetConfigValue.mockRejectedValue(new Error("'displayName' must be a non-empty string"));
 
-      await expect(command['run']()).rejects.toThrow('disk full');
+      await expect(command['run']()).rejects.toThrow('must be a non-empty string');
+      expect(logger.success).not.toHaveBeenCalled();
     });
   });
 

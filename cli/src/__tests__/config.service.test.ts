@@ -1,6 +1,7 @@
 import {
   loadConfig,
   saveConfig,
+  setConfigValue,
   getProfileUrl,
   shouldStartLocalServer,
   validateConfig,
@@ -104,6 +105,133 @@ describe('config.service', () => {
       expect(mockedWriteJson).toHaveBeenCalledWith(
         expect.stringContaining('gyo.config.json'),
         validConfig
+      );
+    });
+  });
+
+  describe('setConfigValue', () => {
+    /** Puts a config on disk; reads hand out the same object, as the file would. */
+    function configOnDisk(config: Record<string, unknown>): void {
+      mockedPathExists.mockResolvedValue(true);
+      mockedReadJson.mockResolvedValue(config);
+      mockedWriteJson.mockResolvedValue(undefined);
+    }
+
+    function lastSaved(): Record<string, unknown> {
+      const calls = mockedWriteJson.mock.calls;
+      return calls[calls.length - 1][1] as Record<string, unknown>;
+    }
+
+    it('should set a top-level value', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      const { previous, next } = await setConfigValue('/project', 'name', 'new-name');
+
+      expect(previous).toBe('test-app');
+      expect(next).toBe('new-name');
+      expect(lastSaved().name).toBe('new-name');
+    });
+
+    it('should set a nested value', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      await setConfigValue('/project', 'platforms.android.packageName', 'com.new.pkg');
+
+      expect(lastSaved().platforms).toEqual({
+        android: { enabled: true, packageName: 'com.new.pkg' },
+      });
+    });
+
+    it('should keep a string a string, so version 2 cannot become a number', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      await setConfigValue('/project', 'version', '2');
+
+      expect(lastSaved().version).toBe('2');
+    });
+
+    it('should read the value as the type of the one it replaces', async () => {
+      configOnDisk({
+        ...structuredClone(validConfig),
+        platforms: {
+          android: { enabled: true, versionCode: 5 },
+          ios: { enabled: true },
+        },
+      });
+
+      await setConfigValue('/project', 'platforms.android.versionCode', '73');
+      await setConfigValue('/project', 'platforms.ios.enabled', 'no');
+
+      expect(lastSaved().platforms).toEqual({
+        android: { enabled: true, versionCode: 73 },
+        ios: { enabled: false },
+      });
+    });
+
+    it('should convert the value of a new key to a number or a boolean', async () => {
+      configOnDisk({
+        ...structuredClone(validConfig),
+        platforms: { android: { enabled: true } },
+        webview: {},
+      });
+
+      await setConfigValue('/project', 'platforms.android.versionCode', '73');
+      await setConfigValue('/project', 'webview.allowFileAccess', 'true');
+
+      expect(lastSaved().platforms).toEqual({ android: { enabled: true, versionCode: 73 } });
+      expect(lastSaved().webview).toEqual({ allowFileAccess: true });
+    });
+
+    it('should refuse a value that would make the config invalid', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      await expect(setConfigValue('/project', 'displayName', '')).rejects.toThrow(
+        "Invalid gyo.config.json:\n  - 'displayName' must be a non-empty string"
+      );
+      expect(mockedWriteJson).not.toHaveBeenCalled();
+    });
+
+    it('should refuse a server URL without http or https', async () => {
+      configOnDisk({
+        ...structuredClone(validConfig),
+        profiles: { development: { serverUrl: 'http://localhost:3000' } },
+      });
+
+      await expect(
+        setConfigValue('/project', 'profiles.development.serverUrl', 'example.com')
+      ).rejects.toThrow("'profiles.development.serverUrl' must be a string starting with http://");
+      expect(mockedWriteJson).not.toHaveBeenCalled();
+    });
+
+    it('should repair a config that is already invalid', async () => {
+      configOnDisk({ ...structuredClone(validConfig), name: 123 });
+
+      await setConfigValue('/project', 'name', 'test-app');
+
+      expect(lastSaved().name).toBe('test-app');
+    });
+
+    it('should reject a key that goes through a value', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      await expect(setConfigValue('/project', 'name.length', '3')).rejects.toThrow(
+        'Invalid configuration key: name.length'
+      );
+    });
+
+    it('should reject a key whose parent is missing', async () => {
+      configOnDisk(structuredClone(validConfig));
+
+      await expect(setConfigValue('/project', 'platforms.windows.enabled', 'true')).rejects.toThrow(
+        'Invalid configuration key: platforms.windows.enabled'
+      );
+    });
+
+    it('should throw when there is no config file', async () => {
+      mockedPathExists.mockResolvedValue(false);
+
+      await expect(setConfigValue('/project', 'name', 'x')).rejects.toThrow(
+        'gyo.config.json not found in: /project'
       );
     });
   });

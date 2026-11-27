@@ -122,7 +122,13 @@ export function validateConfig(raw: unknown): raw is GyoConfig {
   return collectConfigErrors(raw).length === 0;
 }
 
-export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig> {
+function invalidConfigError(raw: unknown): GyoError {
+  const errors = collectConfigErrors(raw).map((err) => `  - ${err}`);
+  return new GyoError(`Invalid gyo.config.json:\n${errors.join('\n')}`);
+}
+
+/** The parsed gyo.config.json, valid or not. */
+async function readConfigFile(projectPath: string): Promise<unknown> {
   const configPath = path.join(projectPath, 'gyo.config.json');
 
   if (!(await pathExists(configPath))) {
@@ -130,20 +136,75 @@ export async function loadConfig(projectPath: string = process.cwd()): Promise<G
   }
 
   try {
-    const raw = await readJson(configPath);
-    if (!validateConfig(raw)) {
-      const errors = collectConfigErrors(raw);
-      const errorMessage = errors.map((err) => `  - ${err}`).join('\n');
-      throw new GyoError(`Invalid gyo.config.json:\n${errorMessage}`);
-    }
-    return raw;
+    return await readJson(configPath);
   } catch (error) {
-    if (error instanceof GyoError) {
-      throw error;
-    }
     const message = getErrorMessage(error);
     throw new GyoError(`Failed to load config: ${message}`, 1, { cause: error });
   }
+}
+
+export async function loadConfig(projectPath: string = process.cwd()): Promise<GyoConfig> {
+  const raw = await readConfigFile(projectPath);
+  if (!validateConfig(raw)) {
+    throw invalidConfigError(raw);
+  }
+  return raw;
+}
+
+const TRUE_VALUES = ['true', 'yes', '1', 'on'];
+const FALSE_VALUES = ['false', 'no', '0', 'off'];
+
+/** `text` as a boolean or a number when it reads as one. */
+function convertLiteral(text: string): string | number | boolean {
+  const lower = text.toLowerCase();
+  if (TRUE_VALUES.includes(lower)) {
+    return true;
+  }
+  if (FALSE_VALUES.includes(lower)) {
+    return false;
+  }
+  return text.trim() !== '' && !isNaN(Number(text)) ? Number(text) : text;
+}
+
+/**
+ * Sets `key` (dot notation) in gyo.config.json and returns what it was and
+ * what it is now. The value takes the type of the one it replaces, so
+ * `version 2` cannot turn a string into a number; a new key is read as a
+ * boolean or a number. Nothing is written unless the result is a valid
+ * config, which also makes this the way to repair an invalid one.
+ */
+export async function setConfigValue(
+  projectPath: string,
+  key: string,
+  value: string
+): Promise<{ previous: unknown; next: string | number | boolean }> {
+  const raw = await readConfigFile(projectPath);
+  if (typeof raw !== 'object' || raw === null) {
+    throw invalidConfigError(raw);
+  }
+
+  const keys = key.split('.');
+  let parent = raw as Record<string, unknown>;
+
+  for (const segment of keys.slice(0, -1)) {
+    const next: unknown = parent[segment];
+    if (typeof next !== 'object' || next === null) {
+      throw new GyoError(`Invalid configuration key: ${key}`);
+    }
+    parent = next as Record<string, unknown>;
+  }
+
+  const lastKey = keys[keys.length - 1];
+  const previous = parent[lastKey];
+  const next = typeof previous === 'string' ? value : convertLiteral(value);
+  parent[lastKey] = next;
+
+  if (!validateConfig(raw)) {
+    throw invalidConfigError(raw);
+  }
+  await saveConfig(raw, projectPath);
+
+  return { previous, next };
 }
 
 export async function saveConfig(

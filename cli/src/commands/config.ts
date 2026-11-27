@@ -1,7 +1,7 @@
 import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
-import { loadConfig, saveConfig } from '../services/config.service';
+import { loadConfig, setConfigValue } from '../services/config.service';
 import { GyoError } from '../core/index';
 
 interface ConfigCommandOptions extends BaseCommandOptions {
@@ -71,35 +71,13 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
       throw new GyoError('Key and value are required for set operation');
     }
 
-    const config = await loadConfig(this.projectPath);
-
-    const keys = this.options.key.split('.');
-    let current: Record<string, unknown> = config as unknown as Record<string, unknown>;
-
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (!(keys[i] in current)) {
-        throw new GyoError(`Invalid configuration key: ${this.options.key}`);
-      }
-      current = current[keys[i]] as Record<string, unknown>;
-    }
-
-    const lastKey = keys[keys.length - 1];
-
-    const oldValue = current[lastKey];
-
-    let parsedValue: string | number | boolean = this.options.value;
-    const lowerValue = this.options.value.toLowerCase();
-    if (['true', 'yes', '1', 'on'].includes(lowerValue)) parsedValue = true;
-    else if (['false', 'no', '0', 'off'].includes(lowerValue)) parsedValue = false;
-    else if (this.options.value.trim() !== '' && !isNaN(Number(this.options.value))) {
-      parsedValue = Number(this.options.value);
-    }
-
-    current[lastKey] = parsedValue;
-
-    await saveConfig(config, this.projectPath);
-    const wasText = oldValue !== undefined ? ` (was: ${JSON.stringify(oldValue)})` : '';
-    logger.success(`Set ${this.options.key} = ${parsedValue}${wasText}`);
+    const { previous, next } = await setConfigValue(
+      this.projectPath,
+      this.options.key,
+      this.options.value
+    );
+    const wasText = previous !== undefined ? ` (was: ${JSON.stringify(previous)})` : '';
+    logger.success(`Set ${this.options.key} = ${next}${wasText}`);
   }
 
   private async getConfig(): Promise<void> {
