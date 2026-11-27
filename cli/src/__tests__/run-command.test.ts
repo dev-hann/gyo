@@ -1,145 +1,338 @@
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
+}));
+// ESM-only
+jest.mock('inquirer', () => ({ prompt: jest.fn(), default: { prompt: jest.fn() } }));
+jest.mock('ora', () => () => ({
+  isSpinning: false,
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+}));
+
+// Finding the devices runs adb and idevice_id on this machine.
+jest.mock('../services/device.service', () => ({ getAllDevices: jest.fn() }));
+
+// The commands of a platform would run Gradle, adb, xtool and which.
+jest.mock('../utils/exec', () => ({
+  executeCommand: jest.fn(),
+  getGradlew: jest.fn().mockReturnValue('./gradlew'),
+  checkCommandExists: jest.fn(),
+  requireTool: jest.fn(),
+  signalProcessTree: jest.fn(),
+}));
+
+// adb logcat would keep running.
+jest.mock('child_process', () => ({ spawn: jest.fn() }));
+
+import fs from 'fs-extra';
+import type { EventEmitter } from 'events';
+import type { ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
+import inquirer from 'inquirer';
 import { RunCommand } from '../commands/run';
 import type { Device } from '../services/device.service';
-
-jest.mock('../services/device.service', () => ({
-  getAllDevices: jest.fn(),
-  getAndroidDevices: jest.fn().mockResolvedValue([]),
-  getIOSDevices: jest.fn().mockResolvedValue([]),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-    suggestNextSteps: jest.fn(),
-  },
-}));
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-jest.mock('inquirer', () => ({
-  prompt: jest.fn(),
-}));
-
+import { getAllDevices } from '../services/device.service';
+import { GyoError } from '../core/errors';
+import type { ExecResult } from '../utils/exec';
+import { checkCommandExists, executeCommand, requireTool } from '../utils/exec';
 import { logger } from '../utils/logger';
-import inquirer from 'inquirer';
+import { WebServerService } from '../services/web-server.service';
+import { silenceLogger } from './helpers/logger';
+import { fakeChildProcess } from './helpers/process';
+import type { FakeChildProcess } from './helpers/process';
+import { createTestProject } from './helpers/project';
+import type { TestProject } from './helpers/project';
 
+const mockedGetAllDevices = getAllDevices as jest.MockedFunction<typeof getAllDevices>;
+const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
+const mockedCheckCommandExists = checkCommandExists as jest.MockedFunction<
+  typeof checkCommandExists
+>;
+const mockedRequireTool = requireTool as jest.MockedFunction<typeof requireTool>;
+const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
 const mockedPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt>;
 
-const androidDevice: Device = {
+const ANDROID: Device = {
   platform: 'android',
   id: 'emulator-5554',
   name: 'Pixel 7',
   state: 'Available',
 };
+const IOS: Device = { platform: 'ios', id: 'abc123', name: 'iPhone 15 Pro', state: 'Available' };
 
-const iosDevice: Device = {
-  platform: 'ios',
-  id: 'abc123',
-  name: 'iPhone 15 Pro',
-  state: 'Available',
-};
+/** What the dev server reports: another address than the one the profile names. */
+const SERVER_URL = 'http://192.168.0.7:3000';
+/** What the Android command runs to start the app it installed. */
+const LAUNCH = 'adb -s emulator-5554 shell am start -n com.example.demo_app/.MainActivity';
+
+/** The events a run handles: every signal that ends the CLI, and `exit`. */
+const PROCESS_EVENTS = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'exit'] as const;
+/** `process` as the emitter it is: its own type has an overload per signal, none for a mix. */
+const emitter: EventEmitter = process;
+const listenersBefore = new Map<string, ReturnType<EventEmitter['listeners']>>();
+/** The real timer, free of its overloads: a run watches its launcher with one. */
+const realSetInterval = setInterval as unknown as (
+  handler: TimerHandler,
+  ms?: number
+) => ReturnType<typeof setInterval>;
+const launcherWatches: ReturnType<typeof setInterval>[] = [];
+
+let project: TestProject;
+
+function execResult(success: boolean): ExecResult {
+  return { success, stdout: '', stderr: '', code: success ? 0 : 1 };
+}
+
+/** Every command a run executed, as `command arg...`. */
+function commandsRun(): string[] {
+  return mockedExec.mock.calls.map(([command, args]) => [command, ...(args ?? [])].join(' '));
+}
+
+/** What the command of a platform wrote as the address the app loads. */
+function appConfig(platform: 'android' | 'ios'): unknown {
+  const file =
+    platform === 'android'
+      ? project.android('app/src/main/assets/gyo-config.json')
+      : project.ios('Sources/Resources/gyo-config.json');
+  return JSON.parse(fs.readFileSync(file, 'utf-8'));
+}
+
+/** Runs `gyo run` as the command line hands it its options. */
+function gyoRun(options: { profile: string; device?: string; port?: number }): Promise<void> {
+  const command = new RunCommand();
+  command.setOptions(options);
+  return command.execute();
+}
+
+/** Fails when anything of a platform command ran: a dev server, a command, a process. */
+function expectNoPlatformCommandToHaveRun(): void {
+  expect(WebServerService.prototype.start).not.toHaveBeenCalled();
+  expect(mockedExec).not.toHaveBeenCalled();
+  expect(mockedSpawn).not.toHaveBeenCalled();
+}
+
+interface PendingRun {
+  run: Promise<void>;
+  /** The adb logcat the run follows: the run lasts as long as this process does. */
+  logProcess: FakeChildProcess;
+}
+
+/**
+ * Runs `gyo run` on an Android device and waits until its command follows
+ * the console, where the run waits for the log process to exit.
+ */
+async function runUntilLogs(options: { profile: string }): Promise<PendingRun> {
+  const logProcess = fakeChildProcess();
+  let announceSpawn = (): void => undefined;
+  const spawnCalled = new Promise<void>((resolve) => {
+    announceSpawn = resolve;
+  });
+  mockedSpawn.mockImplementation(() => {
+    announceSpawn();
+    return logProcess as unknown as ChildProcess;
+  });
+
+  const run = gyoRun(options);
+  await Promise.race([
+    spawnCalled,
+    run.then(
+      () => {
+        throw new Error('The run ended before it followed the console');
+      },
+      (error: unknown) => {
+        throw error;
+      }
+    ),
+  ]);
+  return { run, logProcess };
+}
+
+/** Ends a run that follows the console: adb logcat exits. */
+async function finish({ run, logProcess }: PendingRun): Promise<void> {
+  logProcess.emit('exit', 0);
+  await run;
+}
 
 describe('RunCommand', () => {
-  let command: RunCommand;
+  describe('execute', () => {
+    beforeEach(async () => {
+      silenceLogger();
+      jest.clearAllMocks();
+      mockedGetAllDevices.mockReset();
+      mockedExec.mockReset().mockResolvedValue(execResult(true));
+      mockedCheckCommandExists.mockReset().mockResolvedValue(false);
+      mockedRequireTool.mockReset().mockResolvedValue(undefined);
+      mockedSpawn.mockReset();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    command = new RunCommand();
-  });
+      // It would start a real dev server.
+      jest.spyOn(WebServerService.prototype, 'start').mockResolvedValue({
+        process: fakeChildProcess() as unknown as ChildProcess,
+        url: SERVER_URL,
+      });
+      // The launcher watch asks whether the launcher lives; a fake pid must never reach the real call.
+      jest.spyOn(process, 'kill').mockImplementation(() => true);
+      jest.spyOn(global, 'setInterval').mockImplementation(((
+        handler: TimerHandler,
+        ms?: number
+      ) => {
+        const watch = realSetInterval(handler, ms);
+        launcherWatches.push(watch);
+        return watch;
+      }) as unknown as typeof setInterval);
 
-  describe('showNoDevicesError', () => {
-    it('should log troubleshooting info', () => {
-      command['showNoDevicesError']();
+      project = await createTestProject();
+      project.setWebApp({ start: 'npm run dev', build: 'npm run build' });
 
-      expect(logger.error).toHaveBeenCalledWith('Please connect a device or start an emulator');
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Troubleshooting'));
+      for (const event of PROCESS_EVENTS) {
+        listenersBefore.set(event, emitter.listeners(event));
+      }
     });
-  });
-
-  describe('selectDevice', () => {
-    it('should throw when specified device not found', async () => {
-      command.setOptions({ profile: 'dev', device: 'nonexistent' });
-
-      await expect(command['selectDevice']([androidDevice])).rejects.toThrow(
-        "Device 'nonexistent' not found"
-      );
-    });
-
-    it('should return matching device when specified device found', async () => {
-      command.setOptions({ profile: 'dev', device: 'emulator-5554' });
-
-      const result = await command['selectDevice']([androidDevice, iosDevice]);
-
-      expect(result).toEqual(androidDevice);
-    });
-
-    it('should auto-select single device', async () => {
-      command.setOptions({ profile: 'dev' });
-
-      const result = await command['selectDevice']([androidDevice]);
-
-      expect(result).toEqual(androidDevice);
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Automatically selecting'));
-    });
-
-    it('should prompt when multiple devices and no device specified', async () => {
-      command.setOptions({ profile: 'dev' });
-      mockedPrompt.mockResolvedValue({ deviceIndex: 1 });
-
-      const result = await command['selectDevice']([androidDevice, iosDevice]);
-
-      expect(mockedPrompt).toHaveBeenCalled();
-      expect(result).toEqual(iosDevice);
-    });
-  });
-
-  describe('run', () => {
-    let runDirectly: jest.SpyInstance;
 
     afterEach(() => {
-      runDirectly?.mockRestore();
+      try {
+        // What the run put on `process` comes off again, and nothing that was there before.
+        for (const event of PROCESS_EVENTS) {
+          const before = listenersBefore.get(event) ?? [];
+          for (const listener of emitter.listeners(event)) {
+            if (!before.includes(listener)) {
+              emitter.removeListener(event, listener as () => void);
+            }
+          }
+        }
+        for (const watch of launcherWatches.splice(0)) {
+          clearInterval(watch);
+        }
+      } finally {
+        // Whatever went wrong above, the project and the working directory are left behind by no test.
+        jest.restoreAllMocks();
+        project?.remove();
+      }
     });
 
-    it('should hand the device to the command of its platform', async () => {
-      const { getAllDevices } = jest.requireMock('../services/device.service');
-      const { IOSRunCommand } = jest.requireActual('../commands/run/IOSRunCommand');
-      getAllDevices.mockResolvedValue([androidDevice, iosDevice]);
-      runDirectly = jest.spyOn(IOSRunCommand.prototype, 'runDirectly').mockImplementation(function (
-        this: InstanceType<typeof IOSRunCommand>
-      ) {
-        expect(this['platform']).toBe('ios');
-        expect(this['options']).toMatchObject({ profile: 'development', device: iosDevice.id });
-        return Promise.resolve();
+    describe('finding a device', () => {
+      it('should say how to get a device, and fail before any platform command runs, when none is connected', async () => {
+        mockedGetAllDevices.mockResolvedValue([]);
+
+        const run = gyoRun({ profile: 'development' });
+        await expect(run).rejects.toThrow(GyoError);
+        await expect(run).rejects.toThrow('No devices found');
+
+        expect(logger.error).toHaveBeenCalledWith('Please connect a device or start an emulator');
+        expect(logger.info).toHaveBeenCalledWith('Troubleshooting:');
+        expectNoPlatformCommandToHaveRun();
       });
-      command.setOptions({ profile: 'development', device: iosDevice.id });
 
-      await command.execute();
+      it('should list the connected devices when the one asked for is not among them', async () => {
+        mockedGetAllDevices.mockResolvedValue([ANDROID, IOS]);
 
-      expect(runDirectly).toHaveBeenCalledTimes(1);
+        const run = gyoRun({ profile: 'development', device: 'nonexistent' });
+        await expect(run).rejects.toThrow(GyoError);
+        await expect(run).rejects.toThrow("Device 'nonexistent' not found");
+
+        expect(logger.error).toHaveBeenCalledWith("Device 'nonexistent' not found");
+        expect(logger.error).toHaveBeenCalledWith('Available devices:');
+        expect(logger.info).toHaveBeenCalledWith('  - android: Pixel 7 (emulator-5554)');
+        expect(logger.info).toHaveBeenCalledWith('  - ios: iPhone 15 Pro (abc123)');
+        expectNoPlatformCommandToHaveRun();
+      });
     });
 
-    it('should stop before choosing a command when no device is connected', async () => {
-      const { getAllDevices } = jest.requireMock('../services/device.service');
-      getAllDevices.mockResolvedValue([]);
-      command.setOptions({ profile: 'development' });
+    describe('choosing a device', () => {
+      it('should run on the device that was asked for', async () => {
+        mockedGetAllDevices.mockResolvedValue([ANDROID, IOS]);
+        // Only the directory of the device's platform has to be there.
+        fs.removeSync(project.android());
 
-      await expect(command.execute()).rejects.toThrow('No devices found');
+        await gyoRun({ profile: 'development', device: IOS.id });
+
+        expect(logger.info).toHaveBeenCalledWith('Using specified device: iPhone 15 Pro (ios)');
+        expect(mockedPrompt).not.toHaveBeenCalled();
+        expect(mockedExec).toHaveBeenCalledWith('xtool', ['dev'], {
+          cwd: project.ios(),
+          stdio: 'pipe',
+        });
+        expect(commandsRun()).toEqual(['xtool dev']);
+        expect(appConfig('ios')).toEqual({ serverUrl: SERVER_URL });
+      });
+
+      it('should run on the only device without asking', async () => {
+        mockedGetAllDevices.mockResolvedValue([ANDROID]);
+        // Only the directory of the device's platform has to be there.
+        fs.removeSync(project.ios());
+
+        const pending = await runUntilLogs({ profile: 'development' });
+
+        expect(mockedPrompt).not.toHaveBeenCalled();
+        expect(logger.info).toHaveBeenCalledWith(
+          "Found 1 device. Automatically selecting 'Pixel 7' (android)"
+        );
+        expect(commandsRun()).toEqual([
+          './gradlew assembleDebug',
+          './gradlew installDebug',
+          LAUNCH,
+        ]);
+        expect(appConfig('android')).toEqual({
+          serverUrl: SERVER_URL,
+          webview: { allowFileAccess: false, allowUniversalAccessFromFileURLs: false },
+        });
+        await finish(pending);
+      });
+
+      it('should ask which device to run on when several are connected, and run on the one chosen', async () => {
+        mockedGetAllDevices.mockResolvedValue([ANDROID, IOS]);
+        mockedPrompt.mockResolvedValue({ deviceIndex: 1 });
+
+        await gyoRun({ profile: 'development' });
+
+        expect(mockedPrompt).toHaveBeenCalledWith([
+          {
+            type: 'select',
+            name: 'deviceIndex',
+            message: 'Select a device:',
+            choices: [
+              { name: '[ANDROID] Pixel 7 (emulator-5554)', value: 0 },
+              { name: '[IOS] iPhone 15 Pro (abc123)', value: 1 },
+            ],
+          },
+        ]);
+        expect(commandsRun()).toEqual(['xtool dev']);
+        expect(appConfig('ios')).toEqual({ serverUrl: SERVER_URL });
+        expect(fs.pathExistsSync(project.android('app/src/main/assets/gyo-config.json'))).toBe(
+          false
+        );
+      });
+    });
+
+    describe('the command of the platform', () => {
+      it('should receive the port of the run', async () => {
+        mockedGetAllDevices.mockResolvedValue([IOS]);
+
+        await gyoRun({ profile: 'development', device: IOS.id, port: 4100 });
+
+        expect(WebServerService.prototype.start).toHaveBeenCalledWith(
+          expect.objectContaining({
+            port: 4100,
+            webPath: project.lib(),
+            startCommand: 'npm run dev',
+          })
+        );
+      });
+
+      it('should receive the profile of the run', async () => {
+        mockedGetAllDevices.mockResolvedValue([IOS]);
+        await project.setConfig({
+          profiles: { staging: { serverUrl: 'https://staging.example.com' } },
+        });
+
+        await gyoRun({ profile: 'staging', device: IOS.id });
+
+        expect(WebServerService.prototype.start).not.toHaveBeenCalled();
+        expect(appConfig('ios')).toEqual({ serverUrl: 'https://staging.example.com' });
+      });
     });
   });
 });
