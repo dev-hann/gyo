@@ -229,6 +229,11 @@ describe('AndroidBuildCommand', () => {
         },
         shown: 'FAILURE: Build failed with an exception.',
       },
+      {
+        where: 'as Unknown error, when it printed nothing',
+        result: { success: false, stdout: '', stderr: '', code: 1 },
+        shown: 'Unknown error',
+      },
     ])('should fail the build and show what Gradle printed $where', async ({ result, shown }) => {
       mockedExec.mockResolvedValue(result);
 

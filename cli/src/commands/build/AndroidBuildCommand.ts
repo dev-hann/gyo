@@ -73,7 +73,7 @@ export class AndroidBuildCommand extends AbstractBuildCommand {
       logger.verbose(result.stdout);
     } else {
       this.failSpinner('Android build failed');
-      logger.error(result.stderr || result.stdout);
+      logger.error(result.stderr || result.stdout || 'Unknown error');
       throw new BuildFailedError('Android build failed');
     }
   }
