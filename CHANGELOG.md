@@ -16,12 +16,15 @@
 - `@gyo-framework/accessibility` and `@gyo-framework/notification-listener`: the accessibility service and the notification listener service as plugins, with `isEnabled()` and `openSettings()`. `screen-reader`, `screen-action`, `screen-find` and `notification-reader` bring them and read through them, instead of waiting for a service the app has to write
 - `requestPermissions()` in `@gyo-framework/bridge`: asks the user for Android run-time permissions through a handler the Android shell registers in every app. Android handlers can answer a call later through `handleAsync`
 - Android: a WebView too old to restrict the bridge per frame is told apart in the log, and the fallback checks the main frame's host
+- Android: the shell uploads through the system picker, downloads what the WebView cannot show, explains a server it cannot reach and offers Retry, and says when it has no server to load instead of stopping. It keeps its page through a change of dark mode, font size or keyboard
+- Android: the app's data is no longer part of system backups (`allowBackup="false"`)
 
 ### Changed
 
 - Android: the generated project builds with Android Gradle Plugin 9.5.3 and Gradle 9.9.2, with Kotlin built into the plugin, and compiles against and targets API 36, which Google Play requires since August 2026. Code is compiled for Java 17. The app keeps its page clear of the system bars and the keyboard, since Android 15 draws apps that target 35 or later edge to edge, and handles Back through `OnBackPressedCallback`
 - Every package is versioned above what is on npm, and the plugins require `@gyo-framework/bridge@^0.2.0`. The newer versions on npm had been published from work that was never committed to the repository; their Kotlin is brought back: `app-launcher` lists the apps through the launcher intent, `notification-reader` returns the notifications newest first with their ids and the expanded text
 - ESLint has one configuration for every TypeScript source; it used to list each package
+- `@gyo-framework/test-utils` 0.2.0: `createBridgeMock(name)` answers requests of the real `Bridge` through `requests()`, `resolve()`, `reject()` and `emitEvent()`. The mock of 0.1.0 could not answer anything, and kept the `Bridge` from installing what settles its promises
 - Plugin naming unified to `@gyo-framework/*` scope
 - Clean architecture: core, services, utils, commands layers
 - Removed hot reload (WebSocket-based)

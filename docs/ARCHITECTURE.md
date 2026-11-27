@@ -111,6 +111,17 @@ The native bridge is origin-restricted: only the host of the configured `serverU
 
 > See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for details.
 
+### Android Shell Behaviour
+
+| Situation | What the app does |
+|-----------|-------------------|
+| The server cannot be reached | Says so and offers Retry, instead of the browser's error page |
+| No `gyo-config.json` | Says that `gyo run` or `gyo build android` has to run once, instead of stopping |
+| `<input type="file">` | Opens the system picker, which needs no permission; several files when the input takes them |
+| A link the WebView cannot show | Downloads it: to Downloads on Android 10 and later, to the app's own folder before |
+| Dark mode, font size, keyboard, rotation | Keeps the page: the Activity is not recreated |
+| System bars and keyboard | Keeps the page clear of them |
+
 ## Communication Flow
 
 ```
