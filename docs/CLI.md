@@ -24,7 +24,7 @@ Run on a connected device. With the `development` profile (default): spawns the 
 
 Fails before spawning the dev server when its port is already in use.
 
-Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, and when the process that launched it goes away.
+Stops, including the dev server and the log process, on `Ctrl+C`, on `SIGTERM`, when its terminal closes, and when the process that launched it goes away.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -39,7 +39,7 @@ Build the app for `android` or `ios`. Bakes `profiles.<profile>.serverUrl` into 
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `-r, --release` | boolean | false | Release build |
+| `-r, --release` | boolean | false | Release build. Android only: `gyo build ios --release` fails |
 | `-p, --profile <profile>` | string | development | Build profile |
 | `-v, --verbose` | boolean | false | Detailed logs |
 
@@ -51,7 +51,19 @@ Remove build artifacts. Platform: `android`, `ios`, `lib`, or `all`.
 
 Manage `gyo.config.json`. Subcommands: `show`, `get <key>`, `set <key> <value>`.
 
-Supports dot-notation keys. Values auto-converted to boolean/number.
+Supports dot-notation keys. The value takes the type of the one it replaces; a new key is read as a boolean or a number. Nothing is written unless the result is a valid config.
+
+### `gyo install`
+
+Include the Android module of every plugin installed in `lib/` in the Android project, and register the handlers. `gyo run` and `gyo build` do the same before they build. Fails when a plugin cannot be included, so that nothing is left for Gradle to discover.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `-p, --platform <platform>` | string | android | Sync this platform only |
+
+Warns about run-time permissions an installed plugin declares that `android/app/src/main/AndroidManifest.xml` does not.
+
+> See [Plugin modules](#plugin-modules) for what a sync writes.
 
 ### `gyo devices`
 
@@ -141,13 +153,44 @@ A release build signs the APK when `android/keystore.properties` exists and fail
 
 > See [android/README.md](../cli/templates/android/README.md) for the same contract inside a generated project.
 
+## Plugin Modules
+
+A plugin with an `android/` directory is a Gradle library module. The app build includes it from where `node_modules` keeps the package, so the manifest merger brings in what the module declares and the module brings its own dependencies.
+
+| File | Tracked | Content |
+|------|---------|---------|
+| `android/gyo.settings.gradle` | yes | `include` and `projectDir` of every plugin module |
+| `android/app/gyo.build.gradle` | yes | `implementation project(...)` of every plugin module |
+| `android/app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt` | yes | One `BridgeRegistry.register` per plugin |
+| `.gyo-plugins` | no | Record of the last sync, with paths relative to the project |
+
+| Rule | Value |
+|------|-------|
+| Written by | `gyo run`, `gyo build android`, `gyo install`; the files are rewritten before every build |
+| Skipped when | `.gyo-plugins` matches the installed plugins |
+| Bridge | `android/gyo-bridge/`: the native bridge; the app depends on it and plugins compile against it |
+| Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`; gyo warns about missing ones and never writes them |
+
+An Android project without `android/gyo-bridge/` cannot include plugins. It needs these changes, all of them the content of a current template:
+
+| Part of `android/` | Needs |
+|-------------------|-------|
+| `gyo-bridge/` | The module; the bridge sources leave `app/src/main/java/gyo/plugins/bridge/` |
+| `build.gradle` | `id 'com.android.library' version <AGP version> apply false` |
+| `settings.gradle` | `include ':gyo-bridge'` and `apply from: 'gyo.settings.gradle'` |
+| `app/build.gradle` | `implementation project(':gyo-bridge')` and `apply from: "gyo.build.gradle"` |
+| `app/src/main/java/.../MainActivity.kt` | `PluginRegistry.registerAll(this)` after `BridgeRegistry.initialize()`; no hand-written `BridgeRegistry.register` |
+| `app/src/main/java/gyo/plugins/<name>/` | Removed: the plugins bring their own sources |
+
+> See [PLUGINS.md](./PLUGINS.md) for the plugin side of the contract.
+
 ## Platform Requirements
 
 ### Android
 
 | Requirement | Minimum |
 |-------------|---------|
-| JDK | 11 |
+| JDK | 17 |
 | Android SDK | API 24 |
 | Build-Tools | latest |
 | ADB | included with SDK |

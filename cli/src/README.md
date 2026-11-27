@@ -12,13 +12,16 @@ src/
 │   ├── package-name.ts   # Project name → Android package name
 │   ├── webview-config.ts # webview settings the shell has to apply
 ├── services/             # Business logic (depends on: core, utils)
-│   ├── config.service.ts # loadConfig, saveConfig, getProfileUrl
+│   ├── config.service.ts # loadConfig, setConfigValue, validation
 │   ├── device.service.ts # getAndroidDevices, getIOSDevices, getAllDevices
 │   ├── android-shell.service.ts # App identity sync, release signing
-├── utils/                # Pure utilities (no dependencies)
+│   ├── plugin.service.ts # Plugin discovery; includes Android modules in the app build
+│   ├── web-server.service.ts # Starts the dev server and finds the LAN address
+├── utils/                # Utilities (no dependency on services or commands)
 │   ├── logger.ts         # Console logging with chalk
-│   ├── exec.ts           # child_process spawn wrapper
-│   └── fs.ts             # fs-extra wrappers
+│   ├── exec.ts           # child_process spawn wrapper, signalling a process tree
+│   ├── fs.ts             # fs-extra wrappers
+│   └── paths.ts          # Files shipped with the CLI: templates, package.json
 └── commands/             # CLI commands (depends on: all above)
     ├── base/             # BaseCommand, PlatformCommand, MultiPlatformCommand
     ├── build/            # AbstractBuildCommand → Android/IOSBuildCommand

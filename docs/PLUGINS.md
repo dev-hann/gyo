@@ -471,8 +471,7 @@ seconds without an answer it rejects on its own.
 
 ### Native Handler
 
-**Android**: `gyo.plugins.http.HttpBridge` — needs no permission beyond INTERNET, and OkHttp, which
-the Android template includes.
+**Android**: `gyo.plugins.http.HttpBridge` — needs no permission beyond INTERNET. Its module brings OkHttp.
 
 | Method | Input | Output |
 |--------|-------|--------|
@@ -491,13 +490,16 @@ the Android template includes.
 
 ```
 @gyo-framework/<name>/
-├── package.json
+├── package.json               # `gyo` field: the declaration below
 ├── src/
-│   ├── index.ts        # Exported API
+│   ├── index.ts               # Exported API
 │   └── __tests__/
-├── android/            # Kotlin implementation (optional)
-│   └── src/main/kotlin/gyo/plugins/<name>/
-└── ios/                # Swift implementation (optional)
+├── android/                   # Android library module (optional)
+│   ├── build.gradle.kts
+│   └── src/main/
+│       ├── AndroidManifest.xml
+│       └── kotlin/gyo/plugins/<name>/
+└── ios/                       # Swift implementation (optional)
     └── Sources/
 ```
 
@@ -506,14 +508,33 @@ the Android template includes.
 1. Must depend on `@gyo-framework/bridge` as `peerDependencies`.
 2. Export a class with methods wrapping `Bridge.invoke()`.
 3. Define and export all TypeScript interfaces for input/output.
-4. Register native handlers via `BridgeRegistry` on each platform.
+4. Declare the native handler in package.json. `gyo run`, `gyo build` and `gyo install` include it and register it; no file of the app is edited by hand.
+
+### Declaration
+
+The `gyo` field of package.json:
+
+| Path | Type | Required | Description |
+|------|------|----------|-------------|
+| `bridgeName` | string | yes | Name the web side passes to `new Bridge(name)`; an identifier |
+| `android.handlerClass` | string | with `android/` | Fully qualified class implementing `BridgeHandler`; its constructor takes a `Context` |
+| `android.permissions` | string[] | no | Run-time permissions the handler needs; a sync warns while the app manifest lacks them |
+| `ios` | object | no | Not read |
+
+### Android Module
+
+| Rule | Value |
+|------|-------|
+| Plugins | `com.android.library`, `org.jetbrains.kotlin.android` |
+| Bridge | `compileOnly(project(":gyo-bridge"))`; the app brings the module |
+| Manifest | Install-time declarations only, such as `<queries>`; merged into the app's |
+| Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`, never by the plugin |
+| Dependencies | Declared in the module; the app gets them through it |
+
+> See [CLI.md](./CLI.md#plugin-modules) for what a sync writes into the app.
 
 ### Publishing
 
-```bash
-# Tag and push to trigger CI publish
-git tag plugins/<name>/v<version>
-git push origin plugins/<name>/v<version>
-```
+There is no publish workflow. Publish a package from its directory once `npm run verify` passes.
 
 > See `plugins/README.md` for package listing.

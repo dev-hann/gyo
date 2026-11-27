@@ -17,11 +17,14 @@ gyo/
 │   │   ├── utils/             # Utilities
 │   │   └── commands/          # CLI commands
 │   ├── templates/             # Native shell templates (android/ios)
+│   │   └── android/
+│   │       ├── app/           # The app module
+│   │       └── gyo-bridge/    # The native bridge, a library module plugins compile against
 │   └── e2e/                   # E2E pipeline tests
 ├── plugins/                   # bridge + test-utils + feature plugins
 │   ├── bridge/                # @gyo-framework/bridge
 │   ├── test-utils/            # @gyo-framework/test-utils
-│   └── <name>/                # Feature plugins (Android Kotlin handlers)
+│   └── <name>/                # Feature plugins; android/ is a Gradle library module
 └── docs/                      # Specifications
 ```
 
@@ -61,13 +64,19 @@ BaseCommand
 script.start from gyo.config.json → dev server spawned in lib/
   → fails before spawning when the port is already in use
   → readiness detected by TCP port probe (profiles.<profile>.serverUrl port)
-Android: gyo-config.json (serverUrl = detected LAN URL) → gradlew assembleDebug → install → launch → logcat
+Android: gyo-config.json (serverUrl = detected LAN URL) → plugin modules included → gradlew assembleDebug → install → launch → logcat
 iOS:     gyo-config.json (serverUrl = detected LAN URL) → xtool dev → idevicesyslog
 ```
 
 The dev server must listen on `0.0.0.0` (set the host flag in `script.start`, e.g. `npm run dev -- --host 0.0.0.0`) so devices on the LAN can connect.
 
-The dev server's process group and the log process are killed on `Ctrl+C`, on `SIGTERM`, on any other exit of the CLI, and when the process that launched the CLI goes away.
+The dev server's process group and the log process are killed on `Ctrl+C`, on `SIGTERM`, on a closed terminal, and when the process that launched the CLI goes away.
+
+### Plugins
+
+A plugin with an `android/` directory is a Gradle library module. Before every Android build, gyo includes the module of each plugin installed in `lib/` in the app build and registers its handler.
+
+> See [CLI.md](./CLI.md#plugin-modules) for the files a sync writes and their rules.
 
 ### Production (`gyo build`)
 
@@ -88,6 +97,7 @@ iOS:     xtool dev → install to device
 | `android/app/src/main/assets/gyo-config.json` | `gyo run`, `gyo build` | no (generated, ignored) |
 | `android/app/build.gradle` (version lines), `res/values/strings.xml`, `AndroidManifest.xml` (icon, label) | `gyo run`, `gyo build`, from the app identity settings | yes (edited in place) |
 | `android/keystore.properties` | `gyo build android --release`, from the environment | no (ignored) |
+| `android/gyo.settings.gradle`, `android/app/gyo.build.gradle`, `PluginRegistry.kt`, `.gyo-plugins` | `gyo run`, `gyo build android`, `gyo install` | the Gradle files and the registry: yes; `.gyo-plugins`: no |
 
 The detected LAN address is never written to `gyo.config.json`.
 

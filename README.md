@@ -12,7 +12,7 @@ The web app is deployed on a server (or run locally during development). The nat
 | npm | 11.0 | All |
 | Android Studio | Hedgehog | Android |
 | Android SDK | API 24 | Android |
-| JDK | 11 | Android |
+| JDK | 17 | Android |
 | xtool | latest | iOS |
 | libimobiledevice | any | iOS (Linux only) |
 
@@ -31,7 +31,7 @@ gyo run
 ```
 gyo/
 ├── cli/          # @gyo-framework/cli — CLI tool (create/run/build native shells)
-├── plugins/      # bridge + test-utils + 9 feature plugins (Android native)
+├── plugins/      # bridge + test-utils + 10 feature plugins (Android native)
 └── docs/         # Specifications
 ```
 

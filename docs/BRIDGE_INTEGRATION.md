@@ -47,7 +47,11 @@ interface BridgeHandler {
 }
 ```
 
-> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeHandler.kt`
+> See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/BridgeHandler.kt`
+
+### Module
+
+The bridge is the `gyo-bridge` Gradle module of the generated Android project. The app depends on it; plugins compile against it with `compileOnly(project(":gyo-bridge"))`.
 
 ### Registry
 
@@ -55,11 +59,14 @@ interface BridgeHandler {
 BridgeRegistry.register(name: String, handler: BridgeHandler)
 ```
 
-> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeRegistry.kt`
+The handlers of installed plugins are registered by `PluginRegistry.kt` in the app module, which gyo writes.
+
+> See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/BridgeRegistry.kt`
+> See [CLI.md](./CLI.md#plugin-modules) for `PluginRegistry.kt`.
 
 ### Scripts
 
-> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/BridgeScripts.kt`
+> See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/BridgeScripts.kt`
 
 ### Release Builds
 
@@ -71,7 +78,7 @@ Release builds minify with R8. The `@JavascriptInterface` methods are kept by na
 
 Receives messages from WebView via `@JavascriptInterface`, dispatches to registered handlers.
 
-> See `cli/templates/android/app/src/main/java/gyo/plugins/bridge/AndroidBridgeInterface.kt`
+> See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/AndroidBridgeInterface.kt`
 
 ### Setup
 

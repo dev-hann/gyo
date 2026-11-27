@@ -54,6 +54,8 @@ it('should ...', async () => {
 | Pure functions (`core/`) | Deterministic, no side effects |
 | Business logic under test | Testing the actual code |
 | TypeScript type checks | Compiler handles this |
+| The file system, when the layout is what is tested | A mocked path answers what the test assumes: the wrong plugin layout passed that way while every published plugin failed |
+| The built bundle | Covered by the local E2E suite, not by unit tests |
 
 ### Mock Pattern
 
@@ -123,9 +125,7 @@ function mockExecResult(overrides = {}) {
 | Functions | 60% |
 | Statements | 60% |
 
-Run with coverage: `npx jest --coverage`
-
-## E2E Tests
+Run with coverage: `npx jest --coverage`. The thresholds apply only to a run with coverage; `npm test` does not collect it.
 
 ## App Testing with @gyo-framework/test-utils
 
@@ -202,12 +202,15 @@ E2E tests validate the full CLI pipeline against real file system and build tool
 
 | Suite | File | Device Required | Description |
 |-------|------|:---:|-------------|
-| Local | `cli/e2e/local-pipeline.e2e.test.ts` | No | `gyo create` → file structure validation → lib build → bridge integration |
+| Local | `cli/e2e/local-pipeline.e2e.test.ts` | No | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle |
+| Android | `cli/e2e/android-compile.e2e.test.ts` | No | `gyo create` with every official plugin → `gyo install` → `./gradlew :app:assembleDebug` |
 | Device | `cli/e2e/device-pipeline.e2e.test.ts` | Yes | Android APK build/install/run, iOS xtool build/install |
 
-### Device Skip Handling
+The Android suite needs the SDK platform the template compiles against and Java; it is skipped without them. It is the only test that compiles Kotlin, so it is where a plugin that does not build shows.
 
-Device tests use `itIfAndroid()` / `itIfIOS()` helpers that automatically skip when no device is connected. Skipped tests appear as `skipped` in the report instead of false positives.
+### Skip Handling
+
+Suites skip what the machine lacks with `itIfAndroid()`, `itIfIOS()` and `itIfAndroidSdk()`. A skipped test appears as `skipped` in the report instead of passing without having run.
 
 ```typescript
 import { itIfAndroid } from './helpers';
@@ -217,23 +220,16 @@ itIfAndroid()('should build Android APK', async () => {
 });
 ```
 
-### Commands
-
-| Command | Purpose |
-|---------|---------|
-| `npm run test` | Unit tests only |
-| `npm run test:e2e:local` | Local E2E (no device needed) |
-| `npm run test:e2e:device` | Device E2E (requires connected device) |
-| `npm run test:e2e` | All E2E tests (local + device) |
-| `npm run test:all` | Unit tests + local E2E |
-| `npm run verify` | lint + typecheck + unit tests + build |
-
 ## Commands
 
+Run from the repository root. The end-to-end scripts build first: the plugins read the bridge from its build output.
+
 | Command | Purpose |
 |---------|---------|
-| `npm run test` | Run unit tests |
-| `npm run test:e2e:local` | Local E2E tests (no device) |
-| `npm run test:e2e:device` | Device E2E tests |
+| `npm run test` | Unit tests of every package |
+| `npm run test:e2e:local` | Local E2E, on the built bundle; no device |
+| `npm run test:e2e:android` | Compiles a generated Android project with every official plugin; needs the Android SDK and Java |
+| `npm run test:e2e:device` | Device E2E; needs a connected device |
+| `npm run test:e2e` | Local, Android and device E2E |
 | `npm run test:all` | Unit tests + local E2E |
 | `npm run verify` | lint + typecheck + unit tests + build |
