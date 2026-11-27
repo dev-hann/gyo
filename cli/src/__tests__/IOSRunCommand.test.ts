@@ -23,7 +23,6 @@ jest.mock('../utils/exec', () => ({
 // Every process the CLI starts would be real: each spawn hands over a fake instead.
 jest.mock('child_process', () => ({ spawn: jest.fn() }));
 
-import type { EventEmitter } from 'events';
 import fs from 'fs-extra';
 import type { ChildProcess, SpawnOptions } from 'child_process';
 import { spawn } from 'child_process';
@@ -34,8 +33,8 @@ import { checkCommandExists, executeCommand, requireTool } from '../utils/exec';
 import type { ExecResult } from '../utils/exec';
 import { EMOJI, logger } from '../utils/logger';
 import { silenceLogger } from './helpers/logger';
-import { fakeChildProcess } from './helpers/process';
-import type { FakeChildProcess } from './helpers/process';
+import { fakeChildProcess, watchRun } from './helpers/process';
+import type { FakeChildProcess, RunEffects } from './helpers/process';
 import { createTestProject } from './helpers/project';
 import type { TestProject } from './helpers/project';
 
@@ -145,13 +144,8 @@ describe('IOSRunCommand', () => {
   let project: TestProject;
   let command: IOSRunCommand;
 
-  /** `process` as the emitter the run adds its signal and exit handlers to. */
-  const emitter: EventEmitter = process;
-  /** The handlers `process` had before the run, by event: the run adds its own, which are removed after the test. */
-  let handlersBefore: Map<string | symbol, unknown[]>;
-  /** The timers the run armed. It watches its launcher from an interval that it does not clear by itself. */
-  let timeouts: jest.SpyInstance;
-  let intervals: jest.SpyInstance;
+  /** What the run adds to `process`: handlers, and the interval it watches its launcher from. */
+  let effects: RunEffects;
   /** Every process the run started, in order. */
   const spawned: FakeChildProcess[] = [];
   const spawnWaiters = new Map<number, (proc: FakeChildProcess) => void>();
@@ -217,11 +211,10 @@ describe('IOSRunCommand', () => {
   }
 
   /** The one handler the run added to `process` for `event`. */
-  function addedHandler(event: string | symbol): () => void {
-    const before = handlersBefore.get(event) ?? [];
-    const added = emitter.listeners(event).filter((handler) => !before.includes(handler));
+  function addedHandler(event: 'SIGINT'): () => void {
+    const added = effects.added(event);
     expect(added).toHaveLength(1);
-    return added[0] as () => void;
+    return added[0];
   }
 
   beforeEach(async () => {
@@ -254,27 +247,11 @@ describe('IOSRunCommand', () => {
       waiter?.(proc);
       return proc as unknown as ChildProcess;
     });
-    timeouts = jest.spyOn(globalThis, 'setTimeout');
-    intervals = jest.spyOn(globalThis, 'setInterval');
-    handlersBefore = new Map(emitter.eventNames().map((name) => [name, emitter.listeners(name)]));
+    effects = watchRun();
   });
 
   afterEach(() => {
-    // The run leaves its signal and exit handlers on `process`, and its launcher watch armed.
-    for (const name of emitter.eventNames()) {
-      const before = handlersBefore.get(name) ?? [];
-      for (const handler of emitter.listeners(name)) {
-        if (!before.includes(handler)) {
-          emitter.off(name, handler as (...args: unknown[]) => void);
-        }
-      }
-    }
-    for (const { value } of timeouts.mock.results) {
-      clearTimeout(value);
-    }
-    for (const { value } of intervals.mock.results) {
-      clearInterval(value);
-    }
+    effects.restore();
     jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();

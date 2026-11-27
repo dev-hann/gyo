@@ -36,6 +36,7 @@ The command line itself is covered by `program.test.ts`, which goes through Comm
 | `inquirer` | ESM-only: every test file whose imports reach it mocks it |
 | What the user is told | `silenceLogger()` in `__tests__/helpers/logger.ts`: the real logger with every method silenced |
 | A process the CLI started | `fakeChildProcess()` in `__tests__/helpers/process.ts`. `signalProcessTree` and `process.kill` are mocked wherever a fake pid can reach them: the real ones signal a real process group |
+| What a run leaves on `process` | `watchRun()` in the same file: the handlers and timers a run adds, with `added()`, `emit()` and `restore()`. A test of `gyo run` calls `restore()` in `afterEach` |
 | The spinner | `ora` is mocked |
 
 ## Pattern (AAA)

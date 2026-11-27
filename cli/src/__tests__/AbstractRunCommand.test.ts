@@ -28,15 +28,16 @@ import { WebServerService } from '../services/web-server.service';
 import { signalProcessTree } from '../utils/exec';
 import { logger } from '../utils/logger';
 import { silenceLogger } from './helpers/logger';
-import { fakeChildProcess, type FakeChildProcess } from './helpers/process';
+import {
+  fakeChildProcess,
+  watchRun,
+  type FakeChildProcess,
+  type RunEffects,
+} from './helpers/process';
 import { createTestProject, type TestProject } from './helpers/project';
 
 /** Where the dev server answers, as the run learns it from WebServerService. */
 const SERVER_URL = 'http://192.168.1.5:3000';
-/** The signals that end the CLI, and the event that every end of the process runs. */
-const END_OF_CLI = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'exit'] as const;
-type EndOfCli = (typeof END_OF_CLI)[number];
-
 /** A promise that is resolved by hand. */
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
@@ -44,15 +45,6 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
     resolve = done;
   });
   return { promise, resolve };
-}
-
-/** A listener the run registered on `process`; the signal runs it without arguments. */
-type Listener = () => void;
-
-/** The listeners on `process` for an event that ends the CLI. */
-function listenersOn(event: EndOfCli): Listener[] {
-  // `process` types its listeners per event; each of these is run without arguments.
-  return process.listeners(event as 'exit') as Listener[];
 }
 
 /**
@@ -99,19 +91,8 @@ describe('AbstractRunCommand', () => {
   /** Resolves when the CLI first signals a process it started. */
   let signalled: Promise<void>;
   /** The listeners on `process` before the run, by event. */
-  let listenersBefore: Map<string, Listener[]>;
-
-  /** The listeners the run added for `event`. */
-  function addedListeners(event: EndOfCli): Listener[] {
-    return listenersOn(event).filter((listener) => !listenersBefore.get(event)?.includes(listener));
-  }
-
-  /** Runs the handler the run registered for `event`, as the signal itself would. */
-  function emit(event: EndOfCli): void {
-    for (const listener of addedListeners(event)) {
-      listener();
-    }
-  }
+  /** What the run adds to `process`, taken off after the test. */
+  let effects: RunEffects;
 
   /** Runs the command until the log process is running, which is where a run waits. */
   async function startRun(): Promise<void> {
@@ -170,15 +151,11 @@ describe('AbstractRunCommand', () => {
     command = new RecordingRunCommand();
     command.setPlatform('android');
     command.setOptions({ profile: 'development' });
-    listenersBefore = new Map(END_OF_CLI.map((event) => [event, listenersOn(event)] as const));
+    effects = watchRun();
   });
 
   afterEach(() => {
-    for (const event of END_OF_CLI) {
-      for (const listener of addedListeners(event)) {
-        process.removeListener(event, listener);
-      }
-    }
+    effects.restore();
     jest.useRealTimers();
     jest.restoreAllMocks();
     project.remove();
@@ -501,7 +478,7 @@ describe('AbstractRunCommand', () => {
       async (signal) => {
         await startRun();
 
-        emit(signal);
+        effects.emit(signal);
 
         expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGKILL');
         expect(mockedSignal).toHaveBeenCalledWith(logProcess, 'SIGKILL');
@@ -514,7 +491,7 @@ describe('AbstractRunCommand', () => {
     it('should stop the dev server and the log process when the process exits, as after a crash', async () => {
       await startRun();
 
-      emit('exit');
+      effects.emit('exit');
 
       expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGKILL');
       expect(mockedSignal).toHaveBeenCalledWith(logProcess, 'SIGKILL');
@@ -600,12 +577,6 @@ describe('AbstractRunCommand', () => {
       expect(logger.error).not.toHaveBeenCalledWith(
         expect.stringContaining('Web server unexpectedly stopped')
       );
-    });
-
-    beforeEach(() => {
-      project.setWebApp({ start: 'npm run dev' });
-      // The platform part fails once the dev server runs.
-      fs.removeSync(project.android());
     });
 
     beforeEach(() => {

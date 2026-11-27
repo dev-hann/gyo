@@ -29,7 +29,6 @@ jest.mock('../utils/exec', () => ({
 jest.mock('child_process', () => ({ spawn: jest.fn() }));
 
 import fs from 'fs-extra';
-import type { EventEmitter } from 'events';
 import type { ChildProcess } from 'child_process';
 import { spawn } from 'child_process';
 import inquirer from 'inquirer';
@@ -42,7 +41,7 @@ import { checkCommandExists, executeCommand, requireTool } from '../utils/exec';
 import { logger } from '../utils/logger';
 import { WebServerService } from '../services/web-server.service';
 import { silenceLogger } from './helpers/logger';
-import { fakeChildProcess } from './helpers/process';
+import { fakeChildProcess, watchRun, type RunEffects } from './helpers/process';
 import type { FakeChildProcess } from './helpers/process';
 import { createTestProject } from './helpers/project';
 import type { TestProject } from './helpers/project';
@@ -69,17 +68,8 @@ const SERVER_URL = 'http://192.168.0.7:3000';
 /** What the Android command runs to start the app it installed. */
 const LAUNCH = 'adb -s emulator-5554 shell am start -n com.example.demo_app/.MainActivity';
 
-/** The events a run handles: every signal that ends the CLI, and `exit`. */
-const PROCESS_EVENTS = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'exit'] as const;
-/** `process` as the emitter it is: its own type has an overload per signal, none for a mix. */
-const emitter: EventEmitter = process;
-const listenersBefore = new Map<string, ReturnType<EventEmitter['listeners']>>();
-/** The real timer, free of its overloads: a run watches its launcher with one. */
-const realSetInterval = setInterval as unknown as (
-  handler: TimerHandler,
-  ms?: number
-) => ReturnType<typeof setInterval>;
-const launcherWatches: ReturnType<typeof setInterval>[] = [];
+/** What the run adds to `process`; taken off after each test. */
+let effects: RunEffects;
 
 let project: TestProject;
 
@@ -175,37 +165,16 @@ describe('RunCommand', () => {
       });
       // The launcher watch asks whether the launcher lives; a fake pid must never reach the real call.
       jest.spyOn(process, 'kill').mockImplementation(() => true);
-      jest.spyOn(global, 'setInterval').mockImplementation(((
-        handler: TimerHandler,
-        ms?: number
-      ) => {
-        const watch = realSetInterval(handler, ms);
-        launcherWatches.push(watch);
-        return watch;
-      }) as unknown as typeof setInterval);
-
       project = await createTestProject();
       project.setWebApp({ start: 'npm run dev', build: 'npm run build' });
 
-      for (const event of PROCESS_EVENTS) {
-        listenersBefore.set(event, emitter.listeners(event));
-      }
+      effects = watchRun();
     });
 
     afterEach(() => {
       try {
         // What the run put on `process` comes off again, and nothing that was there before.
-        for (const event of PROCESS_EVENTS) {
-          const before = listenersBefore.get(event) ?? [];
-          for (const listener of emitter.listeners(event)) {
-            if (!before.includes(listener)) {
-              emitter.removeListener(event, listener as () => void);
-            }
-          }
-        }
-        for (const watch of launcherWatches.splice(0)) {
-          clearInterval(watch);
-        }
+        effects.restore();
       } finally {
         // Whatever went wrong above, the project and the working directory are left behind by no test.
         jest.restoreAllMocks();
