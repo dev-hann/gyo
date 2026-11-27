@@ -1,6 +1,8 @@
+// `start` runs `npm install`, and signals the server's process group when it
+// cannot return the server: both would act on this machine.
 jest.mock('../utils/exec', () => ({
   executeCommand: jest.fn(),
-  signalProcessTree: jest.requireActual('../utils/exec').signalProcessTree,
+  signalProcessTree: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -42,15 +44,18 @@ jest.mock('net', () => ({
 
 import { WebServerService, REACHABLE_TIMEOUT_MS } from '../services/web-server.service';
 import { isLoopbackHost, namedHostOf } from '../core/index';
-import { executeCommand } from '../utils/exec';
+import { executeCommand, signalProcessTree } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import { connect } from 'net';
 import { LOCALHOST, DEFAULT_PORT, WEB_SERVER_TIMEOUT_MS } from '../core/index';
 import { EventEmitter } from 'events';
+import { fakeChildProcess } from './helpers/process';
+import type { FakeChildProcess } from './helpers/process';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
+const mockedSignalProcessTree = signalProcessTree as jest.MockedFunction<typeof signalProcessTree>;
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-const mockedConnect = connect as unknown as jest.MockedFunction<typeof connect>;
+const mockedConnect = jest.mocked(connect);
 
 interface MockSocket extends EventEmitter {
   destroy: jest.Mock;
@@ -60,15 +65,6 @@ function createMockSocket(): MockSocket {
   const socket = new EventEmitter() as MockSocket;
   socket.destroy = jest.fn();
   return socket;
-}
-
-function createMockProcess(): any {
-  const { EventEmitter } = jest.requireActual('events');
-  const mockProcess = new EventEmitter();
-  mockProcess.stdout = new EventEmitter();
-  mockProcess.stderr = new EventEmitter();
-  mockProcess.killed = false;
-  return mockProcess;
 }
 
 /**
@@ -110,11 +106,11 @@ async function until(condition: () => boolean): Promise<void> {
 }
 
 /** The dev server, once `start` has spawned it. */
-function spawnServer(): any {
+function spawnServer(): FakeChildProcess {
   const { spawn } = jest.requireMock('child_process');
-  const mockProcess = createMockProcess();
-  spawn.mockReturnValue(mockProcess);
-  return mockProcess;
+  const server = fakeChildProcess();
+  spawn.mockReturnValue(server);
+  return server;
 }
 
 describe('WebServerService', () => {
@@ -176,6 +172,17 @@ describe('WebServerService', () => {
 
   describe('start', () => {
     const options = { webPath: '/project/lib', port: 3000, startCommand: 'npm run dev' };
+
+    beforeEach(() => {
+      // Nothing reaches process.kill while signalProcessTree is mocked: the guard keeps
+      // a fake pid from the real one for as long as one is around.
+      jest.spyOn(process, 'kill').mockImplementation(() => true);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
 
     function expectSpawned(command: string): void {
       const { spawn } = jest.requireMock('child_process');
@@ -251,26 +258,21 @@ describe('WebServerService', () => {
     });
 
     it('should refuse a server that answers on localhost but not where the device looks', async () => {
-      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
       const server = spawnServer();
-      server.pid = 4242;
       answering('error');
       answering('connect');
-      silent();
+      // The device's end refuses the connection outright.
+      answering('error');
 
       await expect(service.start({ ...options, advertiseHost: '10.0.0.7' })).rejects.toThrow(
         'it does not answer at http://10.0.0.7:3000, where the device will look for it'
       );
-      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
-
-      kill.mockRestore();
+      expect(mockedSignalProcessTree).toHaveBeenCalledWith(server, 'SIGKILL');
     });
 
     it("should give up when the device's address never answers", async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
       const server = spawnServer();
-      server.pid = 4242;
       answering('error');
       answering('connect');
       const deviceEnd = silent();
@@ -280,10 +282,7 @@ describe('WebServerService', () => {
       jest.advanceTimersByTime(REACHABLE_TIMEOUT_MS);
 
       await expect(startPromise).rejects.toThrow('where the device will look for it');
-      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
-
-      kill.mockRestore();
-      jest.useRealTimers();
+      expect(mockedSignalProcessTree).toHaveBeenCalledWith(server, 'SIGKILL');
     });
 
     it('should spawn the configured start command as-is without framework detection', async () => {
@@ -329,7 +328,6 @@ describe('WebServerService', () => {
 
       expect(mockedConnect).toHaveBeenCalledTimes(4);
       expect(handle.url).toMatch(/^http:\/\/.+:\d+$/);
-      jest.useRealTimers();
     });
 
     it('should reject when the server process exits before the port is ready', async () => {
@@ -347,9 +345,7 @@ describe('WebServerService', () => {
 
     it('should stop the server it started when the port never gets ready', async () => {
       jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      const kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
       const server = spawnServer();
-      server.pid = 4242;
       answering('error');
       const probe = silent();
 
@@ -358,10 +354,7 @@ describe('WebServerService', () => {
       jest.advanceTimersByTime(WEB_SERVER_TIMEOUT_MS);
 
       await expect(startPromise).rejects.toThrow('failed to start within');
-      expect(kill).toHaveBeenCalledWith(-4242, 'SIGKILL');
-
-      kill.mockRestore();
-      jest.useRealTimers();
+      expect(mockedSignalProcessTree).toHaveBeenCalledWith(server, 'SIGKILL');
     });
   });
 });

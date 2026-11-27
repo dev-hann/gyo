@@ -1,3 +1,8 @@
+import type { ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
+import { fakeChildProcess } from './helpers/process';
+import type { FakeChildProcess } from './helpers/process';
+import { silenceLogger } from './helpers/logger';
 import {
   executeCommand,
   checkCommandExists,
@@ -5,55 +10,48 @@ import {
   requireTool,
   signalProcessTree,
 } from '../utils/exec';
+import { logger } from '../utils/logger';
 
-jest.mock('child_process', () => {
-  const { EventEmitter } = jest.requireActual('events');
+jest.mock('child_process', () => ({ spawn: jest.fn() }));
 
-  function createMockProcess() {
-    const proc = new EventEmitter();
-    proc.stdout = new EventEmitter();
-    proc.stderr = new EventEmitter();
-    proc.kill = jest.fn();
-    return proc;
-  }
+const mockedSpawn = spawn as jest.Mock;
 
-  return {
-    spawn: jest.fn(),
-    __createMockProcess: createMockProcess,
-  };
-});
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const childProcessMod = require('child_process');
-const mockSpawn = childProcessMod.spawn as jest.Mock;
-const createMockProc: () => any = childProcessMod.__createMockProcess;
-
-function createMockProcess() {
-  return createMockProc();
+/** A process the CLI started, as `signalProcessTree` takes it; without a pid when none is given. */
+function started(pid?: number): ChildProcess {
+  const child = fakeChildProcess();
+  child.pid = pid;
+  return child as unknown as ChildProcess;
 }
 
 describe('exec utils', () => {
-  let mockProcess: ReturnType<typeof createMockProcess>;
+  const platform = process.platform;
+  let child: FakeChildProcess;
+  let kill: jest.SpyInstance;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockProcess = createMockProcess();
-    mockSpawn.mockReturnValue(mockProcess);
+    silenceLogger();
+    // signalProcessTree is the real one here, and signals a real process group:
+    // no pid a test makes up may reach the real process.kill.
+    kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
+    child = fakeChildProcess();
+    mockedSpawn.mockReturnValue(child);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    Object.defineProperty(process, 'platform', { value: platform });
   });
 
   describe('getGradlew', () => {
     it('should return gradlew.bat on win32', () => {
-      const original = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32' });
       expect(getGradlew()).toBe('gradlew.bat');
-      Object.defineProperty(process, 'platform', { value: original });
     });
 
     it('should return ./gradlew on non-win32', () => {
-      const original = process.platform;
       Object.defineProperty(process, 'platform', { value: 'linux' });
       expect(getGradlew()).toBe('./gradlew');
-      Object.defineProperty(process, 'platform', { value: original });
     });
   });
 
@@ -61,10 +59,10 @@ describe('exec utils', () => {
     it('should handle command without args', async () => {
       const promise = executeCommand('echo');
 
-      expect(mockSpawn.mock.calls[0][0]).toBe('echo');
+      expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'echo', [], {});
 
-      mockProcess.stdout.emit('data', Buffer.from('\n'));
-      mockProcess.emit('close', 0);
+      child.stdout.emit('data', Buffer.from('\n'));
+      child.emit('close', 0);
 
       const result = await promise;
       expect(result.success).toBe(true);
@@ -73,8 +71,8 @@ describe('exec utils', () => {
     it('should return success:false on non-zero exit code', async () => {
       const promise = executeCommand('false');
 
-      mockProcess.stderr.emit('data', Buffer.from('error msg'));
-      mockProcess.emit('close', 1);
+      child.stderr.emit('data', Buffer.from('error msg'));
+      child.emit('close', 1);
 
       const result = await promise;
       expect(result.success).toBe(false);
@@ -85,20 +83,21 @@ describe('exec utils', () => {
     it('should handle spawn error', async () => {
       const promise = executeCommand('nonexistent');
 
-      mockProcess.emit('error', new Error('spawn error'));
+      child.emit('error', new Error('spawn error'));
 
       const result = await promise;
       expect(result.success).toBe(false);
       expect(result.stderr).toBe('spawn error');
       expect(result.code).toBeNull();
+      expect(logger.error).toHaveBeenCalledWith('Failed to execute command: spawn error');
     });
 
     it('should capture both stdout and stderr', async () => {
       const promise = executeCommand('cmd');
 
-      mockProcess.stdout.emit('data', Buffer.from('out'));
-      mockProcess.stderr.emit('data', Buffer.from('err'));
-      mockProcess.emit('close', 0);
+      child.stdout.emit('data', Buffer.from('out'));
+      child.stderr.emit('data', Buffer.from('err'));
+      child.emit('close', 0);
 
       const result = await promise;
       expect(result.stdout).toBe('out');
@@ -108,8 +107,8 @@ describe('exec utils', () => {
     it('should trim whitespace from output', async () => {
       const promise = executeCommand('echo');
 
-      mockProcess.stdout.emit('data', Buffer.from('  hello  \n'));
-      mockProcess.emit('close', 0);
+      child.stdout.emit('data', Buffer.from('  hello  \n'));
+      child.emit('close', 0);
 
       const result = await promise;
       expect(result.stdout).toBe('hello');
@@ -118,9 +117,9 @@ describe('exec utils', () => {
     it('should pass spawn options', async () => {
       const promise = executeCommand('echo', ['test'], { cwd: '/tmp' });
 
-      expect(mockSpawn.mock.calls[0][2].cwd).toBe('/tmp');
+      expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'echo', ['test'], { cwd: '/tmp' });
 
-      mockProcess.emit('close', 0);
+      child.emit('close', 0);
       await promise;
     });
 
@@ -129,14 +128,12 @@ describe('exec utils', () => {
 
       const promise = executeCommand('echo', ['hello'], { stdio: 'inherit' });
 
-      mockProcess.stdout.emit('data', Buffer.from('hello\n'));
-      mockProcess.emit('close', 0);
+      child.stdout.emit('data', Buffer.from('hello\n'));
+      child.emit('close', 0);
 
       const result = await promise;
       expect(writeSpy).toHaveBeenCalledWith('hello\n');
       expect(result.stdout).toBe('hello');
-
-      writeSpy.mockRestore();
     });
 
     it('should write stderr to process.stderr when stdio is inherit', async () => {
@@ -144,14 +141,12 @@ describe('exec utils', () => {
 
       const promise = executeCommand('cmd', [], { stdio: 'inherit' });
 
-      mockProcess.stderr.emit('data', Buffer.from('err\n'));
-      mockProcess.emit('close', 1);
+      child.stderr.emit('data', Buffer.from('err\n'));
+      child.emit('close', 1);
 
       const result = await promise;
       expect(writeSpy).toHaveBeenCalledWith('err\n');
       expect(result.stderr).toBe('err');
-
-      writeSpy.mockRestore();
     });
 
     it('should not write stdout to process.stdout when stdio is pipe', async () => {
@@ -159,13 +154,11 @@ describe('exec utils', () => {
 
       const promise = executeCommand('echo', ['hello'], { stdio: 'pipe' });
 
-      mockProcess.stdout.emit('data', Buffer.from('hello\n'));
-      mockProcess.emit('close', 0);
+      child.stdout.emit('data', Buffer.from('hello\n'));
+      child.emit('close', 0);
 
       await promise;
       expect(writeSpy).not.toHaveBeenCalled();
-
-      writeSpy.mockRestore();
     });
   });
 
@@ -173,10 +166,9 @@ describe('exec utils', () => {
     it('should return true when command exists', async () => {
       const promise = checkCommandExists('node');
 
-      const spawnCall = mockSpawn.mock.calls[0];
-      expect(spawnCall[0]).toContain('which');
+      expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'which', ['node'], { stdio: 'pipe' });
 
-      mockProcess.emit('close', 0);
+      child.emit('close', 0);
 
       const result = await promise;
       expect(result).toBe(true);
@@ -185,82 +177,70 @@ describe('exec utils', () => {
     it('should return false when command does not exist', async () => {
       const promise = checkCommandExists('nonexistent');
 
-      mockProcess.emit('close', 1);
+      child.emit('close', 1);
 
       const result = await promise;
       expect(result).toBe(false);
     });
 
     it('should use where on win32', async () => {
-      const original = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32' });
 
       const promise = checkCommandExists('node');
 
-      const spawnCall = mockSpawn.mock.calls[0];
-      expect(spawnCall[0]).toContain('where');
+      expect(mockedSpawn).toHaveBeenNthCalledWith(1, 'where', ['node'], { stdio: 'pipe' });
 
-      mockProcess.emit('close', 0);
+      child.emit('close', 0);
 
       const result = await promise;
       expect(result).toBe(true);
-
-      Object.defineProperty(process, 'platform', { value: original });
     });
   });
 
   describe('requireTool', () => {
     it('should resolve when tool exists', async () => {
       const promise = requireTool('node', 'install node');
-      mockProcess.emit('close', 0);
+      child.emit('close', 0);
 
       await expect(promise).resolves.toBeUndefined();
     });
 
     it('should throw ToolRequiredError when tool not found', async () => {
       const promise = requireTool('missing-tool', 'install it');
-      mockProcess.emit('close', 1);
+      child.emit('close', 1);
 
       await expect(promise).rejects.toThrow('Required tool');
     });
   });
 
   describe('signalProcessTree', () => {
-    let kill: jest.SpyInstance;
-
-    beforeEach(() => {
-      kill = jest.spyOn(process, 'kill').mockImplementation(() => true);
-    });
-
-    afterEach(() => {
-      kill.mockRestore();
-    });
-
     it('should signal the process group a detached child leads', () => {
-      mockProcess.pid = 1001;
+      const detached = started(1001);
 
-      signalProcessTree(mockProcess, 'SIGTERM');
+      signalProcessTree(detached, 'SIGTERM');
 
       expect(kill).toHaveBeenCalledWith(-1001, 'SIGTERM');
-      expect(mockProcess.kill).not.toHaveBeenCalled();
+      expect(detached.kill).not.toHaveBeenCalled();
     });
 
     it('should signal the child itself when it leads no process group', () => {
-      mockProcess.pid = 1001;
+      const ungrouped = started(1001);
       kill.mockImplementation(() => {
         throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
       });
 
-      signalProcessTree(mockProcess, 'SIGKILL');
+      signalProcessTree(ungrouped, 'SIGKILL');
 
-      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
+      expect(ungrouped.kill).toHaveBeenCalledWith('SIGKILL');
     });
 
     it('should do nothing when the child has no pid', () => {
-      signalProcessTree(mockProcess, 'SIGKILL');
+      const pidless = started();
+
+      signalProcessTree(pidless, 'SIGKILL');
 
       expect(kill).not.toHaveBeenCalled();
-      expect(mockProcess.kill).not.toHaveBeenCalled();
+      expect(pidless.kill).not.toHaveBeenCalled();
     });
   });
 });

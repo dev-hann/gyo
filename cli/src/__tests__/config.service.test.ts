@@ -453,7 +453,7 @@ describe('config.service', () => {
     });
 
     it('should reject platforms when it is a non-object string', () => {
-      expect(validateConfig({ ...validConfig, platforms: 'bad' as any })).toBe(false);
+      expect(validateConfig({ ...validConfig, platforms: 'bad' })).toBe(false);
     });
   });
 });

@@ -46,7 +46,7 @@ describe('InstallCommand', () => {
   function install(): Promise<void> {
     const command = new InstallCommand();
     command.setOptions({});
-    return command['run']();
+    return command.execute();
   }
 
   beforeEach(() => {
