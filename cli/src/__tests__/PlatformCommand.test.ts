@@ -1,7 +1,7 @@
 import { PlatformCommand } from '../commands/base/PlatformCommand';
 import type { CommandMeta } from '../commands/base/BaseCommand';
 import type { Platform } from '../core/index';
-import { PlatformNotFoundError, PlatformDisabledError } from '../core/index';
+import { PlatformDisabledError } from '../core/index';
 
 jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn().mockResolvedValue(null),
@@ -82,7 +82,7 @@ describe('PlatformCommand', () => {
       expect(() => command.execute()).not.toThrow();
     });
 
-    it('should throw PlatformNotFoundError for invalid platform', async () => {
+    it('should reject an invalid platform with the valid ones', async () => {
       command.setPlatform('windows' as Platform);
       mockedLoadConfig.mockResolvedValue({
         name: 'test',
@@ -90,12 +90,14 @@ describe('PlatformCommand', () => {
         platforms: {},
       });
 
-      await expect(command.execute()).rejects.toThrow(PlatformNotFoundError);
+      await expect(command.execute()).rejects.toThrow(
+        'Invalid platform: windows. Valid platforms are: android, ios'
+      );
     });
   });
 
   describe('validatePlatformEnabled', () => {
-    it('should throw PlatformDisabledError when platform is disabled', async () => {
+    it('should reject a disabled platform with the way to enable it', async () => {
       command.setPlatform('android');
       mockedLoadConfig.mockResolvedValue({
         name: 'test',
@@ -103,7 +105,10 @@ describe('PlatformCommand', () => {
         platforms: { android: { enabled: false } },
       });
 
-      await expect(command.execute()).rejects.toThrow(PlatformDisabledError);
+      await expect(command.execute()).rejects.toThrow(
+        "Platform 'android' is disabled in gyo.config.json. " +
+          'Enable it: gyo config set platforms.android.enabled true'
+      );
     });
 
     it('should pass when platform is enabled', async () => {
@@ -141,10 +146,10 @@ describe('PlatformCommand', () => {
       await expect(command.runDirectly()).resolves.toBeUndefined();
     });
 
-    it('should throw PlatformNotFoundError directly without handleError', async () => {
+    it('should reject an invalid platform before anything runs', async () => {
       command.setPlatform('windows' as Platform);
 
-      await expect(command.runDirectly()).rejects.toThrow(PlatformNotFoundError);
+      await expect(command.runDirectly()).rejects.toThrow('Invalid platform: windows');
     });
 
     it('should throw GyoError when gyo.config.json not found', async () => {
@@ -167,21 +172,16 @@ describe('PlatformCommand', () => {
   });
 
   describe('checkPlatformDirectoryExists', () => {
-    it('should throw PlatformNotFoundError when directory missing', async () => {
+    it('should reject with the missing directory and the way out', async () => {
       command.setPlatform('android');
       mockedPathExists.mockResolvedValue(false);
-      mockedLoadConfig.mockResolvedValue({
-        name: 'test',
-        version: '1.0.0',
-        platforms: {},
-      });
 
-      try {
-        await command['checkPlatformDirectoryExists']();
-        fail('Expected error');
-      } catch (err) {
-        expect(err).toBeInstanceOf(PlatformNotFoundError);
-      }
+      await expect(command['checkPlatformDirectoryExists']()).rejects.toThrow(
+        "Platform 'android' not found"
+      );
+      await expect(command['checkPlatformDirectoryExists']()).rejects.toThrow(
+        "Run 'gyo create' to initialize the project"
+      );
     });
 
     it('should pass when directory exists', async () => {

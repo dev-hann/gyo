@@ -24,7 +24,6 @@ export abstract class MultiPlatformCommand<
   protected validatePlatform(): void {
     const validPlatforms = this.getValidPlatforms();
     if (!validPlatforms.includes(this.platform)) {
-      this.spinner.fail(`Invalid platform: ${this.platform}`);
       throw new InvalidPlatformError(
         this.platform,
         validPlatforms.filter((p) => p !== 'all')

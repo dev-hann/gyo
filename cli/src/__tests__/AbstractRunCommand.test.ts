@@ -619,17 +619,20 @@ describe('AbstractRunCommand', () => {
       await expect((command as any)['handleError']('string error')).rejects.toThrow('string error');
     });
 
-    it('should call failSpinner with Run failed', async () => {
-      (command as any).failSpinner = jest.fn();
-      (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
+    it('should stop the dev server before reporting the error', async () => {
+      const { logger } = jest.requireMock('../utils/logger');
+      const order: string[] = [];
+      (command as any).cleanup = jest.fn().mockImplementation(async () => {
+        order.push('cleanup');
+      });
+      logger.error.mockImplementation(() => {
+        order.push('report');
+      });
 
-      try {
-        await (command as any)['handleError'](new Error('x'));
-      } catch {
-        /* expected rethrow */
-      }
+      await (command as any)['handleError'](new Error('x')).catch(() => undefined);
 
-      expect((command as any).failSpinner).toHaveBeenCalledWith('Run failed');
+      expect(order).toEqual(['cleanup', 'report']);
+      expect(logger.error).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -12,8 +12,11 @@ export class GyoError extends Error {
 }
 
 export class PlatformNotFoundError extends GyoError {
-  constructor(platform: string) {
-    super(`Platform '${platform}' not found`);
+  constructor(platform: string, projectPath: string) {
+    super(
+      `Platform '${platform}' not found in ${projectPath}. ` +
+        `Run 'gyo create' to initialize the project, or run gyo from the project directory.`
+    );
   }
 }
 
@@ -37,7 +40,10 @@ export class ConfigNotFoundError extends GyoError {
 
 export class PlatformDisabledError extends GyoError {
   constructor(platform: string) {
-    super(`Platform '${platform}' is disabled in gyo.config.json`);
+    super(
+      `Platform '${platform}' is disabled in gyo.config.json. ` +
+        `Enable it: gyo config set platforms.${platform}.enabled true`
+    );
   }
 }
 

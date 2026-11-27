@@ -103,8 +103,8 @@ registerCommand(new InstallCommand());
 registerConfigCommand();
 
 function handleUnhandledRejection(error: unknown): void {
+  // A command reports its own errors before it lets them get here.
   if (error instanceof GyoError) {
-    logger.error(error.message);
     process.exit(error.exitCode);
   }
   if (

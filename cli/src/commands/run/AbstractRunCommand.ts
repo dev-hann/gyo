@@ -354,20 +354,8 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     });
   }
 
-  protected async handleError(error: unknown): Promise<void> {
-    this.failSpinner('Run failed');
-    logger.error(getErrorMessage(error));
-    if (error instanceof Error && error.stack) {
-      logger.debug(error.stack);
-    }
-
-    await this.cleanup();
-
-    if (error instanceof GyoError) {
-      throw error;
-    }
-    throw new GyoError(getErrorMessage(error), 1, {
-      cause: error,
-    });
+  /** Stops the dev server and the log process first, then reports the error once. */
+  protected handleError(error: unknown): Promise<void> {
+    return this.cleanup().then(() => super.handleError(error));
   }
 }

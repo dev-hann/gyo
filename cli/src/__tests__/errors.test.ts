@@ -39,9 +39,12 @@ describe('errors', () => {
   });
 
   describe('PlatformNotFoundError', () => {
-    it('should create with platform name', () => {
-      const error = new PlatformNotFoundError('android');
-      expect(error.message).toBe("Platform 'android' not found");
+    it('should name the platform and the way out', () => {
+      const error = new PlatformNotFoundError('android', '/project');
+      expect(error.message).toBe(
+        "Platform 'android' not found in /project. " +
+          "Run 'gyo create' to initialize the project, or run gyo from the project directory."
+      );
       expect(error).toBeInstanceOf(GyoError);
     });
   });
@@ -63,9 +66,12 @@ describe('errors', () => {
   });
 
   describe('PlatformDisabledError', () => {
-    it('should create with platform name', () => {
+    it('should name the platform and the way to enable it', () => {
       const error = new PlatformDisabledError('ios');
-      expect(error.message).toBe("Platform 'ios' is disabled in gyo.config.json");
+      expect(error.message).toBe(
+        "Platform 'ios' is disabled in gyo.config.json. " +
+          'Enable it: gyo config set platforms.ios.enabled true'
+      );
       expect(error).toBeInstanceOf(GyoError);
     });
   });

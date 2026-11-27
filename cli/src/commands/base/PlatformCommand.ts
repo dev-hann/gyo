@@ -1,10 +1,14 @@
 import * as path from 'path';
 import type { BaseCommandOptions } from './BaseCommand';
 import { BaseCommand } from './BaseCommand';
-import { logger } from '../../utils/logger';
 import { pathExists, ensureDir, writeFile } from '../../utils/fs';
 import type { GyoConfig, Platform } from '../../core/index';
-import { PlatformNotFoundError, PlatformDisabledError, toWebViewSettings } from '../../core/index';
+import {
+  InvalidPlatformError,
+  PlatformNotFoundError,
+  PlatformDisabledError,
+  toWebViewSettings,
+} from '../../core/index';
 
 export interface PlatformCommandOptions extends BaseCommandOptions {
   profile?: string;
@@ -34,9 +38,7 @@ export abstract class PlatformCommand<
   protected validatePlatform(): void {
     const validPlatforms = this.getValidPlatforms();
     if (!validPlatforms.includes(this.platform)) {
-      this.spinner.fail(`Invalid platform: ${this.platform}`);
-      logger.error(`Valid platforms are: ${validPlatforms.join(', ')}`);
-      throw new PlatformNotFoundError(this.platform);
+      throw new InvalidPlatformError(this.platform, validPlatforms);
     }
   }
 
@@ -49,8 +51,6 @@ export abstract class PlatformCommand<
 
     const platformConfig = this.config.platforms[this.platform];
     if (platformConfig && platformConfig.enabled === false) {
-      this.spinner.fail(`Platform ${this.platform} is disabled in gyo.config.json`);
-      logger.warn(`Enable it by setting platforms.${this.platform}.enabled to true`);
       throw new PlatformDisabledError(this.platform);
     }
   }
@@ -58,11 +58,7 @@ export abstract class PlatformCommand<
   protected async checkPlatformDirectoryExists(): Promise<void> {
     const platformPath = path.join(this.projectPath, this.platform);
     if (!(await pathExists(platformPath))) {
-      this.spinner.fail(`'${this.platform}/' directory not found`);
-      logger.error(
-        `Run 'gyo create' first to initialize the project, or check you're in the correct directory.`
-      );
-      throw new PlatformNotFoundError(this.platform);
+      throw new PlatformNotFoundError(this.platform, this.projectPath);
     }
   }
 

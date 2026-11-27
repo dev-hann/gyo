@@ -66,13 +66,7 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
   protected async afterRun(): Promise<void> {}
 
   protected async loadConfiguration(): Promise<void> {
-    try {
-      this.config = await loadConfig(this.projectPath);
-    } catch (error) {
-      this.spinner.fail('Failed to load gyo.config.json');
-      logger.error(getErrorMessage(error));
-      throw error;
-    }
+    this.config = await loadConfig(this.projectPath);
   }
 
   protected async requireGyoProject(): Promise<void> {
@@ -84,8 +78,14 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
     }
   }
 
+  /**
+   * Reports `error` once and rethrows it. A spinner that never started is
+   * left alone: there is nothing to mark as failed.
+   */
   protected async handleError(error: unknown): Promise<void> {
-    this.spinner.fail('Command failed');
+    if (this.spinner.isSpinning) {
+      this.spinner.fail('Command failed');
+    }
     logger.error(getErrorMessage(error));
     if (error instanceof Error && error.stack) {
       logger.debug(error.stack);

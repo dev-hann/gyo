@@ -141,11 +141,11 @@ describe('BaseCommand', () => {
       expect(command['config']).toEqual(mockConfig);
     });
 
-    it('should throw and log error when loadConfig rejects', async () => {
+    it('should let a failed load through, to be reported once by handleError', async () => {
       mockedLoadConfig.mockRejectedValue(new Error('config missing'));
 
       await expect(command.testLoadConfiguration()).rejects.toThrow('config missing');
-      expect(logger.error).toHaveBeenCalledWith('config missing');
+      expect(logger.error).not.toHaveBeenCalled();
     });
   });
 
@@ -171,7 +171,26 @@ describe('BaseCommand', () => {
         // expected
       }
 
+      expect(logger.error).toHaveBeenCalledTimes(1);
       expect(logger.error).toHaveBeenCalledWith('test msg');
+    });
+
+    it('should fail a spinner that is running', async () => {
+      const spinner = { fail: jest.fn(), isSpinning: true };
+      (command as any).spinner = spinner;
+
+      await command.testHandleError(new Error('test msg')).catch(() => undefined);
+
+      expect(spinner.fail).toHaveBeenCalledWith('Command failed');
+    });
+
+    it('should not fail a spinner that never started', async () => {
+      const spinner = { fail: jest.fn(), isSpinning: false };
+      (command as any).spinner = spinner;
+
+      await command.testHandleError(new Error('test msg')).catch(() => undefined);
+
+      expect(spinner.fail).not.toHaveBeenCalled();
     });
 
     it('should log stack in debug mode', async () => {
