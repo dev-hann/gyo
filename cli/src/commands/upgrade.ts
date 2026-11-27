@@ -3,7 +3,7 @@ import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand } from '../utils/exec';
 import { getCliVersion } from '../utils/paths';
-import { GyoError } from '../core/index';
+import { GyoError, compareVersions } from '../core/index';
 
 interface UpgradeCommandOptions extends BaseCommandOptions {
   check?: boolean;
@@ -26,16 +26,24 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
     logger.info('Checking for Gyo updates...\n');
 
     const { currentVersion, latestVersion } = await this.getVersionInfo();
-    const targetVersion = this.options.version || latestVersion;
 
     this.displayVersionInfo(currentVersion, latestVersion);
 
     if (this.options.check) {
-      this.handleCheckOnly(currentVersion, latestVersion);
+      this.reportCheck(latestVersion, currentVersion);
       return;
     }
 
-    if (currentVersion === targetVersion) {
+    // A version asked for by name is installed whatever it is: an older one
+    // is a downgrade on purpose. What npm calls latest is installed only
+    // when it is newer, so a local build is not replaced by it.
+    const askedFor = this.options.version;
+    const targetVersion = askedFor ?? latestVersion;
+    const upToDate =
+      askedFor !== undefined
+        ? askedFor === currentVersion
+        : compareVersions(targetVersion, currentVersion) <= 0;
+    if (upToDate) {
       logger.success('\nAlready up to date!');
       return;
     }
@@ -63,8 +71,8 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
     logger.info(`Latest version:  ${latestVersion}`);
   }
 
-  private handleCheckOnly(currentVersion: string, latestVersion: string): void {
-    if (currentVersion === latestVersion) {
+  private reportCheck(latestVersion: string, currentVersion: string): void {
+    if (compareVersions(latestVersion, currentVersion) <= 0) {
       logger.success('\nYou are already on the latest version!');
     } else {
       logger.info(`\nA new version is available: ${latestVersion}`);

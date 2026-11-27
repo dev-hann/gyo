@@ -66,4 +66,5 @@
 - An Android build that fails having printed nothing is reported as `Unknown error`, not with an empty line
 - `gyo run -d <id>` had no effect on iOS: xtool was not told which device to use. It gets the device with `--udid`
 - `gyo run` on Android printed each line of the page's console with the tag and the process that `adb logcat` adds, and with where WebView says the line came from
+- `gyo upgrade` installed the version npm calls latest even when the installed one is newer, a local build or a pre-release, and `--check` called that version new. What npm calls latest is installed only when it is newer; a version asked for with `--version` is installed whatever it is
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later

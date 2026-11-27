@@ -151,6 +151,27 @@ describe('UpgradeCommand', () => {
     });
   });
 
+  describe('when the installed version is newer than the one on npm', () => {
+    // A local build, or a pre-release that npm does not list as latest.
+    it('should install nothing and say it is up to date', async () => {
+      mockedExec.mockResolvedValueOnce(npm('0.0.1\n'));
+
+      await upgrade();
+
+      expect(mockedExec).toHaveBeenCalledTimes(1);
+      expect(logger.success).toHaveBeenCalledWith('\nAlready up to date!');
+    });
+
+    it('should not offer the older version with --check', async () => {
+      mockedExec.mockResolvedValueOnce(npm('0.0.1\n'));
+
+      await upgrade({ check: true });
+
+      expect(logger.info).not.toHaveBeenCalledWith('\nA new version is available: 0.0.1');
+      expect(logger.success).toHaveBeenCalledWith('\nYou are already on the latest version!');
+    });
+  });
+
   describe('when npm cannot say what the latest version is', () => {
     it('should fail with the GyoError as it is, without installing anything', async () => {
       mockedExec.mockResolvedValueOnce(NPM_UNREACHABLE);

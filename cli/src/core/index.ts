@@ -4,3 +4,4 @@ export * from './constants';
 export * from './package-name';
 export * from './webview-config';
 export * from './url';
+export * from './version';

@@ -97,7 +97,9 @@ Upgrade CLI.
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--check` | boolean | false | Check only, no upgrade |
-| `--version <ver>` | string | latest | Target version |
+| `--version <ver>` | string | latest | Target version; installed whatever it is |
+
+What npm calls latest is installed only when it is newer than the installed version.
 
 ## Configuration
 
