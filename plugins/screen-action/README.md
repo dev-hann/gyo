@@ -88,21 +88,11 @@ interface GlobalActionParams {
 
 ## Android Setup
 
-1. Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
+
+The handler acts through an `AccessibilityService` of the app, which the user enables in the system settings. Hand it over for as long as it is connected:
 
 ```kotlin
-import gyo.plugins.screen_action.ScreenActionBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("screen_action", ScreenActionBridge())
-```
-
-2. In your `AccessibilityService`, register the service reference:
-
-```kotlin
-import gyo.plugins.screen_action.ScreenActionBridge
-
 // In onServiceConnected():
 ScreenActionBridge.setService(this)
 

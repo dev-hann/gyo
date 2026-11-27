@@ -59,7 +59,10 @@
   "gyo": {
     "bridgeName": "contact_search",
     "android": {
-      "handlerClass": "gyo.plugins.contact_search.ContactSearchBridge"
+      "handlerClass": "gyo.plugins.contact_search.ContactSearchBridge",
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ]
     }
   },
   "peerDependencies": {

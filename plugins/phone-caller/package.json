@@ -59,7 +59,11 @@
   "gyo": {
     "bridgeName": "phone_caller",
     "android": {
-      "handlerClass": "gyo.plugins.phone_caller.PhoneCallerBridge"
+      "handlerClass": "gyo.plugins.phone_caller.PhoneCallerBridge",
+      "permissions": [
+        "android.permission.CALL_PHONE",
+        "android.permission.READ_CALL_LOG"
+      ]
     }
   },
   "peerDependencies": {

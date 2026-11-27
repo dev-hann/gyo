@@ -56,17 +56,9 @@ interface ListResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-```kotlin
-import gyo.plugins.notification_reader.NotificationReaderBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("notification_reader", NotificationReaderBridge(this))
-```
-
-**Note:** Reading active notifications requires notification listener access. If the permission is not granted, `list()` returns an empty list.
+Reading active notifications requires notification listener access. The app needs a `NotificationListenerService` of its own, which the user enables in the system settings; without it `list()` returns an empty list.
 
 ## Peer Dependencies
 

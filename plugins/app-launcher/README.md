@@ -82,15 +82,9 @@ interface SearchAppsResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-```kotlin
-import gyo.plugins.app_launcher.AppLauncherBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("app_launcher", AppLauncherBridge(this))
-```
+The module's manifest declares a `<queries>` element for the apps that have a launcher icon, which is what makes them visible on Android 11 and later. No permissions are needed.
 
 ## Peer Dependencies
 

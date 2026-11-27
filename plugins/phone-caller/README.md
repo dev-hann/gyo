@@ -68,25 +68,17 @@ interface CallLogResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
-
-```kotlin
-import gyo.plugins.phone_caller.PhoneCallerBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("phone_caller", PhoneCallerBridge(this))
-```
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
 ### Permissions
 
-Add to `AndroidManifest.xml`:
+Add to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.CALL_PHONE" />
 <uses-permission android:name="android.permission.READ_CALL_LOG" />
 ```
-
+`gyo install` points them out when the lines are missing. The system asks the user for them at run time; `call` returns `false` and `getCallLog` returns an empty result until they are granted.
 ## Peer Dependencies
 
 - `@gyo-framework/bridge@^0.1.3`

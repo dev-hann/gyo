@@ -6,7 +6,7 @@ Templates for `gyo create` project scaffolding. Native shells only — the web a
 
 ```
 templates/
-├── android/        # Gradle-based Android WebView shell
+├── android/        # Gradle-based Android WebView shell: the app module and the gyo-bridge module
 ├── ios/            # xtool-based iOS WebView shell
 └── gyo.config.json # Configuration skeleton
 ```

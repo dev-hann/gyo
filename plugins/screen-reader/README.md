@@ -72,18 +72,9 @@ interface FindResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-```kotlin
-import gyo.plugins.screen_reader.ScreenReaderBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("screen_reader", ScreenReaderBridge(this))
-```
-
-The `ScreenReaderBridge` reads from a static service reference. Your
-`AccessibilityService` must set it when connected:
+The handler reads the screen through an `AccessibilityService` of the app, which the user enables in the system settings. Set its reference once it is connected:
 
 ```kotlin
 override fun onServiceConnected() {

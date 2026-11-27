@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONObject
 import gyo.plugins.bridge.AndroidBridgeInterface
 import gyo.plugins.bridge.BridgeRegistry
+import gyo.plugins.bridge.PluginRegistry
 import {{PACKAGE_NAME}}.BuildConfig
 
 class MainActivity : AppCompatActivity() {
@@ -60,15 +61,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Initialize BridgeRegistry
+        // Initialize BridgeRegistry, then the plugins installed in lib/.
+        // PluginRegistry.kt is written by gyo.
         BridgeRegistry.initialize()
+        PluginRegistry.registerAll(this)
         
         // Add JavaScript interface for bridge system (origin-restricted)
         val bridgeInterface = AndroidBridgeInterface(webView, gyoConfig.allowedHost)
         webView.addJavascriptInterface(bridgeInterface, "androidBridge")
-        
-        // Example: Register custom bridges here
-        // BridgeRegistry.register("my-custom-bridge", MyCustomBridgeHandler())
         
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(

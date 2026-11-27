@@ -66,15 +66,9 @@ interface GetInfoResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-```kotlin
-import gyo.plugins.device_info.DeviceInfoBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("device_info", DeviceInfoBridge(this))
-```
+No permissions are needed.
 
 ## Peer Dependencies
 

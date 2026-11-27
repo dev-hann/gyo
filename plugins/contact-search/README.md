@@ -59,22 +59,16 @@ interface SearchResult {
 
 ## Android Setup
 
-1. Add `READ_CONTACTS` permission to your `AndroidManifest.xml`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
+
+### Permissions
+
+Add to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.READ_CONTACTS" />
 ```
-
-2. Register the bridge handler in your `MainActivity.kt`:
-
-```kotlin
-import gyo.plugins.contact_search.ContactSearchBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("contact_search", ContactSearchBridge(this))
-```
-
+`gyo install` points it out when the line is missing. The system asks the user for the permission at run time; `search` returns an empty result until it is granted.
 ## Peer Dependencies
 
 - `@gyo-framework/bridge@^0.1.3`

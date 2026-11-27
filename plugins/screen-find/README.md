@@ -76,14 +76,14 @@ interface FindResult {
 
 ## Android Setup
 
-Register the bridge handler in your `MainActivity.kt`:
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
+
+The handler finds elements through an `AccessibilityService` of the app, which the user enables in the system settings. Set its reference once it is connected:
 
 ```kotlin
-import gyo.plugins.screen_find.ScreenFindBridge
-import gyo.plugins.bridge.BridgeRegistry
-
-// In onCreate():
-BridgeRegistry.register("screen_find", ScreenFindBridge())
+override fun onServiceConnected() {
+    ScreenFindBridge.accessibilityService = this
+}
 ```
 
 ## Peer Dependencies

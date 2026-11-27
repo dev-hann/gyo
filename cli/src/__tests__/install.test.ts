@@ -5,8 +5,9 @@ import { InstallCommand } from '../commands/install';
 import {
   APP_LAUNCHER_HANDLER,
   SMS_SENDER_HANDLER,
-  syncedHandlerSources,
-  writeMainActivity,
+  androidFilePath,
+  emptyRegistry,
+  writeAndroidShell,
   writePluginFixture,
 } from './helpers/plugin';
 
@@ -30,15 +31,22 @@ jest.mock('../utils/logger', () => ({
   },
 }));
 
+// The command runs against a real temporary project: it goes from the
+// package in lib/node_modules to the files the Gradle build reads.
 const PACKAGE_NAME = 'com.example.demo';
+const REGISTRY = 'app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt';
 
 describe('InstallCommand', () => {
   let projectPath: string;
   let previousCwd: string;
-  let mainActivityPath: string;
 
-  function readActivity(): string {
-    return fs.readFileSync(mainActivityPath, 'utf-8');
+  const readAndroid = (...relativePath: string[]): string =>
+    fs.readFileSync(androidFilePath(projectPath, ...relativePath), 'utf-8');
+
+  function install(): Promise<void> {
+    const command = new InstallCommand();
+    command.setOptions({});
+    return command['run']();
   }
 
   beforeEach(() => {
@@ -51,7 +59,7 @@ describe('InstallCommand', () => {
       version: '1.0.0',
       platforms: {},
     });
-    mainActivityPath = writeMainActivity(projectPath, PACKAGE_NAME);
+    writeAndroidShell(projectPath, PACKAGE_NAME);
   });
 
   afterEach(() => {
@@ -61,55 +69,43 @@ describe('InstallCommand', () => {
 
   it('should fail outside a gyo project', async () => {
     process.chdir(os.tmpdir());
-    const command = new InstallCommand();
-    command.setOptions({});
 
-    await expect(command['run']()).rejects.toThrow('Not a gyo project');
+    await expect(install()).rejects.toThrow('Not a gyo project');
   });
 
-  it('should copy a plugin and register it from MainActivity', async () => {
+  it('should include a plugin as a Gradle module and register it', async () => {
     writePluginFixture(
       projectPath,
       '@gyo-framework/app-launcher',
       APP_LAUNCHER_HANDLER,
       'app_launcher'
     );
-    const command = new InstallCommand();
-    command.setOptions({});
 
-    await command['run']();
+    await install();
 
-    expect(
-      fs.pathExistsSync(
-        path.join(syncedHandlerSources(projectPath, APP_LAUNCHER_HANDLER), 'AppLauncherBridge.kt')
-      )
-    ).toBe(true);
-    expect(readActivity()).toContain('import gyo.plugins.bridge.PluginRegistry');
-    expect(readActivity()).toContain('PluginRegistry.registerAll(this)');
+    expect(readAndroid('gyo.settings.gradle')).toContain("include ':gyo-plugin-app-launcher'");
+    expect(readAndroid('app/gyo.build.gradle')).toContain(
+      "implementation project(':gyo-plugin-app-launcher')"
+    );
+    expect(readAndroid(REGISTRY)).toContain(
+      'BridgeRegistry.register("app_launcher", AppLauncherBridge(context))'
+    );
   });
 
-  it('should remove what the last plugin left behind once it is uninstalled', async () => {
+  it('should unregister the last plugin once it is uninstalled', async () => {
     const plugin = writePluginFixture(
       projectPath,
       '@gyo-framework/sms-sender',
       SMS_SENDER_HANDLER,
       'sms_sender'
     );
-    const command = new InstallCommand();
-    command.setOptions({});
-
-    await command['run']();
-
+    await install();
     fs.removeSync(plugin.path);
 
-    await command['run']();
+    await install();
 
-    expect(fs.pathExistsSync(syncedHandlerSources(projectPath, SMS_SENDER_HANDLER))).toBe(false);
-    expect(
-      fs.pathExistsSync(
-        path.join(projectPath, 'android/app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt')
-      )
-    ).toBe(false);
-    expect(readActivity()).not.toContain('PluginRegistry');
+    expect(readAndroid(REGISTRY)).toBe(emptyRegistry());
+    expect(readAndroid('gyo.settings.gradle')).not.toMatch(/^include /m);
+    expect(readAndroid('app/gyo.build.gradle')).not.toContain('dependencies {');
   });
 });

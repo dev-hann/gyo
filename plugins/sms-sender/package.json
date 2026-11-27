@@ -59,7 +59,11 @@
   "gyo": {
     "bridgeName": "sms_sender",
     "android": {
-      "handlerClass": "gyo.plugins.sms_sender.SmsSenderBridge"
+      "handlerClass": "gyo.plugins.sms_sender.SmsSenderBridge",
+      "permissions": [
+        "android.permission.SEND_SMS",
+        "android.permission.READ_SMS"
+      ]
     }
   },
   "peerDependencies": {

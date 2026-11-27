@@ -9,12 +9,15 @@ import {
   syncAndroidPluginsIfNeeded,
 } from '../services/plugin.service';
 import type { DiscoveredPlugin, PluginManifest } from '../services/plugin.service';
+import type { PluginFixtureOptions } from './helpers/plugin';
 import {
   APP_LAUNCHER_HANDLER,
   SMS_SENDER_HANDLER,
-  writeMainActivity,
+  androidFilePath,
+  writeAndroidShell,
   writePluginFixture,
 } from './helpers/plugin';
+import { logger } from '../utils/logger';
 
 jest.mock('../utils/logger', () => ({
   logger: {
@@ -27,36 +30,32 @@ jest.mock('../utils/logger', () => ({
   },
 }));
 
+// The tests run against a real temporary project laid out like one `gyo
+// create` writes: mocked paths are what let the wrong source layout pass
+// here while every published plugin failed.
+const GENERATED_FILES = ['gyo.settings.gradle', 'app/gyo.build.gradle'];
+const REGISTRY = 'app/src/main/java/gyo/plugins/bridge/PluginRegistry.kt';
 const APP_LAUNCHER = '@gyo-framework/app-launcher';
 const SMS_SENDER = '@gyo-framework/sms-sender';
 const PACKAGE_NAME = 'com.example.app';
 
 describe('plugin.service', () => {
   let projectPath: string;
-  let androidPath: string;
-  let originalActivity: string;
 
-  const addPlugin = (name: string, handlerClass: string, bridgeName: string): DiscoveredPlugin =>
-    writePluginFixture(projectPath, name, handlerClass, bridgeName);
+  const addPlugin = (
+    name: string,
+    handlerClass: string,
+    bridgeName: string,
+    options?: PluginFixtureOptions
+  ): DiscoveredPlugin => writePluginFixture(projectPath, name, handlerClass, bridgeName, options);
 
-  function readAndroid(relativePath: string): string {
-    return fs.readFileSync(path.join(androidPath, relativePath), 'utf-8');
-  }
-
-  const activityRelativePath = path.join(
-    'app/src/main/java',
-    ...PACKAGE_NAME.split('.'),
-    'MainActivity.kt'
-  );
-  const registryRelativePath = path.join(
-    'app/src/main/java/gyo/plugins/bridge',
-    'PluginRegistry.kt'
-  );
+  const readAndroid = (...relativePath: string[]): string =>
+    fs.readFileSync(androidFilePath(projectPath, ...relativePath), 'utf-8');
 
   beforeEach(() => {
+    jest.clearAllMocks();
     projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-plugin-service-'));
-    androidPath = path.join(projectPath, 'android');
-    originalActivity = fs.readFileSync(writeMainActivity(projectPath, PACKAGE_NAME), 'utf-8');
+    writeAndroidShell(projectPath, PACKAGE_NAME);
   });
 
   afterEach(() => {
@@ -85,12 +84,25 @@ describe('plugin.service', () => {
       });
     });
 
+    it('should discover a plugin that node_modules keeps as a symlink', async () => {
+      // npm link, pnpm and workspaces all install packages as symlinks.
+      const store = path.join(projectPath, 'store');
+      const plugin = writePluginFixture(store, APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      fs.ensureSymlinkSync(
+        plugin.path,
+        path.join(projectPath, 'lib', 'node_modules', ...APP_LAUNCHER.split('/'))
+      );
+
+      const result = await discoverPlugins(projectPath);
+
+      expect(result.map((found) => found.name)).toEqual([APP_LAUNCHER]);
+    });
+
     it('should skip packages without a gyo field', async () => {
-      const bridgePath = path.join(projectPath, 'lib/node_modules/@gyo-framework/bridge');
-      fs.outputJsonSync(path.join(bridgePath, 'package.json'), {
-        name: '@gyo-framework/bridge',
-        version: '0.1.3',
-      });
+      fs.outputJsonSync(
+        path.join(projectPath, 'lib/node_modules/@gyo-framework/bridge/package.json'),
+        { name: '@gyo-framework/bridge', version: '0.1.3' }
+      );
 
       const result = await discoverPlugins(projectPath);
 
@@ -99,142 +111,175 @@ describe('plugin.service', () => {
   });
 
   describe('syncAndroidPlugins', () => {
-    it('should copy a handler to where its package expects it', async () => {
+    it('should include each plugin as a Gradle module from where node_modules keeps it', async () => {
       const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
 
       await syncAndroidPlugins(projectPath, [plugin]);
 
-      const copied = readAndroid('app/src/main/java/gyo/plugins/app_launcher/AppLauncherBridge.kt');
-      expect(copied).toBe('class AppLauncherBridge\n');
-    });
-
-    it('should write a registry that registers every handler', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-
-      await syncAndroidPlugins(projectPath, [plugin]);
-
-      const registry = readAndroid(registryRelativePath);
-      expect(registry).toContain(`import ${APP_LAUNCHER_HANDLER}`);
-      expect(registry).toContain(
-        'BridgeRegistry.register("app_launcher", AppLauncherBridge(context))'
+      const settings = readAndroid('gyo.settings.gradle');
+      expect(settings).toContain("include ':gyo-plugin-app-launcher'");
+      expect(settings).toContain(
+        "project(':gyo-plugin-app-launcher').projectDir = file('../lib/node_modules/@gyo-framework/app-launcher/android')"
       );
     });
 
-    it('should register several plugins', async () => {
+    it('should follow a symlinked package to its real directory', async () => {
+      const store = path.join(projectPath, 'store');
+      const plugin = writePluginFixture(store, APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      fs.ensureSymlinkSync(
+        plugin.path,
+        path.join(projectPath, 'lib', 'node_modules', ...APP_LAUNCHER.split('/'))
+      );
+
+      await syncAndroidPlugins(projectPath, [plugin]);
+
+      expect(readAndroid('gyo.settings.gradle')).toContain(
+        "projectDir = file('../store/lib/node_modules/@gyo-framework/app-launcher/android')"
+      );
+    });
+
+    it('should make the app depend on every plugin module', async () => {
       const plugins = [
-        addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender'),
         addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher'),
+        addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender'),
       ];
 
       await syncAndroidPlugins(projectPath, plugins);
 
-      const registry = readAndroid(registryRelativePath);
+      const appGradle = readAndroid('app/gyo.build.gradle');
+      expect(appGradle).toContain("implementation project(':gyo-plugin-app-launcher')");
+      expect(appGradle).toContain("implementation project(':gyo-plugin-sms-sender')");
+    });
+
+    it('should write a registry that registers every handler', async () => {
+      const plugins = [
+        addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher'),
+        addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender'),
+      ];
+
+      await syncAndroidPlugins(projectPath, plugins);
+
+      const registry = readAndroid(REGISTRY);
+      expect(registry).toContain(`import ${APP_LAUNCHER_HANDLER}`);
       expect(registry).toContain(
         'BridgeRegistry.register("app_launcher", AppLauncherBridge(context))'
       );
       expect(registry).toContain('BridgeRegistry.register("sms_sender", SmsSenderBridge(context))');
     });
 
-    it('should make MainActivity run the registry', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-
-      await syncAndroidPlugins(projectPath, [plugin]);
-
-      const activity = readAndroid(activityRelativePath);
-      expect(activity).toContain('import gyo.plugins.bridge.PluginRegistry');
-      expect(activity).toContain(
-        'BridgeRegistry.initialize()\n        PluginRegistry.registerAll(this)'
-      );
-    });
-
-    it('should replace the sources of a plugin on a new version', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-      await syncAndroidPlugins(projectPath, [plugin]);
-
-      fs.writeFileSync(
-        path.join(
-          plugin.path,
-          'android/src/main/kotlin/gyo/plugins/app_launcher/AppLauncherBridge.kt'
-        ),
-        'class AppLauncherBridge // 0.2.0\n'
-      );
-      await syncAndroidPlugins(projectPath, [{ ...plugin, version: '0.2.0' }]);
-
-      expect(
-        readAndroid('app/src/main/java/gyo/plugins/app_launcher/AppLauncherBridge.kt')
-      ).toContain('0.2.0');
-    });
-
-    it('should fail when a plugin declares a handler but ships no sources', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-      fs.removeSync(path.join(plugin.path, 'android'));
-
-      await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow('ships no sources');
-    });
-
-    it('should fail when the declared bridge name is not an identifier', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app launcher');
-
-      await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow('as its bridge name');
-    });
-
-    it('should remove what a plugin leaves behind once it is gone', async () => {
-      const appLauncher = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-      const smsSender = addPlugin(SMS_SENDER, SMS_SENDER_HANDLER, 'sms_sender');
-      await syncAndroidPlugins(projectPath, [appLauncher, smsSender]);
-
-      await syncAndroidPlugins(projectPath, [smsSender]);
-
-      expect(
-        fs.pathExistsSync(path.join(androidPath, 'app/src/main/java/gyo/plugins/app_launcher'))
-      ).toBe(false);
-      expect(readAndroid(registryRelativePath)).not.toContain('app_launcher');
-      expect(
-        fs.pathExistsSync(
-          path.join(androidPath, 'app/src/main/java/gyo/plugins/sms_sender/SmsSenderBridge.kt')
-        )
-      ).toBe(true);
-      expect(readAndroid(activityRelativePath)).toContain('PluginRegistry.registerAll(this)');
-    });
-
-    it('should restore MainActivity and drop the registry once no plugin is left', async () => {
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
-      await syncAndroidPlugins(projectPath, [plugin]);
+    it('should leave the shell as the template ships it when no plugin is installed', async () => {
+      const before = [...GENERATED_FILES, REGISTRY].map((file) => readAndroid(file));
 
       await syncAndroidPlugins(projectPath, []);
 
-      expect(readAndroid(activityRelativePath)).toBe(originalActivity);
-      expect(fs.pathExistsSync(path.join(androidPath, registryRelativePath))).toBe(false);
-      expect(
-        fs.pathExistsSync(path.join(androidPath, 'app/src/main/java/gyo/plugins/app_launcher'))
-      ).toBe(false);
+      expect([...GENERATED_FILES, REGISTRY].map((file) => readAndroid(file))).toEqual(before);
     });
 
-    it('should fail when MainActivity cannot register the plugins', async () => {
-      fs.writeFileSync(
-        path.join(androidPath, activityRelativePath),
-        originalActivity.replace('BridgeRegistry.initialize()', '')
-      );
-      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+    it('should fail when a plugin has sources but no Gradle module', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher', {
+        module: false,
+      });
 
       await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow(
-        'register the plugins after'
+        'no android/build.gradle'
       );
     });
 
-    it('should record the synced plugins with paths relative to the project', async () => {
+    it('should fail when two plugins are included as the same Gradle project', async () => {
+      const plugins = [
+        addPlugin('@gyo-framework/sms-sender', SMS_SENDER_HANDLER, 'sms_sender'),
+        // A dot is not allowed in a Gradle project name; both become sms-sender.
+        addPlugin('@gyo-community/sms.sender', SMS_SENDER_HANDLER, 'sms_sender'),
+      ];
+
+      await expect(syncAndroidPlugins(projectPath, plugins)).rejects.toThrow(
+        'Two plugins are included as :gyo-plugin-sms-sender'
+      );
+    });
+
+    it('should fail when the Android shell predates plugin modules', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      fs.removeSync(androidFilePath(projectPath, 'gyo-bridge/build.gradle'));
+
+      await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow(
+        'predates plugin modules'
+      );
+    });
+
+    it('should fail when the Gradle files that include the plugins are not applied', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      fs.writeFileSync(
+        androidFilePath(projectPath, 'settings.gradle'),
+        readAndroid('settings.gradle').replace("apply from: 'gyo.settings.gradle'", '')
+      );
+
+      await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow(
+        'settings.gradle must apply'
+      );
+    });
+
+    it('should fail when a file in the app duplicates a handler class', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      fs.outputFileSync(
+        androidFilePath(
+          projectPath,
+          'app/src/main/java/gyo/plugins/app_launcher/AppLauncherBridge.kt'
+        ),
+        'class AppLauncherBridge\n'
+      );
+
+      await expect(syncAndroidPlugins(projectPath, [plugin])).rejects.toThrow('duplicate classes');
+    });
+
+    it('should remove the sources an earlier gyo copied into the app', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
+      // A sync record without a model was written before plugins were modules.
+      fs.outputJsonSync(path.join(projectPath, '.gyo-plugins'), { plugins: [plugin] });
+      const copied = androidFilePath(
+        projectPath,
+        'app/src/main/java/gyo/plugins/app_launcher/AppLauncherBridge.kt'
+      );
+      fs.outputFileSync(copied, 'class AppLauncherBridge\n');
+
+      await syncAndroidPlugins(projectPath, [plugin]);
+
+      expect(fs.existsSync(path.dirname(copied))).toBe(false);
+    });
+
+    it('should point out run-time permissions the app does not declare', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher', {
+        permissions: ['android.permission.READ_CONTACTS'],
+      });
+
+      await syncAndroidPlugins(projectPath, [plugin]);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('android.permission.READ_CONTACTS')
+      );
+    });
+
+    it('should stay quiet about permissions the app declares', async () => {
+      const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher', {
+        permissions: ['android.permission.INTERNET'],
+      });
+
+      await syncAndroidPlugins(projectPath, [plugin]);
+
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should record the model and paths relative to the project', async () => {
       const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
 
       await syncAndroidPlugins(projectPath, [plugin]);
 
       const manifest = await readManifest(projectPath);
-      expect(manifest?.plugins).toHaveLength(1);
+      expect(manifest?.model).toBe('gradle-module');
       expect(manifest?.plugins[0].path).toBe('lib/node_modules/@gyo-framework/app-launcher');
-      expect(manifest).not.toHaveProperty('timestamp');
     });
 
     it('should fail when the project has no android directory', async () => {
-      fs.removeSync(androidPath);
+      fs.removeSync(androidFilePath(projectPath));
 
       await expect(syncAndroidPlugins(projectPath, [])).rejects.toThrow(
         'Android project not found'
@@ -246,15 +291,11 @@ describe('plugin.service', () => {
     it('should leave the project alone when nothing changed', async () => {
       const plugin = addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
       await syncAndroidPlugins(projectPath, [plugin]);
-      const copied = path.join(
-        androidPath,
-        'app/src/main/java/gyo/plugins/app_launcher/AppLauncherBridge.kt'
-      );
-      fs.writeFileSync(copied, 'edited by hand\n');
+      fs.writeFileSync(androidFilePath(projectPath, REGISTRY), 'edited by hand\n');
 
       await syncAndroidPluginsIfNeeded(projectPath);
 
-      expect(fs.readFileSync(copied, 'utf-8')).toBe('edited by hand\n');
+      expect(readAndroid(REGISTRY)).toBe('edited by hand\n');
     });
 
     it('should sync a plugin installed since the last sync', async () => {
@@ -263,7 +304,7 @@ describe('plugin.service', () => {
       addPlugin(APP_LAUNCHER, APP_LAUNCHER_HANDLER, 'app_launcher');
       await syncAndroidPluginsIfNeeded(projectPath);
 
-      expect(readAndroid(activityRelativePath)).toContain('PluginRegistry.registerAll(this)');
+      expect(readAndroid(REGISTRY)).toContain('BridgeRegistry.register("app_launcher"');
     });
   });
 });
@@ -277,29 +318,30 @@ describe('needsSync', () => {
     hasAndroid: true,
     hasIOS: false,
   };
-  const manifestWith = (...plugins: DiscoveredPlugin[]): PluginManifest => ({ plugins });
+  const manifestWith = (...plugins: DiscoveredPlugin[]): PluginManifest => ({
+    model: 'gradle-module',
+    plugins,
+  });
 
   it('should return true when there is no manifest', () => {
     expect(needsSync(null, [plugin])).toBe(true);
+  });
+
+  it('should return true for a manifest written before plugins were modules', () => {
+    expect(needsSync({ plugins: [plugin] }, [plugin])).toBe(true);
   });
 
   it('should return false when the manifest matches the installed plugins', () => {
     expect(needsSync(manifestWith(plugin), [plugin])).toBe(false);
   });
 
-  it('should return true when a plugin was added', () => {
+  it('should return true when a plugin was added or removed', () => {
     expect(needsSync(manifestWith(), [plugin])).toBe(true);
-  });
-
-  it('should return true when a plugin was removed', () => {
     expect(needsSync(manifestWith(plugin), [])).toBe(true);
   });
 
-  it('should return true when a plugin has a new version', () => {
+  it('should return true when a plugin has a new version or another platform', () => {
     expect(needsSync(manifestWith(plugin), [{ ...plugin, version: '0.2.0' }])).toBe(true);
-  });
-
-  it('should return true when a plugin gained or lost a platform', () => {
     expect(needsSync(manifestWith(plugin), [{ ...plugin, hasIOS: true }])).toBe(true);
   });
 });

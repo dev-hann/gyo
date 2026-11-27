@@ -1,0 +1,3 @@
+// Written by gyo. DO NOT EDIT: gyo run, gyo build and gyo install rewrite it before every build.
+
+// Every plugin installed in lib/ is one Gradle module, included from where node_modules keeps it.

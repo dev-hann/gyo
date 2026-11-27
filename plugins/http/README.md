@@ -13,7 +13,6 @@ Decoding is left to the caller, who knows the charset.
 
 ```bash
 npm install @gyo-framework/http
-gyo build android   # once, to copy the Kotlin handler and register the bridge
 ```
 
-Android only. The app needs OkHttp; the gyo Android template already includes it.
+`gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Android only; the module brings its own OkHttp.
