@@ -24,6 +24,8 @@ export interface KeystoreProperties {
 type Environment = Record<string, string | undefined>;
 
 const GRADLE_FILE = 'app/build.gradle';
+const VERSION_CODE = /versionCode(\s*=?\s*)\d+/;
+const VERSION_NAME = /versionName(\s*=?\s*)"[^"]*"/;
 const STRINGS_FILE = 'app/src/main/res/values/strings.xml';
 const MANIFEST_FILE = 'app/src/main/AndroidManifest.xml';
 const LAUNCHER_ICON_FILE = 'app/src/main/res/mipmap-xxxhdpi/ic_launcher.png';
@@ -171,20 +173,25 @@ async function syncGradleVersion(
   const gradle = await readFile(gradlePath);
   let next = gradle;
 
+  // Groovy accepts `versionCode 1` and `versionCode = 1`; a project made by
+  // an earlier gyo has the first, the template now has the second. Keep each.
   if (versionCode !== undefined) {
-    if (!/versionCode\s+\d+/.test(next)) {
+    if (!VERSION_CODE.test(next)) {
       throw new BuildFailedError(`${gradlePath} has no "versionCode <number>" line to update.`);
     }
-    next = next.replace(/versionCode\s+\d+/, `versionCode ${versionCode}`);
+    next = next.replace(
+      VERSION_CODE,
+      (_match, assignment: string) => `versionCode${assignment}${versionCode}`
+    );
   }
 
-  if (!/versionName\s+"[^"]*"/.test(next)) {
+  if (!VERSION_NAME.test(next)) {
     throw new BuildFailedError(`${gradlePath} has no "versionName" line to update.`);
   }
-  next = next.replace(
-    /versionName\s+"[^"]*"/,
-    `versionName "${versionName.replace(/[\\"]/g, '\\$&')}"`
-  );
+  next = next.replace(VERSION_NAME, (_match, assignment: string) => {
+    const quoted = versionName.replace(/[\\"]/g, '\\$&');
+    return `versionName${assignment}"${quoted}"`;
+  });
 
   await writeFile(gradlePath, next);
 }

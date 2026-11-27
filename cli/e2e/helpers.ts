@@ -223,16 +223,22 @@ export function itIfIOS(): jest.It {
   return skipIf(!hasIOSDevice, 'No iOS device connected');
 }
 
+/** The platform the template compiles against. Unreadable is a broken template, not a reason to skip. */
+function templateCompileSdk(): string {
+  const template = path.join(ROOT_DIR, 'cli/templates/android/app/build.gradle');
+  const compileSdk = fs.readFileSync(template, 'utf-8').match(/compileSdk\s*=?\s*(\d+)/)?.[1];
+  if (!compileSdk) {
+    throw new Error(`Cannot read compileSdk from ${template}`);
+  }
+  return compileSdk;
+}
+
 /** True when the SDK has the platform the template compiles against, and Java is installed. */
 function hasAndroidSdk(): boolean {
-  const template = path.join(ROOT_DIR, 'cli/templates/android/app/build.gradle');
-  const compileSdk = fs.readFileSync(template, 'utf-8').match(/compileSdk\s+(\d+)/)?.[1];
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-
   return Boolean(
-    compileSdk &&
-      sdk &&
-      fs.existsSync(path.join(sdk, 'platforms', `android-${compileSdk}`)) &&
+    sdk &&
+      fs.existsSync(path.join(sdk, 'platforms', `android-${templateCompileSdk()}`)) &&
       commandSucceeds('java -version')
   );
 }

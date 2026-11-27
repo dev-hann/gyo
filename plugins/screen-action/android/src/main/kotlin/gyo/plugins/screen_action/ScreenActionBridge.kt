@@ -102,13 +102,10 @@ class ScreenActionBridge(private val context: Context) : BridgeHandler {
             val arguments = android.os.Bundle()
             arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
             val result = focusNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-            focusNode.recycle()
-            rootNode.recycle()
             Log.d(TAG, "type: ACTION_SET_TEXT result=$result")
             return result
         }
 
-        rootNode.recycle()
         Log.w(TAG, "type: no focused node found")
         return false
     }

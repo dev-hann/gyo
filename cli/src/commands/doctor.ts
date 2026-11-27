@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { getAndroidCompileSdk, getRequiredNodeMajor } from '../utils/paths';
 
-/** AGP 8 needs it; the template's Gradle files are written for it. */
+/** The Android Gradle Plugin needs it, and the template compiles for Java 17. */
 const REQUIRED_JDK_MAJOR = 17;
 
 /** The version `java --version` prints, with or without a patch release: "17.0.20", "21", "1.8.0_392". */

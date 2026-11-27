@@ -195,7 +195,7 @@ An Android project without `android/gyo-bridge/` cannot include plugins. It need
 | Requirement | Minimum |
 |-------------|---------|
 | JDK | 17 |
-| Android SDK | API 24 |
+| Android SDK | the platform the template compiles against: 36 |
 | Build-Tools | latest |
 | ADB | included with SDK |
 

@@ -2,33 +2,28 @@
 // it and plugins compile against it.
 plugins {
     id 'com.android.library'
-    id 'org.jetbrains.kotlin.android'
 }
 
 android {
-    namespace 'gyo.plugins.bridge'
-    compileSdk 34
+    namespace = 'gyo.plugins.bridge'
+    compileSdk = 36
 
     defaultConfig {
-        minSdk 24
+        minSdk = 24
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.12.0'
-    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.core:core-ktx:1.17.0'
+    implementation 'androidx.webkit:webkit:1.16.0'
 
     // Android's org.json is a stub in JVM unit tests; the real one answers
     // JSONObject.quote for the bridge script tests.
-    testImplementation 'org.json:json:20240303'
+    testImplementation 'org.json:json:20260814'
     testImplementation 'junit:junit:4.13.2'
 }

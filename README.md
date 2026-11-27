@@ -11,7 +11,7 @@ The web app is deployed on a server (or run locally during development). The nat
 | Node.js | 24.0 | All |
 | npm | 11.0 | All |
 | Android Studio | Hedgehog | Android |
-| Android SDK | API 24 | Android |
+| Android SDK | platform 36 | Android |
 | JDK | 17 | Android |
 | xtool | latest | iOS |
 | libimobiledevice | any | iOS (Linux only) |

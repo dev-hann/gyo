@@ -19,6 +19,7 @@
 
 ### Changed
 
+- Android: the generated project builds with Android Gradle Plugin 9.5.3 and Gradle 9.9.2, with Kotlin built into the plugin, and compiles against and targets API 36, which Google Play requires since August 2026. Code is compiled for Java 17. The app keeps its page clear of the system bars and the keyboard, since Android 15 draws apps that target 35 or later edge to edge, and handles Back through `OnBackPressedCallback`
 - Every package is versioned above what is on npm, and the plugins require `@gyo-framework/bridge@^0.2.0`. The newer versions on npm had been published from work that was never committed to the repository; their Kotlin is brought back: `app-launcher` lists the apps through the launcher intent, `notification-reader` returns the notifications newest first with their ids and the expanded text
 - ESLint has one configuration for every TypeScript source; it used to list each package
 - Plugin naming unified to `@gyo-framework/*` scope

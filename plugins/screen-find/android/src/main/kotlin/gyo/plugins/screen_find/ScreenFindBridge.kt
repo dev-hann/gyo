@@ -54,14 +54,11 @@ class ScreenFindBridge(private val context: Context) : BridgeHandler {
 
         for (node in nodes) {
             if (exact && node.text?.toString() != text) {
-                node.recycle()
                 continue
             }
             resultArray.put(nodeToElementInfo(node))
-            node.recycle()
         }
 
-        root.recycle()
 
         return JSONObject().apply {
             put("elements", resultArray)
@@ -93,10 +90,8 @@ class ScreenFindBridge(private val context: Context) : BridgeHandler {
 
         for (node in nodes) {
             resultArray.put(nodeToElementInfo(node))
-            node.recycle()
         }
 
-        root.recycle()
 
         return JSONObject().apply {
             put("elements", resultArray)

@@ -2,12 +2,11 @@
 // the app's Gradle build from wherever node_modules keeps this package.
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "gyo.plugins.sms_sender"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
@@ -16,10 +15,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     sourceSets {
@@ -32,5 +27,5 @@ android {
 dependencies {
     // The app brings the bridge module; this one only needs BridgeHandler to compile.
     compileOnly(project(":gyo-bridge"))
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-ktx:1.17.0")
 }

@@ -61,8 +61,21 @@ class DeviceInfoBridge(private val context: Context) : BridgeHandler {
 
     private fun getDisplayMetrics(): DisplayMetrics {
         val metrics = DisplayMetrics()
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        windowManager.defaultDisplay.getRealMetrics(metrics)
+        metrics.density = context.resources.displayMetrics.density
+        metrics.densityDpi = context.resources.displayMetrics.densityDpi
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowManager = context.getSystemService(WindowManager::class.java)
+            val bounds = windowManager.currentWindowMetrics.bounds
+            metrics.widthPixels = bounds.width()
+            metrics.heightPixels = bounds.height()
+        } else {
+            @Suppress("DEPRECATION")
+            val display = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+            @Suppress("DEPRECATION")
+            display.getRealMetrics(metrics)
+        }
+
         return metrics
     }
 

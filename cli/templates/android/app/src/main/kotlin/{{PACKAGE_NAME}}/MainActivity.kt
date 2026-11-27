@@ -14,6 +14,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import org.json.JSONObject
@@ -31,6 +34,20 @@ class MainActivity : AppCompatActivity() {
     private var fullscreenView: View? = null
     private var fullscreenCallback: WebChromeClient.CustomViewCallback? = null
 
+    /** Back closes full-screen video, then leaves the previous page, then the app. */
+    private val backHandler = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            when {
+                fullscreenView != null -> hideFullscreen()
+                webView.canGoBack() -> webView.goBack()
+                else -> {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,15 +59,34 @@ class MainActivity : AppCompatActivity() {
         webView = WebView(this)
         setContentView(webView)
 
+        onBackPressedDispatcher.addCallback(this, backHandler)
+        keepClearOfSystemBars()
         setupWebView()
         loadApp()
     }
 
+    /**
+     * Android 15 and later draw the app edge to edge. Keep the page clear
+     * of the system bars, the cutout and the keyboard; a page then scrolls
+     * its inputs into what is left.
+     */
+    private fun keepClearOfSystemBars() {
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
+            val covered = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                    WindowInsetsCompat.Type.displayCutout() or
+                    WindowInsetsCompat.Type.ime()
+            )
+            view.setPadding(covered.left, covered.top, covered.right, covered.bottom)
+            WindowInsetsCompat.CONSUMED
+        }
+    }
+
+    @Suppress("DEPRECATION") // allowUniversalAccessFromFileURLs is the setting gyo.config.json names
     private fun setupWebView() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
             allowFileAccess = gyoConfig.allowFileAccess
             allowContentAccess = true
             allowUniversalAccessFromFileURLs = gyoConfig.allowUniversalAccessFromFileURLs
@@ -254,14 +290,6 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         permissionBridge.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    }
-
-    override fun onBackPressed() {
-        when {
-            fullscreenView != null -> hideFullscreen()
-            webView.canGoBack() -> webView.goBack()
-            else -> super.onBackPressed()
-        }
     }
 
     data class GyoConfig(

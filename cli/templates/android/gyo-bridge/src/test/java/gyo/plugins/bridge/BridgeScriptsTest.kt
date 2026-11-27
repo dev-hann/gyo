@@ -3,7 +3,6 @@ package gyo.plugins.bridge
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BridgeScriptsTest {
@@ -42,12 +41,10 @@ class BridgeScriptsTest {
 
     @Test
     fun aHandlerResultKeepsItsShape() {
-        // The order of an object's keys carries no meaning: compare parsed.
-        assertTrue(
-            JSONObject("""{"granted":["a"],"denied":[]}""").similar(
-                JSONObject(toJson(mapOf("granted" to listOf("a"), "denied" to emptyList<String>())))
-            )
-        )
+        // The order of an object's keys carries no meaning: read the fields.
+        val result = JSONObject(toJson(mapOf("granted" to listOf("a"), "denied" to emptyList<String>())))
+        assertEquals("a", result.getJSONArray("granted").getString(0))
+        assertEquals(0, result.getJSONArray("denied").length())
         assertEquals("""["a","b"]""", toJson(listOf("a", "b")))
         assertEquals("null", toJson(null))
         assertEquals("\"it's\"", toJson("it's"))

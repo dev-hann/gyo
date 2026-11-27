@@ -49,8 +49,8 @@ const ANDROID = '/project/android';
 const GRADLE = [
   'android {',
   '    defaultConfig {',
-  '        versionCode 1',
-  '        versionName "1.0.0"',
+  '        versionCode = 1',
+  '        versionName = "1.0.0"',
   '    }',
   '}',
 ].join('\n');
@@ -215,14 +215,23 @@ describe('syncAndroidAppIdentity', () => {
   it('should write the version into build.gradle', async () => {
     await syncAndroidAppIdentity(ANDROID, { versionName: '3.15.0', versionCode: 73 });
 
-    expect(written('build.gradle')).toContain('versionCode 73');
-    expect(written('build.gradle')).toContain('versionName "3.15.0"');
+    expect(written('build.gradle')).toContain('versionCode = 73');
+    expect(written('build.gradle')).toContain('versionName = "3.15.0"');
   });
 
   it('should keep the version code when none is configured', async () => {
     await syncAndroidAppIdentity(ANDROID, { versionName: '3.15.0' });
 
-    expect(written('build.gradle')).toContain('versionCode 1');
+    expect(written('build.gradle')).toContain('versionCode = 1');
+  });
+
+  it('should keep the assignment style of a project made by an earlier gyo', async () => {
+    mockedReadFile.mockResolvedValueOnce(GRADLE.replace('versionCode = 1', 'versionCode 1'));
+
+    await syncAndroidAppIdentity(ANDROID, { versionName: '3.15.0', versionCode: 73 });
+
+    expect(written('build.gradle')).toContain('versionCode 73');
+    expect(written('build.gradle')).toContain('versionName = "3.15.0"');
   });
 
   it('should write the display name into strings.xml and point the manifest at it', async () => {

@@ -3,7 +3,6 @@
 // hand. storeFile is resolved relative to app/. The file is ignored by git.
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
 }
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -13,63 +12,57 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace '{{PACKAGE_NAME}}'
-    compileSdk 34
+    namespace = '{{PACKAGE_NAME}}'
+    compileSdk = 36
 
     defaultConfig {
-        applicationId "{{PACKAGE_NAME}}"
-        minSdk 24
-        targetSdk 34
+        applicationId = "{{PACKAGE_NAME}}"
+        minSdk = 24
+        targetSdk = 36
 
         // versionCode and versionName follow gyo.config.json; `gyo build` and
         // `gyo run` rewrite these two lines.
-        versionCode 1
-        versionName "1.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        versionCode = 1
+        versionName = "1.0"
     }
 
     signingConfigs {
         release {
             if (keystorePropertiesFile.exists()) {
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+                storeFile = file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
             }
         }
     }
 
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled = true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystorePropertiesFile.exists()) {
-                signingConfig signingConfigs.release
+                signingConfig = signingConfigs.release
             }
         }
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 }
 
 dependencies {
     implementation project(':gyo-bridge')
 
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.webkit:webkit:1.12.1'
-    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.webkit:webkit:1.16.0'
+    implementation 'com.google.android.material:material:1.12.0'
 }
 
 // The plugins installed in lib/. gyo rewrites the file before every build.

@@ -6,7 +6,7 @@ Android project for {{PROJECT_NAME}} gyo app.
 
 - Android SDK with the platform named by `compileSdk` in `app/build.gradle`
 - JDK 17+
-- Gradle (wrapper included)
+- Gradle (wrapper included); the Android Gradle Plugin version is in `build.gradle`, and Kotlin comes built into it
 
 ## Project Structure
 

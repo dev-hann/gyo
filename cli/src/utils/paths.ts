@@ -42,7 +42,7 @@ export function getRequiredNodeMajor(): number {
 /** The Android platform a generated project compiles against. */
 export function getAndroidCompileSdk(): number {
   const gradle = fs.readFileSync(cliFile('templates', 'android', 'app', 'build.gradle'), 'utf-8');
-  const level = Number(gradle.match(/compileSdk\s+(\d+)/)?.[1]);
+  const level = Number(gradle.match(/compileSdk\s*=?\s*(\d+)/)?.[1]);
   if (!Number.isInteger(level)) {
     throw new GyoError('Cannot read compileSdk from the Android template.');
   }
