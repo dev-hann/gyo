@@ -2,7 +2,6 @@ import {
   loadConfig,
   saveConfig,
   setConfigValue,
-  getProfileUrl,
   shouldStartLocalServer,
   validateConfig,
 } from '../services/config.service';
@@ -24,7 +23,6 @@ jest.mock('../utils/logger', () => ({
 }));
 
 import { readJson, writeJson, pathExists } from '../utils/fs';
-import { logger } from '../utils/logger';
 
 const mockedReadJson = readJson as jest.MockedFunction<typeof readJson>;
 const mockedWriteJson = writeJson as jest.MockedFunction<typeof writeJson>;
@@ -236,81 +234,6 @@ describe('config.service', () => {
     });
   });
 
-  describe('getProfileUrl', () => {
-    it('should return serverUrl from the specified profile', () => {
-      const config = {
-        ...validConfig,
-        profiles: {
-          development: { serverUrl: 'http://dev.local' },
-          production: { serverUrl: 'https://prod.example.com' },
-        },
-      } as unknown as GyoConfig;
-
-      expect(getProfileUrl(config, 'development')).toBe('http://dev.local');
-    });
-
-    it('should return production serverUrl when profile is production', () => {
-      const config = {
-        ...validConfig,
-        profiles: {
-          development: { serverUrl: 'http://dev.local' },
-          production: { serverUrl: 'https://prod.example.com' },
-        },
-      } as unknown as GyoConfig;
-
-      expect(getProfileUrl(config, 'production')).toBe('https://prod.example.com');
-    });
-
-    it('should use legacy serverUrl when profiles not defined', () => {
-      const config = {
-        ...validConfig,
-        serverUrl: 'http://legacy.local',
-      } as unknown as GyoConfig;
-
-      expect(getProfileUrl(config, 'staging')).toBe('http://legacy.local');
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('legacy serverUrl'));
-    });
-
-    it('should throw when profile serverUrl is empty string', () => {
-      const config = {
-        ...validConfig,
-        profiles: {
-          development: { serverUrl: '  ' },
-        },
-      } as unknown as GyoConfig;
-
-      expect(() => getProfileUrl(config, 'development')).toThrow(
-        "Profile 'development' serverUrl cannot be empty"
-      );
-    });
-
-    it('should throw when legacy serverUrl is empty string', () => {
-      const config = {
-        ...validConfig,
-        serverUrl: '  ',
-      } as unknown as GyoConfig;
-
-      expect(() => getProfileUrl(config, 'staging')).toThrow('serverUrl cannot be empty');
-    });
-
-    it('should throw when profile not found and no legacy serverUrl', () => {
-      const config = { ...validConfig } as unknown as GyoConfig;
-
-      expect(() => getProfileUrl(config, 'staging')).toThrow("Profile 'staging' not found");
-    });
-
-    it('should default to development profile', () => {
-      const config = {
-        ...validConfig,
-        profiles: {
-          development: { serverUrl: 'http://dev.local' },
-        },
-      } as unknown as GyoConfig;
-
-      expect(getProfileUrl(config)).toBe('http://dev.local');
-    });
-  });
-
   describe('shouldStartLocalServer', () => {
     it('should return true for development profile', () => {
       expect(shouldStartLocalServer('development')).toBe(true);
@@ -358,10 +281,6 @@ describe('config.service', () => {
       const noPlatforms = { ...validConfig };
       delete (noPlatforms as Record<string, unknown>).platforms;
       expect(validateConfig(noPlatforms)).toBe(false);
-    });
-
-    it('should reject non-string serverUrl', () => {
-      expect(validateConfig({ ...validConfig, serverUrl: 42 })).toBe(false);
     });
 
     it('should accept config with valid profiles', () => {
@@ -483,18 +402,6 @@ describe('config.service', () => {
         platforms: {},
       };
       expect(validateConfig(config)).toBe(true);
-    });
-
-    it('should reject legacy serverUrl without http:// or https://', () => {
-      expect(validateConfig({ ...validConfig, serverUrl: 'ftp://bad.local' })).toBe(false);
-    });
-
-    it('should accept legacy serverUrl with http://', () => {
-      expect(validateConfig({ ...validConfig, serverUrl: 'http://localhost:3000' })).toBe(true);
-    });
-
-    it('should accept legacy serverUrl with https://', () => {
-      expect(validateConfig({ ...validConfig, serverUrl: 'https://prod.example.com' })).toBe(true);
     });
 
     it('should reject profile serverUrl without http:// or https://', () => {

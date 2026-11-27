@@ -38,7 +38,6 @@ jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn().mockResolvedValue(null),
   validateConfig: jest.fn(),
   saveConfig: jest.fn(),
-  getProfileUrl: jest.fn().mockReturnValue('http://localhost:3000'),
   shouldStartLocalServer: jest.fn(),
 }));
 

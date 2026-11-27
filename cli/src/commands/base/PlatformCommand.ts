@@ -23,6 +23,12 @@ export abstract class PlatformCommand<
     this.platform = platform;
   }
 
+  setPositionalArgs([platform]: string[]): void {
+    if (platform) {
+      this.setPlatform(platform as Platform);
+    }
+  }
+
   protected async beforeRun(): Promise<void> {
     this.validatePlatform();
     await this.requireGyoProject();

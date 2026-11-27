@@ -36,7 +36,6 @@ jest.mock('../services/config.service', () => ({
   }),
   validateConfig: jest.fn(),
   saveConfig: jest.fn(),
-  getProfileUrl: jest.fn(),
   shouldStartLocalServer: jest.fn(),
 }));
 
@@ -52,7 +51,7 @@ describe('DebugCommand', () => {
     const command = new DebugCommand();
     const meta = command.getMeta();
 
-    expect(meta.name).toBe('debug <platform>');
+    expect(meta.name).toBe('debug');
     expect(meta.description).toBe('Launch debugger for the specified platform');
   });
 

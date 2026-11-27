@@ -20,21 +20,9 @@ export class PlatformNotFoundError extends GyoError {
   }
 }
 
-export class CommandNotFoundError extends GyoError {
-  constructor(command: string) {
-    super(`Command '${command}' not found`);
-  }
-}
-
 export class ToolRequiredError extends GyoError {
   constructor(tool: string, installHint: string) {
     super(`Required tool '${tool}' not found. ${installHint}`);
-  }
-}
-
-export class ConfigNotFoundError extends GyoError {
-  constructor() {
-    super('gyo.config.json not found');
   }
 }
 

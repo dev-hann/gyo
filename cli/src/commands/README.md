@@ -7,9 +7,8 @@ Implementation directory for CLI commands.
 ```
 commands/
 ├── base/
-│   ├── BaseCommand.ts          # Spinner, error handling, config loading
-│   ├── PlatformCommand.ts      # Single platform validation
-│   └── MultiPlatformCommand.ts # Multi-platform processing
+│   ├── BaseCommand.ts          # Options, arguments, lifecycle, error reporting
+│   └── PlatformCommand.ts      # A command bound to one platform of a project
 ├── build/
 │   ├── AbstractBuildCommand.ts
 │   ├── AndroidBuildCommand.ts
@@ -27,7 +26,7 @@ commands/
 
 ## Pattern
 
-Every command implements `getMeta()` and `run()`:
+Every command implements `getMeta()` and `run()`. A command with positional arguments takes them in `setPositionalArgs()`, in the order `getMeta().arguments` spells them. The name in `getMeta()` is the command's word alone: the arguments are listed apart, once.
 
 ```typescript
 export class MyCommand extends BaseCommand<MyCommandOptions> {
@@ -36,9 +35,18 @@ export class MyCommand extends BaseCommand<MyCommandOptions> {
 }
 ```
 
+| Member | Role |
+|--------|------|
+| `getMeta()` | Name, description, arguments and options, as Commander takes them |
+| `setPositionalArgs(args)` | Where the positional arguments arrive |
+| `setOptions(options)` | Where the options arrive; merges, so the order of the two does not matter |
+| `beforeRun()` | Checks that run before `run()`: a platform, a project, a config |
+| `run()` | The command |
+| `handleError(error)` | Reports once and rethrows; the entry point only exits |
+
 ## Registration
 
-Commands are registered in `src/index.ts` via `registerCommand(new MyCommand())`.
+Commands are registered in `src/program.ts` with `registerCommand(program, new MyCommand())`. Commander hands each command what it parsed; nothing is cast there. `program.test.ts` goes through Commander for every command, which is where a wrongly declared argument shows.
 
 ## Adding a New Command
 

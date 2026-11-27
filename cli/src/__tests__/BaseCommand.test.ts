@@ -6,7 +6,6 @@ jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn(),
   validateConfig: jest.fn(),
   saveConfig: jest.fn(),
-  getProfileUrl: jest.fn(),
   shouldStartLocalServer: jest.fn(),
 }));
 

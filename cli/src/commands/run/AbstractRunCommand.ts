@@ -309,46 +309,40 @@ export abstract class AbstractRunCommand extends PlatformCommand<RunCommandOptio
     logger.log('');
   }
 
-  protected async monitorLogs(_identifier: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      if (!this.platformProcess) {
-        resolve();
-        return;
-      }
+  protected abstract monitorLogs(identifier: string): Promise<void>;
 
-      const logLine = (line: string, logFn: (msg: string) => void): void => {
-        const trimmed = line.trim();
-        if (trimmed) {
-          logFn(trimmed);
+  /**
+   * Streams what a log process prints until it ends. Resolves when the
+   * process exits and rejects when it cannot be started.
+   */
+  protected followLogProcess(
+    proc: ChildProcess,
+    onLine: (line: string, stream: 'stdout' | 'stderr') => void
+  ): Promise<void> {
+    const forward =
+      (stream: 'stdout' | 'stderr') =>
+      (data: Buffer): void => {
+        for (const line of data.toString().split('\n')) {
+          if (line.trim()) {
+            onLine(line.trim(), stream);
+          }
         }
       };
+    proc.stdout?.on('data', forward('stdout'));
+    proc.stderr?.on('data', forward('stderr'));
 
-      this.platformProcess.stdout?.on('data', (data: Buffer) => {
-        data
-          .toString()
-          .split('\n')
-          .forEach((line) => logLine(line, logger.info));
-      });
-
-      this.platformProcess.stderr?.on('data', (data: Buffer) => {
-        data
-          .toString()
-          .split('\n')
-          .forEach((line) => logLine(line, logger.warn));
-      });
-
-      this.platformProcess.on('exit', (code) => {
+    return new Promise<void>((resolve, reject) => {
+      proc.once('exit', (code) => {
         if (!this.isCleaningUp && code !== 0) {
           logger.warn('Log monitoring stopped');
         }
         resolve();
       });
-
-      this.platformProcess.on('error', (error) => {
-        if (!this.isCleaningUp) {
-          reject(error);
-        } else {
+      proc.once('error', (error) => {
+        if (this.isCleaningUp) {
           resolve();
+        } else {
+          reject(error);
         }
       });
     });

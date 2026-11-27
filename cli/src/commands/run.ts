@@ -5,8 +5,18 @@ import { IOSRunCommand } from './run/IOSRunCommand';
 import type { Device } from '../services/device.service';
 import { getAllDevices } from '../services/device.service';
 import { logger } from '../utils/logger';
-import { GyoError, InvalidPlatformError } from '../core/index';
+import { GyoError } from '../core/index';
+import type { AbstractRunCommand } from './run/AbstractRunCommand';
 import inquirer from 'inquirer';
+import { InvalidArgumentError } from 'commander';
+
+function parsePort(value: string): number {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new InvalidArgumentError('The port must be an integer from 1 to 65535.');
+  }
+  return port;
+}
 
 interface RunCommandOptions {
   device?: string;
@@ -14,6 +24,12 @@ interface RunCommandOptions {
   verbose?: boolean;
   port?: number;
 }
+
+/** The command that runs on each platform, by platform. */
+const RUN_COMMANDS: Record<Device['platform'], new () => AbstractRunCommand> = {
+  android: AndroidRunCommand,
+  ios: IOSRunCommand,
+};
 
 export class RunCommand extends BaseCommand<RunCommandOptions> {
   getMeta(): CommandMeta {
@@ -31,6 +47,7 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
         {
           flags: '--port <number>',
           description: 'Override the development server port',
+          parse: parsePort,
         },
       ],
     };
@@ -46,7 +63,8 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
 
     const selectedDevice = await this.selectDevice(devices);
 
-    const command = this.createCommand(selectedDevice);
+    const command = new RUN_COMMANDS[selectedDevice.platform]();
+    command.setPlatform(selectedDevice.platform);
     command.setOptions({
       ...this.options,
       device: selectedDevice.id,
@@ -114,23 +132,5 @@ export class RunCommand extends BaseCommand<RunCommandOptions> {
     ]);
 
     return devices[answer.deviceIndex];
-  }
-
-  private createCommand(device: Device): AndroidRunCommand | IOSRunCommand {
-    let command: AndroidRunCommand | IOSRunCommand;
-
-    switch (device.platform) {
-      case 'android':
-        command = new AndroidRunCommand();
-        break;
-      case 'ios':
-        command = new IOSRunCommand();
-        break;
-      default:
-        throw new InvalidPlatformError(device.platform, ['android', 'ios']);
-    }
-
-    command.setPlatform(device.platform);
-    return command;
   }
 }

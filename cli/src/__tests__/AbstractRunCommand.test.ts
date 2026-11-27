@@ -34,7 +34,6 @@ jest.mock('../services/config.service', () => ({
   loadConfig: jest.fn().mockResolvedValue(null),
   validateConfig: jest.fn(),
   saveConfig: jest.fn().mockResolvedValue(undefined),
-  getProfileUrl: jest.fn(),
   shouldStartLocalServer: jest.fn(),
 }));
 
@@ -69,6 +68,10 @@ class TestableRunCommand extends AbstractRunCommand {
   }
 
   protected runPlatform(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  protected monitorLogs(): Promise<void> {
     return Promise.resolve();
   }
 }
@@ -199,117 +202,6 @@ describe('AbstractRunCommand', () => {
       await command.testUpdateProfileUrl('development', 'http://localhost:3000');
 
       expect(mockedSaveConfig).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('monitorLogs', () => {
-    it('should resolve immediately when platformProcess is null', async () => {
-      (command as any).platformProcess = null;
-
-      await expect(command['monitorLogs']('test')).resolves.toBeUndefined();
-    });
-
-    it('should resolve when error occurs during cleanup', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = true;
-
-      const promise = command['monitorLogs']('test');
-
-      mockProcess.emit('error', new Error('process error'));
-
-      await expect(promise).resolves.toBeUndefined();
-    });
-
-    it('should reject on error when not cleaning up', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = command['monitorLogs']('test');
-
-      mockProcess.emit('error', new Error('process error'));
-
-      await expect(promise).rejects.toThrow('process error');
-    });
-
-    it('should resolve on exit with code 0', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = command['monitorLogs']('test');
-
-      mockProcess.emit('exit', 0);
-
-      await expect(promise).resolves.toBeUndefined();
-    });
-
-    it('should resolve on non-zero exit when cleaning up', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = true;
-
-      const promise = command['monitorLogs']('test');
-
-      mockProcess.emit('exit', 1);
-
-      await expect(promise).resolves.toBeUndefined();
-    });
-  });
-
-  describe('monitorLogs stdout', () => {
-    it('should log non-empty lines from stdout', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const { logger } = jest.requireMock('../utils/logger');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = (command as any)['monitorLogs']('test');
-
-      mockProcess.stdout.emit('data', Buffer.from('line1\n\nline2\n'));
-
-      mockProcess.emit('exit', 0);
-
-      await promise;
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line1'));
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('line2'));
-    });
-  });
-
-  describe('monitorLogs exit', () => {
-    it('should warn on non-zero exit when not cleaning up', async () => {
-      const { EventEmitter } = jest.requireActual('events');
-      const { logger } = jest.requireMock('../utils/logger');
-      const mockProcess = new EventEmitter();
-      mockProcess.stdout = new EventEmitter();
-      mockProcess.stderr = new EventEmitter();
-      (command as any).platformProcess = mockProcess;
-      (command as any).isCleaningUp = false;
-
-      const promise = (command as any)['monitorLogs']('test');
-
-      mockProcess.emit('exit', 1);
-
-      await promise;
-
-      expect(logger.warn).toHaveBeenCalledWith('Log monitoring stopped');
     });
   });
 

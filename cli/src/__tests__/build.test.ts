@@ -41,102 +41,68 @@ jest.mock('../services/config.service', () => ({
   }),
   validateConfig: jest.fn(),
   saveConfig: jest.fn(),
-  getProfileUrl: jest.fn(),
   shouldStartLocalServer: jest.fn(),
 }));
 
 import { BuildCommand } from '../commands/build';
 import { AndroidBuildCommand } from '../commands/build/AndroidBuildCommand';
 import { IOSBuildCommand } from '../commands/build/IOSBuildCommand';
-import { InvalidPlatformError } from '../core/index';
 
 describe('BuildCommand', () => {
-  it('should create AndroidBuildCommand for android platform', () => {
+  let androidBuild: jest.SpyInstance;
+  let iosBuild: jest.SpyInstance;
+
+  function build(platform: string): Promise<void> {
     const command = new BuildCommand();
-    const result = command['createCommand']('android');
-    expect(result.constructor.name).toBe('AndroidBuildCommand');
+    command.setPositionalArgs([platform]);
+    command.setOptions({ profile: 'production', release: true });
+    return command.execute();
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    androidBuild = jest
+      .spyOn(AndroidBuildCommand.prototype, 'runDirectly')
+      .mockResolvedValue(undefined);
+    iosBuild = jest.spyOn(IOSBuildCommand.prototype, 'runDirectly').mockResolvedValue(undefined);
   });
 
-  it('should create IOSBuildCommand for ios platform', () => {
-    const command = new BuildCommand();
-    const result = command['createCommand']('ios');
-    expect(result.constructor.name).toBe('IOSBuildCommand');
+  afterEach(() => {
+    androidBuild.mockRestore();
+    iosBuild.mockRestore();
   });
 
-  it('should throw InvalidPlatformError for unknown platform', () => {
-    const command = new BuildCommand();
-    expect(() => command['createCommand']('windows' as any)).toThrow(InvalidPlatformError);
+  it('should hand the platform and the options to the command that builds it', async () => {
+    iosBuild.mockImplementation(function (this: IOSBuildCommand) {
+      expect(this['platform']).toBe('ios');
+      expect(this['options']).toMatchObject({ profile: 'production', release: true });
+      return Promise.resolve();
+    });
+
+    await build('ios');
+
+    expect(iosBuild).toHaveBeenCalledTimes(1);
+    expect(androidBuild).not.toHaveBeenCalled();
   });
 
-  it('should set platform', () => {
-    const command = new BuildCommand();
-    command.setPlatform('ios');
-    expect(command['platform']).toBe('ios');
+  it('should build android with the Android command', async () => {
+    await build('android');
+
+    expect(androidBuild).toHaveBeenCalledTimes(1);
+    expect(iosBuild).not.toHaveBeenCalled();
   });
 
-  describe('run', () => {
-    let runDirectlySpy: jest.SpyInstance;
+  it('should report a failure of the platform command', async () => {
+    androidBuild.mockRejectedValue(new Error('build crash'));
 
-    afterEach(() => {
-      if (runDirectlySpy) {
-        runDirectlySpy.mockRestore();
-      }
-    });
+    await expect(build('android')).rejects.toThrow('build crash');
+  });
 
-    it('should delegate to AndroidBuildCommand.runDirectly for android', async () => {
-      runDirectlySpy = jest
-        .spyOn(AndroidBuildCommand.prototype, 'runDirectly')
-        .mockResolvedValue(undefined);
-
-      const command = new BuildCommand();
-      command.setPlatform('android');
-      command.setOptions({ profile: 'development', release: false });
-
-      await command['run']();
-
-      expect(runDirectlySpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('should delegate to IOSBuildCommand.runDirectly for ios', async () => {
-      runDirectlySpy = jest
-        .spyOn(IOSBuildCommand.prototype, 'runDirectly')
-        .mockResolvedValue(undefined);
-
-      const command = new BuildCommand();
-      command.setPlatform('ios');
-      command.setOptions({ profile: 'production', release: true });
-
-      await command['run']();
-
-      expect(runDirectlySpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('should pass options to the sub-command', async () => {
-      runDirectlySpy = jest
-        .spyOn(AndroidBuildCommand.prototype, 'runDirectly')
-        .mockImplementation(function (this: AndroidBuildCommand) {
-          expect(this['options'].profile).toBe('staging');
-          expect(this['options'].release).toBe(true);
-          return Promise.resolve();
-        });
-
-      const command = new BuildCommand();
-      command.setPlatform('android');
-      command.setOptions({ profile: 'staging', release: true });
-
-      await command['run']();
-    });
-
-    it('should propagate errors from runDirectly', async () => {
-      runDirectlySpy = jest
-        .spyOn(AndroidBuildCommand.prototype, 'runDirectly')
-        .mockRejectedValue(new Error('build crash'));
-
-      const command = new BuildCommand();
-      command.setPlatform('android');
-      command.setOptions({ profile: 'development', release: false });
-
-      await expect(command['run']()).rejects.toThrow('build crash');
-    });
+  it('should refuse a platform it cannot build, naming the ones it can', async () => {
+    await expect(build('windows')).rejects.toThrow(
+      'Invalid platform: windows. Valid platforms are: android, ios'
+    );
+    expect(androidBuild).not.toHaveBeenCalled();
+    expect(iosBuild).not.toHaveBeenCalled();
   });
 });

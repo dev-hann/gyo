@@ -1,9 +1,7 @@
 import {
   GyoError,
   PlatformNotFoundError,
-  CommandNotFoundError,
   ToolRequiredError,
-  ConfigNotFoundError,
   PlatformDisabledError,
   BuildFailedError,
   ServerStartError,
@@ -45,22 +43,6 @@ describe('errors', () => {
         "Platform 'android' not found in /project. " +
           "Run 'gyo create' to initialize the project, or run gyo from the project directory."
       );
-      expect(error).toBeInstanceOf(GyoError);
-    });
-  });
-
-  describe('CommandNotFoundError', () => {
-    it('should create with command name', () => {
-      const error = new CommandNotFoundError('adb');
-      expect(error.message).toBe("Command 'adb' not found");
-      expect(error).toBeInstanceOf(GyoError);
-    });
-  });
-
-  describe('ConfigNotFoundError', () => {
-    it('should create with default message', () => {
-      const error = new ConfigNotFoundError();
-      expect(error.message).toBe('gyo.config.json not found');
       expect(error).toBeInstanceOf(GyoError);
     });
   });

@@ -3,14 +3,10 @@ import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import type { CommandMeta } from '../base/BaseCommand';
 import { logger, EMOJI } from '../../utils/logger';
-import {
-  executeCommand,
-  showYAMLParsingError,
-  requireTool,
-  checkCommandExists,
-} from '../../utils/exec';
+import { executeCommand, requireTool, checkCommandExists } from '../../utils/exec';
 import { pathExists, readFile, removeDir } from '../../utils/fs';
 import { BuildFailedError, getErrorMessage } from '../../core/errors';
+import { showXtoolError } from '../xtool-output';
 
 const SYSLOG_SEARCH_TIMEOUT_MS = 2000;
 
@@ -102,7 +98,7 @@ export class IOSRunCommand extends AbstractRunCommand {
       this.failSpinner('Build failed');
       const errorOutput = buildResult.stderr || buildResult.stdout || 'Unknown error';
 
-      showYAMLParsingError(errorOutput);
+      showXtoolError(errorOutput);
       throw new BuildFailedError('iOS build failed');
     }
 
@@ -239,57 +235,29 @@ export class IOSRunCommand extends AbstractRunCommand {
 
   protected showSuccessMessage(serverUrl: string): void {
     logger.log('');
-    logger.info(`${EMOJI.IOS} Please tap the app icon on your device to launch it.`);
+    logger.info(`${EMOJI.PHONE} Please tap the app icon on your device to launch it.`);
     logger.success(`App is connected to: ${serverUrl}`);
     logger.info('Monitoring console logs (Press Ctrl+C to stop)...');
     logger.log('');
   }
 
   protected async monitorLogs(identifier: string): Promise<void> {
-    const commandExists = await checkCommandExists('idevicesyslog');
+    if (!(await checkCommandExists('idevicesyslog'))) {
+      logger.warn('idevicesyslog not found. Install libimobiledevice for log monitoring.');
+      return;
+    }
 
-    return new Promise<void>((resolve, reject) => {
-      if (commandExists) {
-        this.platformProcess = spawn('idevicesyslog', ['-m', identifier], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-          detached: true,
-        });
+    // Detached, so that it leads the process group the cleanup kills.
+    this.platformProcess = spawn('idevicesyslog', ['-m', identifier], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
 
-        this.platformProcess.stdout?.on('data', (data: Buffer) => {
-          const lines = data.toString().split('\n');
-          for (const line of lines) {
-            if (line.trim()) {
-              logger.info(`${EMOJI.IOS} ${line.trim()}`);
-            }
-          }
-        });
-
-        this.platformProcess.stderr?.on('data', (data: Buffer) => {
-          const lines = data.toString().split('\n');
-          for (const line of lines) {
-            if (line.trim()) {
-              logger.warn(line.trim());
-            }
-          }
-        });
-
-        this.platformProcess.on('exit', (code) => {
-          if (!this.isCleaningUp && code !== 0) {
-            logger.warn('Log monitoring stopped');
-          }
-          resolve();
-        });
-
-        this.platformProcess.on('error', (error) => {
-          if (!this.isCleaningUp) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
+    return this.followLogProcess(this.platformProcess, (line, stream) => {
+      if (stream === 'stdout') {
+        logger.info(`${EMOJI.PHONE} ${line}`);
       } else {
-        logger.warn('idevicesyslog not found. Install libimobiledevice for log monitoring.');
-        resolve();
+        logger.warn(line);
       }
     });
   }

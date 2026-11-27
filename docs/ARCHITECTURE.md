@@ -50,8 +50,7 @@ BaseCommand
 │   └── AbstractBuildCommand
 │       ├── AndroidBuildCommand
 │       └── IOSBuildCommand
-└── MultiPlatformCommand
-    └── CleanCommand            gyo clean
+└── CleanCommand                gyo clean
 ```
 
 > See `cli/src/commands/README.md` for command development patterns.

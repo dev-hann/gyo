@@ -6,9 +6,9 @@ import { getErrorMessage } from '../core/index';
 export class DebugCommand extends PlatformCommand<PlatformCommandOptions> {
   getMeta(): CommandMeta {
     return {
-      name: 'debug <platform>',
+      name: 'debug',
+      arguments: '<platform>',
       description: 'Launch debugger for the specified platform',
-      positionalHandler: 'platform',
     };
   }
 

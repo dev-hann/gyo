@@ -109,26 +109,37 @@ describe('RunCommand', () => {
     });
   });
 
-  describe('createCommand', () => {
-    it('should create AndroidRunCommand for android device', () => {
-      const result = command['createCommand'](androidDevice);
-      expect(result.constructor.name).toBe('AndroidRunCommand');
+  describe('run', () => {
+    let runDirectly: jest.SpyInstance;
+
+    afterEach(() => {
+      runDirectly?.mockRestore();
     });
 
-    it('should create IOSRunCommand for ios device', () => {
-      const result = command['createCommand'](iosDevice);
-      expect(result.constructor.name).toBe('IOSRunCommand');
+    it('should hand the device to the command of its platform', async () => {
+      const { getAllDevices } = jest.requireMock('../services/device.service');
+      const { IOSRunCommand } = jest.requireActual('../commands/run/IOSRunCommand');
+      getAllDevices.mockResolvedValue([androidDevice, iosDevice]);
+      runDirectly = jest.spyOn(IOSRunCommand.prototype, 'runDirectly').mockImplementation(function (
+        this: InstanceType<typeof IOSRunCommand>
+      ) {
+        expect(this['platform']).toBe('ios');
+        expect(this['options']).toMatchObject({ profile: 'development', device: iosDevice.id });
+        return Promise.resolve();
+      });
+      command.setOptions({ profile: 'development', device: iosDevice.id });
+
+      await command.execute();
+
+      expect(runDirectly).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw InvalidPlatformError for unknown platform', () => {
-      const unknownDevice = {
-        platform: 'windows',
-        id: 'x',
-        name: 'test',
-        state: 'Available',
-      } as unknown as Device;
+    it('should stop before choosing a command when no device is connected', async () => {
+      const { getAllDevices } = jest.requireMock('../services/device.service');
+      getAllDevices.mockResolvedValue([]);
+      command.setOptions({ profile: 'development' });
 
-      expect(() => command['createCommand'](unknownDevice)).toThrow();
+      await expect(command.execute()).rejects.toThrow('No devices found');
     });
   });
 });

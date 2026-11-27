@@ -4,8 +4,10 @@ import { logger } from '../utils/logger';
 import { loadConfig, setConfigValue } from '../services/config.service';
 import { GyoError } from '../core/index';
 
+export type ConfigAction = 'show' | 'set' | 'get';
+
 interface ConfigCommandOptions extends BaseCommandOptions {
-  action: 'show' | 'set' | 'get';
+  action: ConfigAction;
   key?: string;
   value?: string;
 }
@@ -37,7 +39,7 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     };
   }
 
-  setAction(action: 'show' | 'set' | 'get'): void {
+  setAction(action: ConfigAction): void {
     this.options = { ...this.options, action };
   }
 

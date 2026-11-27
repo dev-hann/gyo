@@ -2,7 +2,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { AbstractRunCommand } from './AbstractRunCommand';
 import type { CommandMeta } from '../base/BaseCommand';
-import { logger } from '../../utils/logger';
+import { logger, EMOJI } from '../../utils/logger';
 import { executeCommand, getGradlew, requireTool } from '../../utils/exec';
 import { pathExists, readFile } from '../../utils/fs';
 import { BuildFailedError, GyoError, getErrorMessage } from '../../core/errors';
@@ -127,61 +127,24 @@ export class AndroidRunCommand extends AbstractRunCommand {
     }
   }
 
-  protected async monitorLogs(identifier: string): Promise<void> {
-    const adbArgs = identifier
-      ? ['-s', identifier, 'logcat', '-v', 'brief', '-s', 'WebView-Console:*']
-      : ['logcat', '-v', 'brief', '-s', 'WebView-Console:*'];
-
-    this.platformProcess = spawn('adb', adbArgs, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    this.platformProcess.on('error', (error) => {
-      if (!this.isCleaningUp) {
-        logger.error(`Failed to start logcat: ${error.message}`);
+  protected monitorLogs(identifier: string): Promise<void> {
+    const device = identifier ? ['-s', identifier] : [];
+    this.platformProcess = spawn(
+      'adb',
+      [...device, 'logcat', '-v', 'brief', '-s', 'WebView-Console:*'],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
       }
-    });
+    );
 
-    this.platformProcess.stdout?.on('data', (data: Buffer) => {
-      const lines = data.toString().split('\n');
-      for (const line of lines) {
-        if (line.trim() && line.includes('WebView-Console')) {
-          const match = line.match(/WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/);
-          const logMessage = match ? match[1] : line.trim();
-          logger.info(`📱 ${logMessage}`);
-        }
-      }
-    });
-
-    this.platformProcess.stderr?.on('data', (data: Buffer) => {
-      const lines = data.toString().split('\n');
-      for (const line of lines) {
-        if (line.trim()) {
-          logger.warn(line.trim());
-        }
-      }
-    });
-
-    return new Promise<void>((resolve, reject) => {
-      if (!this.platformProcess) {
-        resolve();
+    return this.followLogProcess(this.platformProcess, (line, stream) => {
+      if (stream === 'stderr') {
+        logger.warn(line);
         return;
       }
-
-      this.platformProcess.on('exit', (code) => {
-        if (!this.isCleaningUp && code !== 0) {
-          logger.warn('Log monitoring stopped');
-        }
-        resolve();
-      });
-
-      this.platformProcess.on('error', (error) => {
-        if (!this.isCleaningUp) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
+      // adb prefixes each line with the time, the device and the tag.
+      const message = line.match(/WebView-Console:\s*(.+?)\s*(?:--\s*From line|$)/)?.[1] ?? line;
+      logger.info(`${EMOJI.PHONE} ${message}`);
     });
   }
 }

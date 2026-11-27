@@ -25,8 +25,6 @@ export interface GyoConfig {
   version: string;
   /** Name shown under the launcher icon. Defaults to `name`. */
   displayName?: string;
-  framework?: string;
-  serverUrl?: string;
   profiles?: {
     [key: string]: ProfileConfig;
   };

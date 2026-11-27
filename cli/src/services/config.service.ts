@@ -1,6 +1,5 @@
 import * as path from 'path';
 import { readJson, writeJson, pathExists } from '../utils/fs';
-import { logger } from '../utils/logger';
 import type { GyoConfig } from '../core/index';
 import { GyoError, getErrorMessage } from '../core/index';
 
@@ -11,14 +10,6 @@ function validateServerUrl(url: unknown): boolean {
     return false;
   }
   return url.startsWith('http://') || url.startsWith('https://');
-}
-
-function validateNonEmptyUrl(url: string, context: string): string {
-  if (!url || url.trim() === '') {
-    logger.error(`${context} is empty in gyo.config.json`);
-    throw new GyoError(`${context} cannot be empty`);
-  }
-  return url;
 }
 
 function validatePlatform(
@@ -87,12 +78,6 @@ function collectConfigErrors(raw: unknown): string[] {
     }
     if (platforms.ios !== undefined) {
       validatePlatform(platforms.ios, 'ios', 'bundleId', errors);
-    }
-  }
-
-  if (obj.serverUrl !== undefined) {
-    if (!validateServerUrl(obj.serverUrl)) {
-      errors.push("'serverUrl' must be a string starting with http:// or https://");
     }
   }
 
@@ -213,24 +198,6 @@ export async function saveConfig(
 ): Promise<void> {
   const configPath = path.join(projectPath, 'gyo.config.json');
   await writeJson(configPath, config);
-}
-
-export function getProfileUrl(config: GyoConfig, profile: string = 'development'): string {
-  if (config.profiles && profile in config.profiles) {
-    const serverUrl = config.profiles[profile].serverUrl;
-    return validateNonEmptyUrl(serverUrl, `Profile '${profile}' serverUrl`);
-  }
-
-  if (config.serverUrl) {
-    logger.warn('Using legacy serverUrl. Consider migrating to profiles in gyo.config.json');
-    return validateNonEmptyUrl(config.serverUrl, 'serverUrl');
-  }
-
-  const availableProfiles = config.profiles ? Object.keys(config.profiles) : [];
-  const availableText =
-    availableProfiles.length > 0 ? ` Available profiles: ${availableProfiles.join(', ')}` : '';
-  logger.error(`Profile '${profile}' not found in gyo.config.json.${availableText}`);
-  throw new GyoError(`Profile '${profile}' not found`);
 }
 
 export function shouldStartLocalServer(profile: string = 'development'): boolean {

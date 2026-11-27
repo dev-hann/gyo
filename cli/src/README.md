@@ -4,7 +4,7 @@
 
 ```
 src/
-├── index.ts              # Entry point — command registration
+├── index.ts              # Entry point: parse the command line, report what a command did not
 ├── core/                 # Domain core (no dependencies)
 │   ├── types.ts          # Platform, GyoConfig, ProfileConfig
 │   ├── errors.ts         # GyoError, BuildFailedError, etc.
@@ -22,11 +22,13 @@ src/
 │   ├── exec.ts           # child_process spawn wrapper, signalling a process tree
 │   ├── fs.ts             # fs-extra wrappers
 │   └── paths.ts          # Files shipped with the CLI: templates, package.json
+├── program.ts           # The CLI as Commander defines it: every command, its arguments and options
 └── commands/             # CLI commands (depends on: all above)
-    ├── base/             # BaseCommand, PlatformCommand, MultiPlatformCommand
+    ├── base/             # BaseCommand: options, arguments, lifecycle, error reporting
+    │   └── PlatformCommand # A command bound to one platform of a gyo project
     ├── build/            # AbstractBuildCommand → Android/IOSBuildCommand
     ├── run/              # AbstractRunCommand → Android/IOSRunCommand
-    └── *.ts              # Command entry points
+    └── *.ts              # Command entry points, and xtool-output.ts
 ```
 
 ## Dependency Direction

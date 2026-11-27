@@ -9,17 +9,17 @@ import { GyoError, getErrorMessage } from '../../core/index';
 export interface CommandOption {
   flags: string;
   description: string;
-  default?: string | boolean | string[];
+  default?: string | boolean;
+  /** Turns what the user typed into the value the command receives. */
+  parse?: (value: string) => unknown;
 }
-
-export type PositionalHandler = 'platform' | 'platformWithAll' | 'projectName';
 
 export interface CommandMeta {
   name: string;
   description: string;
+  /** Positional arguments, as Commander spells them: `'<platform>'`, `'[platform]'`. */
   arguments?: string;
   options?: CommandOption[];
-  positionalHandler?: PositionalHandler;
 }
 
 export interface BaseCommandOptions {
@@ -41,8 +41,12 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
 
   abstract getMeta(): CommandMeta;
 
+  /** The positional arguments of the invocation, in the order of `getMeta().arguments`. */
+  setPositionalArgs(_args: string[]): void {}
+
+  /** Merges into what the command already received: the order of the two setters does not matter. */
   setOptions(options: T): void {
-    this.options = options;
+    this.options = { ...this.options, ...options };
     if (options.verbose !== undefined) {
       logger.setVerbose(options.verbose);
     }
@@ -54,16 +58,12 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
       await this.run();
     } catch (error) {
       await this.handleError(error);
-    } finally {
-      await this.afterRun();
     }
   }
 
   protected abstract run(): Promise<void>;
 
   protected async beforeRun(): Promise<void> {}
-
-  protected async afterRun(): Promise<void> {}
 
   protected async loadConfiguration(): Promise<void> {
     this.config = await loadConfig(this.projectPath);
@@ -116,10 +116,6 @@ export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOpti
 
   protected warnSpinner(text?: string): void {
     this.spinner.warn(text);
-  }
-
-  protected infoSpinner(text?: string): void {
-    this.spinner.info(text);
   }
 
   protected stopSpinner(): void {

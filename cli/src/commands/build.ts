@@ -1,23 +1,29 @@
-import type { CommandMeta, Platform } from './base/index';
+import type { CommandMeta, Platform, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
+import { InvalidPlatformError } from '../core/index';
 import { AndroidBuildCommand } from './build/AndroidBuildCommand';
 import { IOSBuildCommand } from './build/IOSBuildCommand';
-import { InvalidPlatformError } from '../core/index';
+import type { AbstractBuildCommand } from './build/AbstractBuildCommand';
 
-interface BuildCommandOptions {
+interface BuildCommandOptions extends BaseCommandOptions {
   profile: string;
   release: boolean;
-  verbose?: boolean;
 }
+
+/** The command that builds each platform, by platform. */
+const BUILD_COMMANDS: Record<Platform, new () => AbstractBuildCommand> = {
+  android: AndroidBuildCommand,
+  ios: IOSBuildCommand,
+};
 
 export class BuildCommand extends BaseCommand<BuildCommandOptions> {
   private platform: Platform = 'android';
 
   getMeta(): CommandMeta {
     return {
-      name: 'build <platform>',
+      name: 'build',
       description: 'Build the native application for the specified platform',
-      positionalHandler: 'platform',
+      arguments: '<platform>',
       options: [
         { flags: '-r, --release', description: 'Build for release (production)', default: false },
         {
@@ -30,31 +36,21 @@ export class BuildCommand extends BaseCommand<BuildCommandOptions> {
     };
   }
 
-  setPlatform(platform: Platform): void {
-    this.platform = platform;
+  setPositionalArgs([platform]: string[]): void {
+    this.platform = platform as Platform;
+  }
+
+  protected async beforeRun(): Promise<void> {
+    if (!(this.platform in BUILD_COMMANDS)) {
+      throw new InvalidPlatformError(this.platform, Object.keys(BUILD_COMMANDS));
+    }
   }
 
   protected async run(): Promise<void> {
-    const command = this.createCommand(this.platform);
+    const command = new BUILD_COMMANDS[this.platform]();
+
+    command.setPlatform(this.platform);
     command.setOptions(this.options);
     await command.runDirectly();
-  }
-
-  private createCommand(platform: Platform): AndroidBuildCommand | IOSBuildCommand {
-    let command: AndroidBuildCommand | IOSBuildCommand;
-
-    switch (platform) {
-      case 'android':
-        command = new AndroidBuildCommand();
-        break;
-      case 'ios':
-        command = new IOSBuildCommand();
-        break;
-      default:
-        throw new InvalidPlatformError(platform, ['android', 'ios']);
-    }
-
-    command.setPlatform(platform);
-    return command;
   }
 }

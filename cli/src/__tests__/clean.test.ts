@@ -1,18 +1,17 @@
-jest.mock('../utils/exec', () => ({
-  executeCommand: jest.fn(),
-  getGradlew: jest.fn().mockReturnValue('./gradlew'),
-  checkCommandExists: jest.fn(),
-}));
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
+import { CleanCommand } from '../commands/clean';
+import { executeCommand } from '../utils/exec';
+import { logger } from '../utils/logger';
 
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn().mockResolvedValue(undefined),
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -22,200 +21,120 @@ jest.mock('../utils/logger', () => ({
     error: jest.fn(),
     success: jest.fn(),
     debug: jest.fn(),
-    log: jest.fn(),
+    verbose: jest.fn(),
     setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
   },
 }));
 
-jest.mock('../services/config.service', () => ({
-  loadConfig: jest.fn(),
-  validateConfig: jest.fn(),
-  saveConfig: jest.fn(),
-  getProfileUrl: jest.fn(),
-  shouldStartLocalServer: jest.fn(),
+// Only Gradle is mocked: what a clean does is remove directories.
+jest.mock('../utils/exec', () => ({
+  executeCommand: jest.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', code: 0 }),
+  getGradlew: jest.fn().mockReturnValue('./gradlew'),
 }));
 
-import { CleanCommand } from '../commands/clean';
-import { executeCommand, getGradlew } from '../utils/exec';
-import { pathExists, removeDir } from '../utils/fs';
-import { logger } from '../utils/logger';
-
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-const mockedRemoveDir = removeDir as jest.MockedFunction<typeof removeDir>;
+
+// A project with build output in all three places a clean removes.
+const BUILD_OUTPUT = [
+  'android/app/build/keep.txt',
+  'ios/.build/keep.txt',
+  'lib/dist/keep.txt',
+  'lib/node_modules/some-package/keep.txt',
+];
 
 describe('CleanCommand', () => {
-  let command: CleanCommand;
+  let projectPath: string;
+  let previousCwd: string;
+
+  const exists = (relativePath: string): boolean =>
+    fs.pathExistsSync(path.join(projectPath, relativePath));
+
+  function clean(...args: string[]): Promise<void> {
+    const command = new CleanCommand();
+    command.setPositionalArgs(args);
+    return command.execute();
+  }
 
   beforeEach(() => {
     jest.clearAllMocks();
-    command = new CleanCommand();
+    projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-clean-'));
+    previousCwd = process.cwd();
+    process.chdir(projectPath);
+
+    for (const file of BUILD_OUTPUT) {
+      fs.outputFileSync(path.join(projectPath, file), '');
+    }
   });
 
-  describe('cleanAndroid', () => {
-    it('should skip when android directory does not exist', async () => {
-      mockedPathExists.mockResolvedValue(false);
-      command.setPlatform('android');
-
-      await command['run']();
-
-      expect(mockedExec).not.toHaveBeenCalled();
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('not found'));
-    });
-
-    it('should run gradlew clean and remove build dir', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('android')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
-      mockedExec.mockResolvedValue({
-        success: true,
-        stdout: '',
-        stderr: '',
-        code: 0,
-      });
-      command.setPlatform('android');
-
-      await command['run']();
-
-      expect(getGradlew).toHaveBeenCalled();
-      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Android'));
-    });
-
-    it('should fail the clean when gradle fails', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('android')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
-      mockedExec.mockResolvedValue({
-        success: false,
-        stdout: '',
-        stderr: 'build error',
-        code: 1,
-      });
-      command.setPlatform('android');
-
-      await expect(command['run']()).rejects.toThrow('gradle clean');
-      expect(logger.warn).toHaveBeenCalledWith('Android clean failed');
-    });
+  afterEach(() => {
+    // A test may have made directories read-only to force a failure.
+    for (const dir of ['ios', 'lib']) {
+      fs.chmodSync(path.join(projectPath, dir), 0o700);
+    }
+    process.chdir(previousCwd);
+    fs.removeSync(projectPath);
   });
 
-  describe('cleanIOS', () => {
-    it('should skip when ios directory does not exist', async () => {
-      mockedPathExists.mockResolvedValue(false);
-      command.setPlatform('ios');
+  it('should remove the build output of every platform', async () => {
+    await clean();
 
-      await command['run']();
-
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('not found'));
-    });
-
-    it('should remove the .build directory xtool builds into', async () => {
-      mockedPathExists.mockImplementation((p: string) =>
-        Promise.resolve(
-          typeof p === 'string' && (/[/\\]ios$/.test(p) || /ios[/\\]\.build$/.test(p))
-        )
-      );
-      command.setPlatform('ios');
-
-      await command['run']();
-
-      expect(mockedRemoveDir).toHaveBeenCalledTimes(1);
-      expect(mockedRemoveDir).toHaveBeenCalledWith(expect.stringMatching(/ios[/\\]\.build$/));
-    });
+    for (const file of BUILD_OUTPUT) {
+      expect(exists(path.dirname(file))).toBe(false);
+    }
+    expect(logger.success).toHaveBeenCalledWith('iOS .build cleaned');
+    expect(logger.success).toHaveBeenCalledWith('Lib node_modules cleaned');
   });
 
-  describe('cleanLib', () => {
-    it('should skip when lib directory does not exist', async () => {
-      mockedPathExists.mockResolvedValue(false);
-      command.setPlatform('lib');
+  it('should remove only the platform asked for', async () => {
+    await clean('ios');
 
-      await command['run']();
-
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('not found'));
-    });
-
-    it('should remove dist and node_modules', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('lib')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
-      command.setPlatform('lib');
-
-      await command['run']();
-
-      expect(mockedRemoveDir).toHaveBeenCalled();
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('node_modules'));
-      expect(logger.success).toHaveBeenCalledWith('Lib dist cleaned');
-      expect(logger.success).toHaveBeenCalledWith('Lib node_modules cleaned');
-    });
+    expect(exists('ios/.build')).toBe(false);
+    expect(exists('android/app/build')).toBe(true);
+    expect(exists('lib/dist')).toBe(true);
   });
 
-  describe('cleanAll', () => {
-    it('should process all platforms', async () => {
-      mockedPathExists.mockResolvedValue(false);
-      command.setPlatform('all');
+  it('should skip a platform the project does not have', async () => {
+    fs.removeSync(path.join(projectPath, 'android'));
 
-      await command['run']();
+    await expect(clean('android')).resolves.toBeUndefined();
 
-      expect(logger.warn).toHaveBeenCalled();
-    });
+    expect(logger.warn).toHaveBeenCalledWith('Android project not found, skipping');
+    expect(mockedExec).not.toHaveBeenCalled();
   });
 
-  describe('cleanAndroid removeDir failure', () => {
-    it('should warn when removeDir fails after successful gradle clean', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('android')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
-      mockedExec.mockResolvedValue({
-        success: true,
-        stdout: '',
-        stderr: '',
-        code: 0,
-      });
-      mockedRemoveDir.mockRejectedValue(new Error('permission denied'));
-      command.setPlatform('android');
+  it('should ask Gradle to clean the Android project', async () => {
+    await clean('android');
 
-      await expect(command['run']()).rejects.toThrow('app/build');
-
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove'));
+    expect(mockedExec).toHaveBeenCalledWith('./gradlew', ['clean'], {
+      cwd: path.join(projectPath, 'android'),
+      stdio: 'pipe',
     });
+    expect(exists('android/app/build')).toBe(false);
+    expect(exists('ios/.build')).toBe(true);
   });
 
-  describe('run error handling', () => {
-    it('should fail with a GyoError that keeps the removal error as its cause', async () => {
-      mockedPathExists.mockImplementation((p: string) => {
-        if (typeof p === 'string' && p.includes('ios')) return Promise.resolve(true);
-        return Promise.resolve(false);
-      });
-      mockedRemoveDir.mockRejectedValue(new Error('disk error'));
-      command.setPlatform('ios');
+  it('should fail the clean when Gradle fails', async () => {
+    mockedExec.mockResolvedValueOnce({ success: false, stdout: '', stderr: 'no Java', code: 1 });
 
-      const { GyoError } = jest.requireActual('../core/errors');
-      let thrownError: unknown;
-      try {
-        await command['run']();
-      } catch (error) {
-        thrownError = error;
-      }
-      expect(thrownError).toBeInstanceOf(GyoError);
-      const err = thrownError as InstanceType<typeof GyoError>;
-      expect(err.message).toContain('ios');
-      expect(err.cause).toBeInstanceOf(Error);
-      expect((err.cause as Error).message).toContain('disk error');
-    });
+    await expect(clean('android')).rejects.toThrow('gradle clean');
+    expect(logger.warn).toHaveBeenCalledWith('Android clean failed');
+  });
 
-    it('should try every platform even when one of them fails', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue({ success: true, stdout: '', stderr: '', code: 0 });
-      mockedRemoveDir.mockRejectedValue(new Error('disk error'));
-      command.setPlatform('all');
+  it('should try every platform and then report what it could not remove', async () => {
+    // Read-only parents make removing what is inside them fail.
+    fs.chmodSync(path.join(projectPath, 'ios'), 0o500);
+    fs.chmodSync(path.join(projectPath, 'lib'), 0o500);
 
-      await expect(command['run']()).rejects.toThrow('Could not clean');
+    await expect(clean()).rejects.toThrow('Could not clean');
 
-      expect(mockedRemoveDir).toHaveBeenCalledTimes(4);
-    });
+    expect(exists('android/app/build')).toBe(false);
+    expect(exists('ios/.build')).toBe(true);
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to remove'));
+  });
+
+  it('should refuse a platform it cannot clean, naming the ones it can', async () => {
+    await expect(clean('windows')).rejects.toThrow(
+      'Invalid platform: windows. Valid platforms are: android, ios, lib'
+    );
   });
 });

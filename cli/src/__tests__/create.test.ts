@@ -1,18 +1,23 @@
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
 import { CreateCommand } from '../commands/create';
+import { validateConfig } from '../services/config.service';
+import { logger } from '../utils/logger';
 
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn().mockResolvedValue(undefined),
-  copyDir: jest.fn().mockResolvedValue(undefined),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-  readFile: jest.fn().mockResolvedValue(''),
-  removeDir: jest.fn().mockResolvedValue(undefined),
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform
+// cannot run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
 }));
 
-jest.mock('../utils/paths', () => ({
-  getTemplatesPath: jest.fn().mockReturnValue('/templates'),
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
 }));
 
 jest.mock('../utils/logger', () => ({
@@ -22,283 +27,196 @@ jest.mock('../utils/logger', () => ({
     error: jest.fn(),
     success: jest.fn(),
     debug: jest.fn(),
-    log: jest.fn(),
+    verbose: jest.fn(),
     setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
     suggestNextSteps: jest.fn(),
   },
 }));
 
-jest.mock('../utils/exec', () => ({
-  executeCommand: jest.fn().mockResolvedValue({ success: true, stdout: '', stderr: '', code: 0 }),
-  getGradlew: jest.fn().mockReturnValue('./gradlew'),
-  checkCommandExists: jest.fn().mockResolvedValue(true),
-}));
-
-jest.mock('inquirer', () => ({
-  prompt: jest.fn().mockResolvedValue({ framework: 'react' }),
-  default: { prompt: jest.fn().mockResolvedValue({ framework: 'react' }) },
-}));
-
-jest.mock('fs-extra', () => ({
-  readdir: jest.fn().mockResolvedValue([]),
-  stat: jest.fn(),
-  copy: jest.fn().mockResolvedValue(undefined),
-  remove: jest.fn().mockResolvedValue(undefined),
-}));
-
-import { pathExists, ensureDir, writeFile, copyDir, readFile, readJson } from '../utils/fs';
-import { DirectoryExistsError, GyoError } from '../core/index';
-import fs from 'fs-extra';
-
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-const mockedEnsureDir = ensureDir as jest.MockedFunction<typeof ensureDir>;
-const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
-const mockedCopyDir = copyDir as jest.MockedFunction<typeof copyDir>;
-const mockedReadFile = readFile as jest.MockedFunction<typeof readFile>;
-const mockedReadJson = readJson as jest.MockedFunction<typeof readJson>;
-
-class TestableCreateCommand extends CreateCommand {
-  public async testRun(): Promise<void> {
-    return this.run();
-  }
-}
-
+// Run against the real templates in a real directory: what `gyo create`
+// does is copy and render them.
 describe('CreateCommand', () => {
-  let command: TestableCreateCommand;
+  let workDir: string;
+  let previousCwd: string;
+  let previousAndroidHome: string | undefined;
+
+  const projectPath = (name = 'my-app'): string => path.join(workDir, name);
+  const read = (file: string): string => fs.readFileSync(path.join(workDir, file), 'utf-8');
+
+  function create(name: string, options: { force?: boolean } = {}): Promise<void> {
+    const command = new CreateCommand();
+    command.setPositionalArgs([name]);
+    command.setOptions(options);
+    return command.execute();
+  }
+
+  /** Every text file under the project, with its path relative to it. */
+  async function textFiles(
+    dir: string,
+    prefix = ''
+  ): Promise<Array<{ file: string; content: string }>> {
+    const files: Array<{ file: string; content: string }> = [];
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const relativePath = path.join(prefix, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...(await textFiles(path.join(dir, entry.name), relativePath)));
+      } else if (!entry.name.endsWith('.jar')) {
+        files.push({
+          file: relativePath,
+          content: fs.readFileSync(path.join(dir, entry.name), 'utf-8'),
+        });
+      }
+    }
+    return files;
+  }
 
   beforeEach(() => {
     jest.clearAllMocks();
-    command = new TestableCreateCommand();
-    command.setOptions({});
-    command.setProjectName('my-app');
+    workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-create-'));
+    previousCwd = process.cwd();
+    previousAndroidHome = process.env.ANDROID_HOME;
+    process.chdir(workDir);
+    delete process.env.ANDROID_HOME;
+    delete process.env.ANDROID_SDK_ROOT;
   });
 
-  it('should throw GyoError for empty project name', async () => {
-    const emptyCommand = new TestableCreateCommand();
-    emptyCommand.setOptions({});
-    emptyCommand.setProjectName('');
-
-    await expect(emptyCommand.testRun()).rejects.toThrow(GyoError);
-  });
-
-  it('should throw GyoError for whitespace-only project name', async () => {
-    const wsCommand = new TestableCreateCommand();
-    wsCommand.setOptions({});
-    wsCommand.setProjectName('   ');
-
-    await expect(wsCommand.testRun()).rejects.toThrow(GyoError);
-  });
-
-  it('should throw GyoError for project name with path separator /', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('evil/path');
-
-    await expect(cmd.testRun()).rejects.toThrow('path separators');
-  });
-
-  it('should throw GyoError for project name with path separator \\', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('evil\\path');
-
-    await expect(cmd.testRun()).rejects.toThrow('path separators');
-  });
-
-  it('should throw GyoError for project name with ..', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('..');
-
-    await expect(cmd.testRun()).rejects.toThrow('path separators');
-  });
-
-  it('should throw GyoError for project name with spaces', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('my app');
-
-    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
-  });
-
-  it('should throw GyoError for project name with special characters', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('my@app');
-
-    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
-  });
-
-  it('should throw GyoError for project name starting with hyphen', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('-my-app');
-
-    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
-  });
-
-  it('should throw GyoError for uppercase project name', async () => {
-    const cmd = new TestableCreateCommand();
-    cmd.setOptions({});
-    cmd.setProjectName('MyApp');
-
-    await expect(cmd.testRun()).rejects.toThrow('lowercase letters, numbers, hyphens');
-  });
-
-  it('should accept valid project name with hyphens', async () => {
-    mockedPathExists.mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
-    command.setProjectName('my-valid-app');
-
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on later steps
+  afterEach(() => {
+    process.chdir(previousCwd);
+    if (previousAndroidHome === undefined) {
+      delete process.env.ANDROID_HOME;
+    } else {
+      process.env.ANDROID_HOME = previousAndroidHome;
     }
-
-    expect(mockedEnsureDir).toHaveBeenCalled();
+    fs.removeSync(workDir);
   });
 
-  it('should accept valid project name with underscores', async () => {
-    mockedPathExists.mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
-    command.setProjectName('my_valid_app');
+  it('should scaffold both shells around an empty lib/', async () => {
+    await create('my-app');
 
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on later steps
-    }
-
-    expect(mockedEnsureDir).toHaveBeenCalled();
+    const entries = (await fs.readdir(projectPath())).sort();
+    expect(entries).toEqual([
+      '.gitignore',
+      'README.md',
+      'android',
+      'gyo.config.json',
+      'ios',
+      'lib',
+    ]);
+    expect(await fs.readdir(path.join(projectPath(), 'lib'))).toEqual([]);
+    expect(logger.suggestNextSteps).toHaveBeenCalledWith([
+      'cd my-app',
+      'Create your web app in lib/ (any framework)',
+      'Set script.start in gyo.config.json',
+      'gyo run          # Run on connected device',
+    ]);
   });
 
-  it('should throw DirectoryExistsError when target exists', async () => {
-    mockedPathExists.mockResolvedValue(true);
+  it('should write a valid config that names the project', async () => {
+    await create('my-app');
 
-    await expect(command.testRun()).rejects.toThrow(DirectoryExistsError);
+    const config = await fs.readJson(path.join(projectPath(), 'gyo.config.json'));
+    expect(validateConfig(config)).toBe(true);
+    expect(config).toMatchObject({
+      name: 'my-app',
+      version: '1.0.0',
+      profiles: { development: { serverUrl: 'http://localhost:3000' } },
+      script: { start: 'npm run dev' },
+    });
+    expect(config.platforms.android.packageName).toBe('com.example.my_app');
   });
 
-  it('should remove existing directory and proceed when force is true', async () => {
-    mockedPathExists.mockResolvedValueOnce(true).mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
-    command.setOptions({ force: true });
-    command.setProjectName('my-app');
+  it('should leave no placeholder behind', async () => {
+    await create('my-app');
 
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on later steps
-    }
-
-    expect(fs.remove).toHaveBeenCalledWith(expect.stringContaining('my-app'));
-  });
-
-  it('should create project directory and lib subdirectory', async () => {
-    mockedPathExists.mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
-
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on later steps, we only care about ensureDir calls
-    }
-
-    expect(mockedEnsureDir).toHaveBeenCalled();
-  });
-
-  it('should write gyo.config.json with project name and start script', async () => {
-    mockedPathExists.mockResolvedValueOnce(false).mockResolvedValue(false);
-    mockedReadFile.mockResolvedValue(
-      '{"name":"{{PROJECT_NAME}}","script":{"start":"npm run dev"}}'
+    const unreplaced = (await textFiles(projectPath())).filter(({ content }) =>
+      content.includes('{{')
     );
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+    expect(unreplaced.map(({ file }) => file)).toEqual([]);
+  });
 
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on template copy
-    }
+  it('should put MainActivity.kt where its package path says', async () => {
+    await create('my-app');
 
-    const configCall = mockedWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].endsWith('gyo.config.json')
-    );
-    if (configCall) {
-      const content = configCall[1] as string;
-      expect(content).toContain('my-app');
-      expect(content).toContain('npm run dev');
+    const activity = read('my-app/android/app/src/main/java/com/example/my_app/MainActivity.kt');
+    expect(activity).toContain('package com.example.my_app');
+    expect(fs.pathExistsSync(path.join(projectPath(), 'android/app/src/main/kotlin'))).toBe(false);
+  });
+
+  it('should write the README of the project', async () => {
+    await create('my-app');
+
+    const readme = read('my-app/README.md');
+    expect(readme).toContain('# my-app');
+    expect(readme).toContain('├── android/');
+    expect(readme).not.toContain('{{');
+  });
+
+  it('should ignore what gyo generates and what has to stay secret', async () => {
+    await create('my-app');
+
+    const gitignore = read('my-app/.gitignore');
+    for (const rule of [
+      'android/app/src/main/assets/gyo-config.json',
+      'android/keystore.properties',
+      '*.jks',
+      '*.keystore',
+      '.gyo-plugins',
+      'local.properties',
+    ]) {
+      expect(gitignore).toContain(rule);
     }
   });
 
-  it('should render a valid package name into gyo.config.json', async () => {
-    mockedPathExists.mockImplementation(async (target: string) =>
-      target.endsWith('gyo.config.json')
-    );
-    mockedReadFile.mockResolvedValue(
-      '{"platforms":{"android":{"packageName":"{{PACKAGE_NAME}}"}}}'
-    );
-    command.setProjectName('gyo-shell');
+  it('should point Gradle at the SDK that ANDROID_HOME names', async () => {
+    const sdk = path.join(workDir, 'sdk');
+    fs.ensureDirSync(sdk);
+    process.env.ANDROID_HOME = sdk;
 
-    await command.testRun().catch(() => {});
+    await create('my-app');
 
-    const configCall = mockedWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].endsWith('gyo.config.json')
-    );
-    expect(configCall).toBeDefined();
-    expect(configCall![1]).toContain('"packageName":"com.example.gyo_shell"');
+    expect(read('my-app/android/local.properties')).toBe(`sdk.dir=${sdk}\n`);
   });
 
-  it('should ignore the config baked by gyo run and gyo build in .gitignore', async () => {
-    mockedPathExists.mockResolvedValue(false);
+  it('should go on without an SDK and say so', async () => {
+    await create('my-app');
 
-    await command.testRun().catch(() => {});
-
-    const gitignoreCall = mockedWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].endsWith('.gitignore')
+    expect(fs.pathExistsSync(path.join(projectPath(), 'android/local.properties'))).toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Android SDK not found. Set ANDROID_HOME or install Android Studio.'
     );
-    expect(gitignoreCall).toBeDefined();
-    expect(gitignoreCall![1]).toContain('android/app/src/main/assets/gyo-config.json');
   });
 
-  it('should ignore the record of the last plugin sync in .gitignore', async () => {
-    mockedPathExists.mockResolvedValue(false);
+  it('should refuse to overwrite a project without --force', async () => {
+    await create('my-app');
 
-    await command.testRun().catch(() => {});
-
-    const gitignoreCall = mockedWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].endsWith('.gitignore')
-    );
-    expect(gitignoreCall).toBeDefined();
-    expect(gitignoreCall![1]).toContain('.gyo-plugins');
+    await expect(create('my-app')).rejects.toThrow('Directory "my-app" already exists');
+    expect(fs.pathExistsSync(path.join(projectPath(), 'README.md'))).toBe(true);
   });
 
-  it('should write README.md', async () => {
-    mockedPathExists.mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+  it('should replace a project with --force', async () => {
+    await create('my-app');
+    fs.writeFileSync(path.join(projectPath(), 'stray.txt'), '');
 
-    try {
-      await command.testRun();
-    } catch {
-      // may fail on later steps
-    }
+    await create('my-app', { force: true });
 
-    const readmeCall = mockedWriteFile.mock.calls.find(
-      (call) => typeof call[0] === 'string' && call[0].endsWith('README.md')
-    );
-    expect(readmeCall).toBeDefined();
+    expect(fs.pathExistsSync(path.join(projectPath(), 'stray.txt'))).toBe(false);
+    expect(fs.pathExistsSync(path.join(projectPath(), 'README.md'))).toBe(true);
   });
 
-  it('should skip platform template when source not found', async () => {
-    mockedPathExists.mockResolvedValue(false);
-    mockedReadJson.mockResolvedValue({ scripts: { dev: 'vite' } });
+  // Each with the reason it is refused: a wrong reason is a wrong check.
+  it.each([
+    ['', 'Project name cannot be empty'],
+    ['   ', 'Project name cannot be empty'],
+    ['my app', 'must contain only lowercase letters, numbers, hyphens'],
+    ['MyApp', 'must contain only lowercase letters, numbers, hyphens'],
+    ['-my-app', 'must contain only lowercase letters, numbers, hyphens'],
+    ['my@app', 'must contain only lowercase letters, numbers, hyphens'],
+    ['evil/path', 'cannot contain path separators'],
+    ['evil\\path', 'cannot contain path separators'],
+    ['..', 'cannot contain path separators'],
+  ])('should refuse the project name "%s"', async (name, reason) => {
+    await expect(create(name)).rejects.toThrow(reason);
 
-    try {
-      await command.testRun();
-    } catch {
-      // expected
-    }
-
-    expect(mockedCopyDir).not.toHaveBeenCalled();
+    expect((await fs.readdir(workDir)).filter((entry) => !entry.startsWith('sdk'))).toEqual([]);
   });
 });

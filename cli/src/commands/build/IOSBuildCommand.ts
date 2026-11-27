@@ -2,13 +2,9 @@ import * as path from 'path';
 import { AbstractBuildCommand } from './AbstractBuildCommand';
 import type { CommandMeta } from '../base/BaseCommand';
 import { logger } from '../../utils/logger';
-import {
-  executeCommand,
-  requireTool,
-  showYAMLParsingError,
-  checkCommandExists,
-} from '../../utils/exec';
+import { executeCommand, requireTool, checkCommandExists } from '../../utils/exec';
 import { BuildFailedError } from '../../core/errors';
+import { showXtoolError } from '../xtool-output';
 
 export class IOSBuildCommand extends AbstractBuildCommand {
   getMeta(): CommandMeta {
@@ -73,7 +69,7 @@ export class IOSBuildCommand extends AbstractBuildCommand {
       this.failSpinner('iOS build failed');
       const errorOutput = result.stderr || result.stdout || 'Unknown error';
 
-      showYAMLParsingError(errorOutput);
+      showXtoolError(errorOutput);
       throw new BuildFailedError('iOS build failed');
     }
   }

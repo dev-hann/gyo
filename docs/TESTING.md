@@ -23,6 +23,12 @@ describe('unitName')
 - `it` starts with `should`
 - No `test()` — use `it()` consistently
 
+## Entry Point
+
+A command is tested the way the entry point runs it: `setPositionalArgs()`, `setOptions()`, `execute()`, in a real temporary directory. Mock only what leaves the process, such as a command the CLI spawns. Reaching into private members through brackets is what let the wrong plugin layout and three broken argument hand-offs pass.
+
+The command line itself is covered by `program.test.ts`, which goes through Commander for every command. `utils/paths` reads `import.meta.url`, which Jest cannot run; a test that needs the real templates mocks it with the path to `cli/templates`.
+
 ## Pattern (AAA)
 
 ```
