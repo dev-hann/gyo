@@ -203,7 +203,14 @@ async function syncLabel(androidPath: string, label: string): Promise<void> {
   if (!pattern.test(strings)) {
     throw new BuildFailedError(`${stringsPath} has no app_name string to update.`);
   }
-  await writeFile(stringsPath, strings.replace(pattern, `$1${toXmlText(label)}$2`));
+  // A replacement function: in a replacement string, `$` names a group.
+  await writeFile(
+    stringsPath,
+    strings.replace(
+      pattern,
+      (_match, opening: string, closing: string) => `${opening}${toXmlText(label)}${closing}`
+    )
+  );
 
   // Projects created by earlier versions put the project name straight into
   // the manifest, where no edit to strings.xml would show.

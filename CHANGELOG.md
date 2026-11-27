@@ -76,4 +76,5 @@
 - `gyo doctor -v` printed an empty pair of brackets after the JDK version where Java cannot be looked for
 - `gyo run` asked the dev server to stop only when the CLI exited. When the platform part failed after the server had started, the error went on to `gyo run` with the server still running, to be killed at exit. The server is asked to stop before the error goes on, and one that ends while it is being stopped is no longer reported as stopped unexpectedly
 - `gyo config set platforms.android.versionCode 1` was refused: `1` was read as `true`. A number is read as a number; `yes`, `no`, `on` and `off` still read as booleans
+- A display name with `$` in it corrupted `strings.xml`: `$1` and `$&` were taken for the matched text
 - Plugins that had never been compiled: `screen-action` and `screen-find` were missing imports, `screen-action` had a JVM signature clash and the three screen plugins did not take the `Context` every handler receives. `app-launcher` now declares the `<queries>` that make other apps visible on Android 11 and later

@@ -368,6 +368,19 @@ describe('syncAndroidAppIdentity', () => {
       );
     });
 
+    // A `$` starts a group reference in a replacement string; the name has to come out as written.
+    it.each([
+      ['a dollar and a digit', 'Shop $1'],
+      ['a dollar and an ampersand', 'Cash $& Carry'],
+      ['a dollar and an apostrophe', "Don't $'"],
+    ])('should write a display name with %s as it is', async (_what, displayName) => {
+      await syncAndroidAppIdentity(androidPath, { versionName: '3.15.0', displayName });
+
+      expect(read(STRINGS)).toBe(
+        `<resources>\n    <string name="app_name">${toXmlText(displayName)}</string>\n</resources>\n`
+      );
+    });
+
     it('should leave the manifest alone when it already uses the string resource', async () => {
       const before = read(MANIFEST);
       const written = age(MANIFEST);
