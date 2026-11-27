@@ -10,7 +10,7 @@ The web app is deployed on a server (or run locally during development). The nat
 |------------|---------|----------|
 | Node.js | 24.0 | All |
 | npm | 11.0 | All |
-| Android Studio | Hedgehog | Android |
+| Android Studio | Rabbit 2 (2026.2.2), the first to support Android Gradle Plugin 9.5 | Android |
 | Android SDK | platform 36 | Android |
 | JDK | 17 | Android |
 | xtool | latest | iOS |

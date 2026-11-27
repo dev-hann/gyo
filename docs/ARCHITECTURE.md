@@ -50,6 +50,7 @@ BaseCommand
 │   └── AbstractBuildCommand
 │       ├── AndroidBuildCommand
 │       └── IOSBuildCommand
+├── InstallCommand             gyo install
 └── CleanCommand                gyo clean
 ```
 

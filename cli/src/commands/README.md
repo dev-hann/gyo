@@ -52,4 +52,4 @@ Commands are registered in `src/program.ts` with `registerCommand(program, new M
 
 1. Create `commands/mycommand.ts` extending the appropriate base class
 2. Implement `getMeta()` and `run()`
-3. Register in `src/index.ts`
+3. Register in `src/program.ts`
