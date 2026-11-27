@@ -1,325 +1,340 @@
-jest.mock('inquirer', () => ({
-  prompt: jest.fn(),
-  default: { prompt: jest.fn() },
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
+}));
+// ESM-only
+jest.mock('inquirer', () => ({ prompt: jest.fn(), default: { prompt: jest.fn() } }));
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
 }));
 
+// Only what starts a process is mocked: the build runs against a real
+// project, and the mocked Gradle reads its inputs from disk.
 jest.mock('../utils/exec', () => ({
+  ...jest.requireActual('../utils/exec'),
   executeCommand: jest.fn(),
-  getGradlew: jest.fn().mockReturnValue('./gradlew'),
   checkCommandExists: jest.fn(),
+  requireTool: jest.fn(),
+  signalProcessTree: jest.fn(),
 }));
 
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    verbose: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-jest.mock('../services/config.service', () => ({
-  loadConfig: jest.fn().mockResolvedValue(null),
-  validateConfig: jest.fn(),
-  saveConfig: jest.fn(),
-  shouldStartLocalServer: jest.fn(),
-}));
-
-jest.mock('fs-extra', () => ({
-  ensureDir: jest.fn().mockResolvedValue(undefined),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-  remove: jest.fn().mockResolvedValue(undefined),
-}));
-
-jest.mock('../services/android-shell.service', () => ({
-  ...jest.requireActual('../services/android-shell.service'),
-  syncAndroidAppIdentity: jest.fn().mockResolvedValue(undefined),
-  prepareReleaseSigning: jest.fn().mockResolvedValue(undefined),
-}));
-
-jest.mock('../services/plugin.service', () => ({
-  syncAndroidPluginsIfNeeded: jest.fn().mockResolvedValue(undefined),
-}));
-
+import fs from 'fs-extra';
 import { AndroidBuildCommand } from '../commands/build/AndroidBuildCommand';
+import { BuildFailedError } from '../core/errors';
 import { executeCommand } from '../utils/exec';
-import { pathExists, writeFile } from '../utils/fs';
-import { BuildFailedError, GyoError } from '../core/errors';
+import type { ExecResult } from '../utils/exec';
 import { logger } from '../utils/logger';
-import { prepareReleaseSigning, syncAndroidAppIdentity } from '../services/android-shell.service';
-import { syncAndroidPluginsIfNeeded } from '../services/plugin.service';
+import { silenceLogger } from './helpers/logger';
+import { APP_LAUNCHER_HANDLER, writePluginFixture } from './helpers/plugin';
+import { createTestProject } from './helpers/project';
+import type { TestProject } from './helpers/project';
+
+const PRODUCTION_URL = 'https://app.example.com';
+const GRADLE_OK: ExecResult = { success: true, stdout: 'BUILD SUCCESSFUL', stderr: '', code: 0 };
+const CONFIG_FILE = 'app/src/main/assets/gyo-config.json';
+const KEYSTORE_PROPERTIES = 'keystore.properties';
+
+/** What a machine that releases holds. storeFile is resolved from android/app/. */
+const SIGNING_ENV = {
+  GYO_ANDROID_KEYSTORE_PATH: '../release.keystore',
+  GYO_ANDROID_KEYSTORE_PASSWORD: 'store secret',
+  GYO_ANDROID_KEY_ALIAS: 'app',
+  GYO_ANDROID_KEY_PASSWORD: 'key secret',
+};
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
-const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
-const mockedWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
-const mockedSyncIdentity = syncAndroidAppIdentity as jest.MockedFunction<
-  typeof syncAndroidAppIdentity
->;
-const mockedPrepareSigning = prepareReleaseSigning as jest.MockedFunction<
-  typeof prepareReleaseSigning
->;
-const mockedSyncPlugins = syncAndroidPluginsIfNeeded as jest.MockedFunction<
-  typeof syncAndroidPluginsIfNeeded
->;
-
-function makeExecResult(success: boolean, stdout = '', stderr = '') {
-  return Promise.resolve({ success, stdout, stderr, code: success ? 0 : 1 });
-}
 
 describe('AndroidBuildCommand', () => {
-  let command: AndroidBuildCommand;
+  let project: TestProject;
+  let previousSigning: Record<string, string | undefined>;
 
-  beforeEach(() => {
+  /** Runs `gyo build android` with the production profile, as `gyo build` does. */
+  function build(release: boolean): Promise<void> {
+    const command = new AndroidBuildCommand();
+    command.setPlatform('android');
+    command.setOptions({ profile: 'production', release });
+    return command.runDirectly();
+  }
+
+  /**
+   * Makes the mocked Gradle read the given files of android/ when it starts,
+   * as the real one does. What they held then is what the build used.
+   */
+  function gradleReads(...files: string[]): Record<string, string> {
+    const held: Record<string, string> = {};
+    mockedExec.mockImplementation(async (command) => {
+      if (command === './gradlew') {
+        for (const file of files) {
+          held[file] = fs.readFileSync(project.android(file), 'utf-8');
+        }
+      }
+      return GRADLE_OK;
+    });
+    return held;
+  }
+
+  /** Gives a release build a keystore: the file the environment names, and the environment. */
+  function signWithEnvironment(): void {
+    fs.writeFileSync(
+      project.android('release.keystore'),
+      'Gradle is mocked: this need not be a keystore.'
+    );
+    Object.assign(process.env, SIGNING_ENV);
+  }
+
+  beforeEach(async () => {
+    silenceLogger();
+    // A release build signs with what the environment holds: a test starts without any.
+    previousSigning = Object.fromEntries(
+      Object.keys(SIGNING_ENV).map((name) => [name, process.env[name]])
+    );
+    for (const name of Object.keys(SIGNING_ENV)) {
+      delete process.env[name];
+    }
+
+    project = await createTestProject();
     jest.clearAllMocks();
-    command = new AndroidBuildCommand();
-    (command as any).options = { profile: 'development', release: false };
-    (command as any).projectPath = '/project';
-    (command as any).config = {
-      name: 'test',
-      version: '1.0.0',
-      platforms: {},
-      profiles: { development: { serverUrl: 'http://localhost:3000' } },
-    };
+    await project.setConfig({ profiles: { production: { serverUrl: PRODUCTION_URL } } });
+    mockedExec.mockResolvedValue(GRADLE_OK);
   });
 
-  describe('getMeta', () => {
-    it('should return build-android as name', () => {
-      const meta = command.getMeta();
-      expect(meta.name).toBe('build-android');
-    });
+  afterEach(() => {
+    project.remove();
+    for (const [name, value] of Object.entries(previousSigning)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
   });
 
-  describe('buildApp', () => {
-    it('should run assembleDebug for debug builds', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+  it('should stop when the project has no android/ directory', async () => {
+    fs.removeSync(project.android());
 
-      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
-      expect(mockedExec).toHaveBeenCalledWith(
-        './gradlew',
-        ['assembleDebug'],
-        expect.objectContaining({ cwd: '/project/android' })
-      );
-    });
+    await expect(build(false)).rejects.toThrow(`Platform 'android' not found in ${project.path}.`);
 
-    it('should run assembleRelease for release builds', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-
-      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
-      expect(mockedExec).toHaveBeenCalledWith(
-        './gradlew',
-        ['assembleRelease'],
-        expect.objectContaining({ cwd: '/project/android' })
-      );
-    });
-
-    it('should log debug APK path on success', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-
-      await command['buildApp']('/project/android');
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('app-debug.apk'));
-    });
-
-    it('should log release APK path on release success', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-
-      await command['buildApp']('/project/android');
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('app-release.apk'));
-    });
-
-    it('should throw BuildFailedError on build failure', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(false, '', 'build error'));
-
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(BuildFailedError);
-      await expect(command['buildApp']('/project/android')).rejects.toThrow('Android build failed');
-    });
-
-    it('should log stderr when build fails with stderr', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(false, '', 'gradle failure'));
-
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(BuildFailedError);
-      expect(logger.error).toHaveBeenCalledWith('gradle failure');
-    });
-
-    it('should log stdout when build fails with no stderr', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(false, 'some stdout output', ''));
-
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(BuildFailedError);
-      expect(logger.error).toHaveBeenCalledWith('some stdout output');
-    });
-
-    it('should log verbose output on success', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'detailed output', ''));
-
-      await command['buildApp']('/project/android');
-
-      expect(logger.verbose).toHaveBeenCalledWith('detailed output');
-    });
+    expect(executeCommand).not.toHaveBeenCalled();
   });
 
-  describe('buildPlatform (integration)', () => {
-    it('should run full build pipeline successfully', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+  describe('the project Gradle builds', () => {
+    it('should write the server URL and the webview settings where the app reads them', async () => {
+      await project.setConfig({ webview: { userAgent: 'MyApp/1.0' } });
+      const held = gradleReads(CONFIG_FILE);
 
-      await expect(command['buildPlatform']()).resolves.toBeUndefined();
+      await build(false);
 
-      expect(mockedWriteFile).toHaveBeenCalled();
-      expect(mockedExec).toHaveBeenCalled();
-    });
-
-    it('should fail when platform directory missing', async () => {
-      mockedPathExists.mockResolvedValue(false);
-
-      await expect(command['buildPlatform']()).rejects.toThrow();
-    });
-
-    it('should bake the webview settings next to the server URL', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-      (command as any).serverUrl = 'http://localhost:3000';
-      (command as any).config.webview = { userAgent: 'MyApp/1.0' };
-
-      await command['buildPlatform']();
-
-      const configCall = mockedWriteFile.mock.calls.find((call) =>
-        String(call[0]).endsWith('gyo-config.json')
-      );
-      expect(configCall).toBeDefined();
-      expect(JSON.parse(configCall![1] as string)).toEqual({
-        serverUrl: 'http://localhost:3000',
+      expect(JSON.parse(held[CONFIG_FILE])).toEqual({
+        serverUrl: PRODUCTION_URL,
         webview: { userAgent: 'MyApp/1.0' },
       });
     });
 
-    it('should sync the app identity from gyo.config.json before building', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-      (command as any).serverUrl = 'http://localhost:3000';
-      (command as any).config = {
-        name: 'test',
+    it('should write the version, the version code and the display name of gyo.config.json', async () => {
+      await project.setConfig({
         version: '3.15.0',
         displayName: '킥뉴스',
         platforms: { android: { enabled: true, versionCode: 73 } },
-      };
-
-      await command['buildPlatform']();
-
-      expect(mockedExec).toHaveBeenCalled();
-      expect(mockedSyncIdentity).toHaveBeenCalledWith('/project/android', {
-        versionName: '3.15.0',
-        versionCode: 73,
-        displayName: '킥뉴스',
-        iconPath: undefined,
       });
-    });
+      const held = gradleReads('app/build.gradle', 'app/src/main/res/values/strings.xml');
 
-    it('should sync the plugins before Gradle runs', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+      await build(false);
 
-      await command['buildPlatform']();
-
-      expect(mockedSyncPlugins).toHaveBeenCalledWith('/project');
-      expect(mockedSyncPlugins.mock.invocationCallOrder[0]).toBeLessThan(
-        mockedExec.mock.invocationCallOrder[0]
+      expect(held['app/build.gradle']).toContain('versionCode = 73');
+      expect(held['app/build.gradle']).toContain('versionName = "3.15.0"');
+      expect(held['app/src/main/res/values/strings.xml']).toContain(
+        '<string name="app_name">킥뉴스</string>'
       );
     });
 
-    it('should warn when a release build is pointed at plain http', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      (command as any).serverUrl = 'http://203.0.113.10';
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+    it('should include the installed plugins as Gradle modules before Gradle runs', async () => {
+      writePluginFixture(
+        project.path,
+        '@gyo-framework/app-launcher',
+        APP_LAUNCHER_HANDLER,
+        'app_launcher'
+      );
+      const held = gradleReads('gyo.settings.gradle', 'app/gyo.build.gradle');
 
-      await command['buildPlatform']();
+      await build(false);
 
-      expect(logger.warn).toHaveBeenCalledWith(
-        'A release build does not load http://203.0.113.10: it denies plain http. Serve the profile over https.'
+      expect(held['gyo.settings.gradle']).toContain("include ':gyo-plugin-app-launcher'");
+      expect(held['app/gyo.build.gradle']).toContain(
+        "implementation project(':gyo-plugin-app-launcher')"
       );
     });
 
-    it('should stay quiet about https, the device itself and debug builds', async () => {
-      (command as any).serverUrl = 'https://example.com';
-      for (const options of [
-        { profile: 'production', release: true },
-        { profile: 'development', release: false },
-      ]) {
-        (command as any).options = options;
-        mockedPathExists.mockResolvedValue(true);
-        mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-        await command['buildPlatform']();
-      }
-      (command as any).options = { profile: 'production', release: true };
-      (command as any).serverUrl = 'http://127.0.0.1:8080';
-      await command['buildPlatform']();
+    it('should stop the build before Gradle when a plugin cannot be included', async () => {
+      // Sources without a Gradle module file: the app build cannot include the plugin.
+      writePluginFixture(
+        project.path,
+        '@gyo-framework/broken',
+        'gyo.plugins.broken.BrokenBridge',
+        'broken',
+        { module: false }
+      );
 
-      expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('denies plain http'));
+      await expect(build(false)).rejects.toThrow(
+        '@gyo-framework/broken has Android sources but no android/build.gradle'
+      );
+
+      expect(executeCommand).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Gradle', () => {
+    it('should run assembleDebug in android/ and report where the APK is', async () => {
+      await build(false);
+
+      expect(executeCommand).toHaveBeenCalledTimes(1);
+      expect(executeCommand).toHaveBeenCalledWith('./gradlew', ['assembleDebug'], {
+        cwd: project.android(),
+        stdio: 'pipe',
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        'APK location: android/app/build/outputs/apk/debug/app-debug.apk'
+      );
     });
 
-    it('should fail the build when a plugin cannot be synced', async () => {
-      mockedPathExists.mockResolvedValue(true);
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
-      mockedSyncPlugins.mockRejectedValue(new GyoError('@gyo-framework/x ships no sources'));
+    it('should pass what Gradle printed to the verbose log', async () => {
+      mockedExec.mockResolvedValue({ ...GRADLE_OK, stdout: 'BUILD SUCCESSFUL in 2s' });
 
-      await expect(command['buildPlatform']()).rejects.toThrow('ships no sources');
-      expect(mockedExec).not.toHaveBeenCalled();
+      await build(false);
+
+      expect(logger.verbose).toHaveBeenCalledWith('BUILD SUCCESSFUL in 2s');
+    });
+
+    it.each([
+      {
+        where: 'on stderr',
+        result: {
+          success: false,
+          stdout: 'Starting a Gradle Daemon',
+          stderr: 'FAILURE: Build failed with an exception.',
+          code: 1,
+        },
+        shown: 'FAILURE: Build failed with an exception.',
+      },
+      {
+        where: 'on stdout when stderr is empty',
+        result: {
+          success: false,
+          stdout: 'FAILURE: Build failed with an exception.',
+          stderr: '',
+          code: 1,
+        },
+        shown: 'FAILURE: Build failed with an exception.',
+      },
+    ])('should fail the build and show what Gradle printed $where', async ({ result, shown }) => {
+      mockedExec.mockResolvedValue(result);
+
+      const failing = build(false);
+      await expect(failing).rejects.toThrow(BuildFailedError);
+      await expect(failing).rejects.toThrow('Android build failed');
+
+      expect(logger.error).toHaveBeenCalledWith(shown);
     });
   });
 
   describe('release signing', () => {
-    beforeEach(() => {
-      mockedPathExists.mockImplementation(async (target: string) =>
-        target.endsWith('build.gradle')
+    it('should write keystore.properties from the environment before Gradle runs', async () => {
+      signWithEnvironment();
+      const held = gradleReads(KEYSTORE_PROPERTIES);
+
+      await build(true);
+
+      expect(held[KEYSTORE_PROPERTIES]).toBe(
+        [
+          'storeFile=../release.keystore',
+          'storePassword=store secret',
+          'keyAlias=app',
+          'keyPassword=key secret',
+          '',
+        ].join('\n')
+      );
+      expect(executeCommand).toHaveBeenCalledWith('./gradlew', ['assembleRelease'], {
+        cwd: project.android(),
+        stdio: 'pipe',
+      });
+      expect(logger.info).toHaveBeenCalledWith(
+        'APK location: android/app/build/outputs/apk/release/app-release.apk'
       );
     });
 
-    it('should prepare signing for release builds', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+    it.each([
+      {
+        has: 'none',
+        variables: {},
+        message:
+          /Release signing is not configured[\s\S]*GYO_ANDROID_KEYSTORE_PATH[\s\S]*keystore\.properties/,
+      },
+      {
+        has: 'only some',
+        variables: {
+          GYO_ANDROID_KEYSTORE_PATH: '../release.keystore',
+          GYO_ANDROID_KEY_PASSWORD: 'key secret',
+        },
+        message:
+          /Release signing needs all four of GYO_ANDROID_KEYSTORE_PATH, GYO_ANDROID_KEYSTORE_PASSWORD, GYO_ANDROID_KEY_ALIAS, GYO_ANDROID_KEY_PASSWORD/,
+      },
+    ])(
+      'should stop a release build before Gradle when it has $has of the signing variables',
+      async ({ variables, message }) => {
+        Object.assign(process.env, variables);
 
-      await expect(command['buildApp']('/project/android')).resolves.toBeUndefined();
-      expect(mockedPrepareSigning).toHaveBeenCalledWith('/project/android');
-      expect(mockedExec).toHaveBeenCalledWith('./gradlew', ['assembleRelease'], expect.anything());
-    });
+        await expect(build(true)).rejects.toThrow(message);
 
-    it('should skip signing for debug builds', async () => {
-      mockedExec.mockResolvedValue(await makeExecResult(true, 'BUILD SUCCESSFUL', ''));
+        expect(fs.pathExistsSync(project.android(KEYSTORE_PROPERTIES))).toBe(false);
+        expect(executeCommand).not.toHaveBeenCalled();
+      }
+    );
 
-      await command['buildApp']('/project/android');
+    it('should build a debug APK without signing, whatever the environment holds', async () => {
+      signWithEnvironment();
 
-      expect(mockedPrepareSigning).not.toHaveBeenCalled();
-    });
+      await build(false);
 
-    it('should fail the release build before Gradle runs when signing is missing', async () => {
-      (command as any).options = { profile: 'production', release: true };
-      mockedPrepareSigning.mockRejectedValue(
-        new BuildFailedError('Release signing is not configured')
+      expect(executeCommand).toHaveBeenCalledWith(
+        './gradlew',
+        ['assembleDebug'],
+        expect.anything()
       );
-
-      await expect(command['buildApp']('/project/android')).rejects.toThrow(
-        'Release signing is not configured'
-      );
-      expect(mockedExec).not.toHaveBeenCalled();
+      expect(fs.pathExistsSync(project.android(KEYSTORE_PROPERTIES))).toBe(false);
     });
+  });
+
+  describe('a build that would load plain http', () => {
+    it.each([
+      {
+        release: true,
+        serverUrl: 'http://203.0.113.10',
+        warning:
+          'A release build does not load http://203.0.113.10: it denies plain http. Serve the profile over https.',
+      },
+      { release: true, serverUrl: 'https://app.example.com', warning: undefined },
+      { release: true, serverUrl: 'http://localhost:3000', warning: undefined },
+      { release: true, serverUrl: 'http://127.0.0.1:8080', warning: undefined },
+      { release: false, serverUrl: 'http://203.0.113.10', warning: undefined },
+    ])(
+      'should warn about plain http only when a release build loads another machine (release: $release, $serverUrl)',
+      async ({ release, serverUrl, warning }) => {
+        await project.setConfig({ profiles: { production: { serverUrl } } });
+        signWithEnvironment();
+
+        await build(release);
+
+        if (warning) {
+          expect(logger.warn).toHaveBeenCalledWith(warning);
+        } else {
+          expect(logger.warn).not.toHaveBeenCalledWith(
+            expect.stringContaining('denies plain http')
+          );
+        }
+      }
+    );
   });
 });
