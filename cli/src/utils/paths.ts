@@ -28,3 +28,23 @@ export function getTemplatesPath(): string {
 export function getCliVersion(): string {
   return (fs.readJsonSync(cliFile('package.json')) as { version: string }).version;
 }
+
+/** The Node release the CLI installs on: the major version `engines.node` names. */
+export function getRequiredNodeMajor(): number {
+  const { engines } = fs.readJsonSync(cliFile('package.json')) as { engines: { node: string } };
+  const major = Number(engines.node.match(/\d+/)?.[0]);
+  if (!Number.isInteger(major)) {
+    throw new GyoError(`Cannot read the Node version the CLI needs from: ${engines.node}`);
+  }
+  return major;
+}
+
+/** The Android platform a generated project compiles against. */
+export function getAndroidCompileSdk(): number {
+  const gradle = fs.readFileSync(cliFile('templates', 'android', 'app', 'build.gradle'), 'utf-8');
+  const level = Number(gradle.match(/compileSdk\s+(\d+)/)?.[1]);
+  if (!Number.isInteger(level)) {
+    throw new GyoError('Cannot read compileSdk from the Android template.');
+  }
+  return level;
+}

@@ -5,6 +5,21 @@ import { checkCommandExists, executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import * as path from 'path';
 import * as fs from 'fs';
+import { getAndroidCompileSdk, getRequiredNodeMajor } from '../utils/paths';
+
+/** AGP 8 needs it; the template's Gradle files are written for it. */
+const REQUIRED_JDK_MAJOR = 17;
+
+/** The version `java --version` prints, with or without a patch release: "17.0.20", "21", "1.8.0_392". */
+function javaVersion(output: string): string {
+  return output.match(/\d+(?:[._]\d+)*/)?.[0] ?? 'unknown';
+}
+
+/** The Java release a version belongs to: 8 for 1.8.0_392, 17 for 17.0.20, 21 for 21. */
+function javaMajor(version: string): number {
+  const [major, minor] = version.split(/[._]/).map(Number);
+  return major === 1 ? minor : major;
+}
 
 interface CheckResult {
   name: string;
@@ -50,7 +65,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
 
   protected async run(): Promise<void> {
     this.detectPlatform();
-    this.androidHome = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || '';
+    this.androidHome = await this.locateAndroidSdk();
 
     logger.info('Running gyo environment checks...\n');
 
@@ -124,7 +139,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       installHint: this.getInstallHint('node'),
       minVersion: {
         parse: (stdout) => parseInt(stdout.trim().replace('v', '').split('.')[0]),
-        required: 18,
+        required: getRequiredNodeMajor(),
       },
       versionParser: (stdout) => stdout.trim(),
       category: 'Core',
@@ -178,8 +193,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     }
 
     const output = result.stderr || result.stdout;
-    const versionMatch = output.match(/(\d+\.\d+\.\d+)/);
-    const version = versionMatch ? versionMatch[1] : 'unknown';
+    const version = javaVersion(output);
 
     let javaPath = '';
     const javaHome = process.env.JAVA_HOME;
@@ -196,8 +210,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       }
     }
 
-    const majorVersion = parseInt(version.split('.')[0]);
-    const passed = majorVersion >= 11;
+    const passed = javaMajor(version) >= REQUIRED_JDK_MAJOR;
 
     return {
       name: 'JDK',
@@ -208,27 +221,32 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     };
   }
 
-  private async checkAndroidSDK(): Promise<CheckResult> {
-    const androidHome = this.androidHome;
+  /**
+   * Where the SDK is: the variable that names it, or the usual place. The
+   * checks run at the same time, so none of them may depend on another
+   * having found it first.
+   */
+  private async locateAndroidSdk(): Promise<string> {
+    const fromEnv = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+    if (fromEnv) {
+      return fromEnv;
+    }
 
-    if (!androidHome) {
-      const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-      const candidates = this.isMac
-        ? [`${homeDir}/Library/Android/sdk`]
-        : [`${homeDir}/Android/Sdk`, '/opt/android-sdk'];
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const candidates = this.isMac
+      ? [`${homeDir}/Library/Android/sdk`]
+      : [`${homeDir}/Android/Sdk`, `${homeDir}/android-sdk`, '/opt/android-sdk'];
 
-      for (const candidate of candidates) {
-        if (await pathExists(candidate)) {
-          return {
-            name: 'Android SDK',
-            passed: true,
-            message: `Found at ${candidate} (set ANDROID_HOME for reliability)`,
-            category: 'Android',
-            installHint: `Add to shell config:\n  export ANDROID_HOME=${candidate}`,
-          };
-        }
+    for (const candidate of candidates) {
+      if (await pathExists(candidate)) {
+        return candidate;
       }
+    }
+    return '';
+  }
 
+  private async checkAndroidSDK(): Promise<CheckResult> {
+    if (!this.androidHome) {
       return {
         name: 'Android SDK',
         passed: false,
@@ -238,21 +256,27 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       };
     }
 
-    if (!(await pathExists(androidHome))) {
+    if (!(await pathExists(this.androidHome))) {
       return {
         name: 'Android SDK',
         passed: false,
-        message: `ANDROID_HOME set but path does not exist: ${androidHome}`,
+        message: `ANDROID_HOME set but path does not exist: ${this.androidHome}`,
         category: 'Android',
         installHint: 'Verify your Android SDK installation path',
       };
     }
 
+    const namedByEnv = Boolean(process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT);
     return {
       name: 'Android SDK',
       passed: true,
-      message: `${androidHome}`,
+      message: namedByEnv
+        ? this.androidHome
+        : `Found at ${this.androidHome} (set ANDROID_HOME for reliability)`,
       category: 'Android',
+      installHint: namedByEnv
+        ? undefined
+        : `Add to shell config:\n  export ANDROID_HOME=${this.androidHome}`,
     };
   }
 
@@ -268,6 +292,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
       };
     }
 
+    const compileSdk = getAndroidCompileSdk();
     const platformsDir = path.join(sdkPath, 'platforms');
     if (!(await pathExists(platformsDir))) {
       return {
@@ -275,8 +300,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
         passed: false,
         message: 'No platforms installed',
         category: 'Android',
-        installHint:
-          'Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-34"',
+        installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-${compileSdk}"`,
       };
     }
 
@@ -288,23 +312,23 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
           passed: false,
           message: 'No platforms installed',
           category: 'Android',
-          installHint:
-            'Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-34"',
+          installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-${compileSdk}"`,
         };
       }
 
       const versions = entries.map((e) => e.replace('android-', '')).join(', ');
-      const hasRequired = entries.some((e) => {
-        const v = parseInt(e.replace('android-', ''));
-        return v >= 24;
-      });
+      const hasRequired = entries.some(
+        (e) => parseInt(e.replace('android-', ''), 10) >= compileSdk
+      );
 
       return {
         name: 'Android SDK Platform',
         passed: hasRequired,
         message: `API ${versions}`,
         category: 'Android',
-        installHint: hasRequired ? undefined : 'Gyo requires API 24+. Install via SDK Manager.',
+        installHint: hasRequired
+          ? undefined
+          : `Gyo compiles against API ${compileSdk}. Install it via SDK Manager.`,
       };
     } catch {
       return {
@@ -336,8 +360,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
         passed: false,
         message: 'No build-tools installed',
         category: 'Android',
-        installHint:
-          'Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;34.0.0"',
+        installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;${getAndroidCompileSdk()}.0.0"`,
       };
     }
 
@@ -349,8 +372,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
           passed: false,
           message: 'No build-tools installed',
           category: 'Android',
-          installHint:
-            'Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;34.0.0"',
+          installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;${getAndroidCompileSdk()}.0.0"`,
         };
       }
 

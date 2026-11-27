@@ -41,6 +41,11 @@ jest.mock('fs', () => ({
   readdirSync: jest.fn(),
 }));
 
+jest.mock('../utils/paths', () => ({
+  getRequiredNodeMajor: () => 24,
+  getAndroidCompileSdk: () => 34,
+}));
+
 import { executeCommand, checkCommandExists } from '../utils/exec';
 import { pathExists } from '../utils/fs';
 import { logger } from '../utils/logger';
@@ -67,7 +72,7 @@ describe('DoctorCommand', () => {
     it('should pass when all core tools are installed', async () => {
       mockedCheck.mockResolvedValue(true);
       mockedExec.mockImplementation((cmd: string, args?: string[]) => {
-        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v20.0.0' }));
+        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
         if (cmd === 'npm') return Promise.resolve(execResult({ stdout: '10.0.0' }));
         if (cmd === 'git') return Promise.resolve(execResult({ stdout: 'git version 2.40' }));
         if (cmd === 'java') return Promise.resolve(execResult({ stderr: 'openjdk 17.0.18' }));
@@ -226,7 +231,7 @@ describe('DoctorCommand', () => {
         return cmd === 'java' || cmd === 'node';
       });
       mockedExec.mockImplementation((cmd: string) => {
-        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v20.0.0' }));
+        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
         if (cmd === 'npm') return Promise.resolve(execResult({ stdout: '10.0.0' }));
         if (cmd === 'java')
           return Promise.resolve(execResult({ stderr: 'openjdk 17.0.18 2024-01-01' }));
@@ -251,7 +256,7 @@ describe('DoctorCommand', () => {
         );
       });
       mockedExec.mockImplementation((cmd: string) => {
-        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v20.0.0' }));
+        if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
         if (cmd === 'npm') return Promise.resolve(execResult({ stdout: '10.0.0' }));
         if (cmd === 'git') return Promise.resolve(execResult({ stdout: 'git version 2.40' }));
         return Promise.resolve(execResult({ stdout: '' }));
@@ -367,5 +372,92 @@ describe('DoctorCommand', () => {
 
       expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('iOS'));
     });
+  });
+});
+
+// What doctor requires is what the CLI and the generated project need, not
+// a number of its own: it used to call Node 18, JDK 11 and API 24 enough.
+describe('DoctorCommand requirements', () => {
+  let command: TestableDoctorCommand;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    command = new TestableDoctorCommand();
+    mockedCheck.mockImplementation(async (cmd: string) => cmd === 'node' || cmd === 'java');
+    mockedExec.mockImplementation((cmd: string) => {
+      if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
+      if (cmd === 'java') return Promise.resolve(execResult({ stderr: 'openjdk 17.0.20' }));
+      if (cmd === 'which') return Promise.resolve(execResult({ stdout: '/usr/bin/java' }));
+      return Promise.resolve(execResult({ stdout: '' }));
+    });
+    mockedPathExists.mockResolvedValue(false);
+  });
+
+  it('should fail a Node release older than the one the CLI installs on', async () => {
+    mockedExec.mockImplementation((cmd: string) =>
+      Promise.resolve(execResult({ stdout: cmd === 'node' ? 'v20.11.1' : '' }))
+    );
+
+    await command.testRun();
+
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('requires v24+'));
+  });
+
+  it.each([
+    ['openjdk 11.0.22 2024-01-01', false],
+    ['openjdk 17.0.20 2026-07-21', true],
+    ['openjdk 21 2023-09-19', true],
+    ['openjdk 1.8.0_392', false],
+  ])('should read the Java release from "%s" as enough: %s', async (versionOutput, enough) => {
+    mockedExec.mockImplementation((cmd: string) =>
+      Promise.resolve(execResult(cmd === 'java' ? { stderr: versionOutput } : {}))
+    );
+
+    await command.testRun();
+
+    const line = expect.stringContaining(`JDK: ${versionOutput.split(' ')[1]}`);
+    if (enough) {
+      expect(logger.success).toHaveBeenCalledWith(line);
+    } else {
+      expect(logger.error).toHaveBeenCalledWith(line);
+    }
+  });
+
+  it('should want the platform the template compiles against', async () => {
+    const originalHome = process.env.ANDROID_HOME;
+    process.env.ANDROID_HOME = '/opt/android-sdk';
+    try {
+      mockedPathExists.mockResolvedValue(true);
+      mockedReaddirSync.mockReturnValueOnce(['android-33']).mockReturnValue([]);
+
+      await command.testRun();
+
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('API 33'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Gyo compiles against API 34')
+      );
+    } finally {
+      if (originalHome) process.env.ANDROID_HOME = originalHome;
+      else delete process.env.ANDROID_HOME;
+    }
+  });
+
+  it('should look for that platform where it found the SDK', async () => {
+    const originalHome = process.env.ANDROID_HOME;
+    const originalRoot = process.env.ANDROID_SDK_ROOT;
+    delete process.env.ANDROID_HOME;
+    delete process.env.ANDROID_SDK_ROOT;
+    try {
+      mockedPathExists.mockResolvedValue(true);
+      mockedReaddirSync.mockReturnValueOnce(['android-34']).mockReturnValue([]);
+
+      await command.testRun();
+
+      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Found at'));
+      expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('API 34'));
+    } finally {
+      if (originalHome) process.env.ANDROID_HOME = originalHome;
+      if (originalRoot) process.env.ANDROID_SDK_ROOT = originalRoot;
+    }
   });
 });
