@@ -174,7 +174,7 @@ describe('UpgradeCommand', () => {
 
     try {
       await command['run']();
-      fail('Expected error');
+      throw new Error('Expected error');
     } catch (error) {
       expect(error).toBeInstanceOf(GyoError);
       expect((error as GyoError).message).toBe('Could not fetch latest version from npm');

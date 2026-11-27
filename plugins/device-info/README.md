@@ -72,7 +72,7 @@ No permissions are needed.
 
 ## Peer Dependencies
 
-- `@gyo-framework/bridge@^0.1.3`
+- `@gyo-framework/bridge@^0.2.0`
 
 ## License
 

@@ -10,7 +10,7 @@ import org.json.JSONObject
 class ContactSearchBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-ContactSearch"
+        private const val TAG = "Gyo-ContactSearch"
     }
 
     override fun handle(method: String, data: JSONObject): Any? {

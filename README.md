@@ -31,7 +31,7 @@ gyo run
 ```
 gyo/
 ├── cli/          # @gyo-framework/cli — CLI tool (create/run/build native shells)
-├── plugins/      # bridge + test-utils + 10 feature plugins (Android native)
+├── plugins/      # bridge + test-utils + 12 feature plugins (Android native)
 └── docs/         # Specifications
 ```
 

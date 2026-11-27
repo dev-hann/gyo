@@ -2,6 +2,7 @@ package gyo.plugins.screen_find
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import gyo.plugins.accessibility.GyoAccessibilityService
 import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
@@ -12,10 +13,8 @@ import org.json.JSONObject
 class ScreenFindBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-ScreenFind"
+        private const val TAG = "Gyo-ScreenFind"
 
-        @Volatile
-        var accessibilityService: AccessibilityService? = null
     }
 
     override fun handle(method: String, data: JSONObject): Any? {
@@ -30,7 +29,7 @@ class ScreenFindBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun findByText(data: JSONObject): JSONObject {
-        val service = accessibilityService
+        val service = GyoAccessibilityService.instance
         if (service == null) {
             Log.w(TAG, "findByText: AccessibilityService not available")
             return emptyResult()
@@ -71,7 +70,7 @@ class ScreenFindBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun findById(data: JSONObject): JSONObject {
-        val service = accessibilityService
+        val service = GyoAccessibilityService.instance
         if (service == null) {
             Log.w(TAG, "findById: AccessibilityService not available")
             return emptyResult()

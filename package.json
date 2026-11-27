@@ -16,7 +16,9 @@
     "plugins/screen-reader",
     "plugins/screen-action",
     "plugins/screen-find",
-    "plugins/http"
+    "plugins/http",
+    "plugins/accessibility",
+    "plugins/notification-listener"
   ],
   "scripts": {
     "pretypecheck": "npm run build:bridge",

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.2.0] - 2026-11-27
 
 ### Added
 
@@ -13,11 +13,14 @@
 - Android: release signing through `android/keystore.properties`, which `gyo build android --release` writes from the `GYO_ANDROID_KEYSTORE_*` variables
 - `@gyo-framework/http` plugin: GET requests that run outside the WebView with the caller's headers. Redirects are followed, the raw body comes back as base64, and requests that name the same `jar` share cookies that survive app restarts
 - End-to-end suites for the built bundle (`test:e2e:local`) and for an Android build with every official plugin (`test:e2e:android`)
+- `@gyo-framework/accessibility` and `@gyo-framework/notification-listener`: the accessibility service and the notification listener service as plugins, with `isEnabled()` and `openSettings()`. `screen-reader`, `screen-action`, `screen-find` and `notification-reader` bring them and read through them, instead of waiting for a service the app has to write
 - `requestPermissions()` in `@gyo-framework/bridge`: asks the user for Android run-time permissions through a handler the Android shell registers in every app. Android handlers can answer a call later through `handleAsync`
 - Android: a WebView too old to restrict the bridge per frame is told apart in the log, and the fallback checks the main frame's host
 
 ### Changed
 
+- Every package is versioned above what is on npm, and the plugins require `@gyo-framework/bridge@^0.2.0`. The newer versions on npm had been published from work that was never committed to the repository; their Kotlin is brought back: `app-launcher` lists the apps through the launcher intent, `notification-reader` returns the notifications newest first with their ids and the expanded text
+- ESLint has one configuration for every TypeScript source; it used to list each package
 - Plugin naming unified to `@gyo-framework/*` scope
 - Clean architecture: core, services, utils, commands layers
 - Removed hot reload (WebSocket-based)

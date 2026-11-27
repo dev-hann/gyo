@@ -58,11 +58,22 @@ interface ListResult {
 
 `gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-Reading active notifications requires notification listener access. The app needs a `NotificationListenerService` of its own, which the user enables in the system settings; without it `list()` returns an empty list.
+The handler reads through `@gyo-framework/notification-listener`, which this plugin brings. The user allows notification access for the app once; `openSettings()` on that plugin leads there:
+
+```typescript
+import { NotificationListener } from '@gyo-framework/notification-listener';
+
+const listener = new NotificationListener();
+if (!(await listener.isEnabled()).enabled) {
+  await listener.openSettings();
+}
+```
+
+Until access is granted, `list()` returns an empty result.
 
 ## Peer Dependencies
 
-- `@gyo-framework/bridge@^0.1.3`
+- `@gyo-framework/bridge@^0.2.0`
 
 ## License
 

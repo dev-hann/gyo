@@ -220,6 +220,7 @@ interface NotificationInfo {
   text: string
   postTime: number
   category: string
+  id: number
 }
 
 interface ListResult {
@@ -230,7 +231,7 @@ interface ListResult {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.notification_reader.NotificationReaderBridge` — requires `NotificationListenerService` access (system settings).
+**Android**: `gyo.plugins.notification_reader.NotificationReaderBridge` — reads through `@gyo-framework/notification-listener`, which it brings. Until the user grants notification access, `list` returns an empty result.
 
 | Method | Input | Output |
 |--------|-------|--------|
@@ -351,7 +352,7 @@ interface FindResult {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.screen_reader.ScreenReaderBridge` — requires accessibility service.
+**Android**: `gyo.plugins.screen_reader.ScreenReaderBridge` — reads through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, `read` and `find` return an empty result.
 
 | Method | Input | Output |
 |--------|-------|--------|
@@ -386,7 +387,7 @@ interface SwipeParams {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.screen_action.ScreenActionBridge` — requires accessibility service.
+**Android**: `gyo.plugins.screen_action.ScreenActionBridge` — acts through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, every method returns `false`.
 
 | Method | Input | Output |
 |--------|-------|--------|
@@ -430,7 +431,7 @@ interface FindResult {
 
 ### Native Handler
 
-**Android**: `gyo.plugins.screen_find.ScreenFindBridge` — requires accessibility service.
+**Android**: `gyo.plugins.screen_find.ScreenFindBridge` — finds elements through `@gyo-framework/accessibility`, which it brings. Until the user enables that service, every method returns an empty result.
 
 | Method | Input | Output |
 |--------|-------|--------|
@@ -486,6 +487,80 @@ seconds without an answer it rejects on its own.
 |--------|-------|--------|
 | `request` | `HttpRequest` | `HttpResponse` |
 
+## @gyo-framework/accessibility
+
+The accessibility service the screen plugins read and act through, and whether it is enabled (Android).
+
+### Exports
+
+```typescript
+class Accessibility {
+  constructor()
+  isEnabled(): Promise<AccessibilityStatus>
+  openSettings(): Promise<{ opened: boolean }>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+interface AccessibilityStatus {
+  enabled: boolean
+}
+```
+
+### Native Handler
+
+**Android**: `gyo.plugins.accessibility.AccessibilityBridge`. The module declares `GyoAccessibilityService`; the user enables it in the system settings. `@gyo-framework/screen-reader`, `screen-action` and `screen-find` depend on it.
+
+| Method | Input | Output |
+|--------|-------|--------|
+| `is_enabled` | — | `{ enabled: boolean }` |
+| `open_settings` | — | `{ opened: boolean }` |
+
+## @gyo-framework/notification-listener
+
+The notification listener service, whether access is granted, and the active notifications (Android).
+
+### Exports
+
+```typescript
+class NotificationListener {
+  constructor()
+  isEnabled(): Promise<NotificationListenerStatus>
+  getNotifications(limit?: number): Promise<NotificationListResult>
+  openSettings(): Promise<{ opened: boolean }>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+interface NotificationListenerStatus {
+  enabled: boolean
+}
+
+interface NotificationInfo {
+  packageName: string
+  title: string
+  text: string
+  postTime: number
+  category: string
+  id: number
+}
+
+interface NotificationListResult {
+  notifications: NotificationInfo[]
+  count: number
+}
+```
+
+### Native Handler
+
+**Android**: `gyo.plugins.notification_listener.NotificationListenerBridge`. The module declares `GyoNotificationListenerService`; the user grants the app notification access in the system settings. `@gyo-framework/notification-reader` depends on it.
+
+| Method | Input | Output |
+|--------|-------|--------|
+| `is_enabled` | — | `{ enabled: boolean }` |
+| `get_notifications` | `{ limit }` | `{ notifications: NotificationInfo[], count: number }` |
+| `open_settings` | — | `{ opened: boolean }` |
+
 ## Plugin Development Conventions
 
 ### Naming
@@ -539,6 +614,7 @@ The `gyo` field of package.json:
 | Manifest | Install-time declarations only, such as `<queries>`; merged into the app's |
 | Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`, never by the plugin |
 | Dependencies | Declared in the module; the app gets them through it |
+| Another plugin's module | `implementation(project(":gyo-plugin-<name>"))`; gyo includes every installed plugin under that name and fails when that plugin is not installed |
 
 > See [CLI.md](./CLI.md#plugin-modules) for what a sync writes into the app.
 

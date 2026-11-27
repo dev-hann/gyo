@@ -32,4 +32,5 @@ android {
 dependencies {
     // The app brings the bridge module; this one only needs BridgeHandler to compile.
     compileOnly(project(":gyo-bridge"))
+    implementation(project(":gyo-plugin-accessibility"))
 }

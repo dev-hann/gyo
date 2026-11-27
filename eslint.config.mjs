@@ -9,38 +9,24 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const projectConfigs = [
-  { files: 'cli/src/**/*.ts', tsconfig: 'cli/tsconfig.json' },
-  { files: 'plugins/bridge/src/**/*.ts', tsconfig: 'plugins/bridge/tsconfig.json' },
-  { files: 'plugins/test-utils/src/**/*.ts', tsconfig: 'plugins/test-utils/tsconfig.json' },
-  { files: 'plugins/app-launcher/src/**/*.ts', tsconfig: 'plugins/app-launcher/tsconfig.json' },
-  { files: 'plugins/device-info/src/**/*.ts', tsconfig: 'plugins/device-info/tsconfig.json' },
-  { files: 'plugins/contact-search/src/**/*.ts', tsconfig: 'plugins/contact-search/tsconfig.json' },
-  { files: 'plugins/notification-reader/src/**/*.ts', tsconfig: 'plugins/notification-reader/tsconfig.json' },
-  { files: 'plugins/sms-sender/src/**/*.ts', tsconfig: 'plugins/sms-sender/tsconfig.json' },
-  { files: 'plugins/phone-caller/src/**/*.ts', tsconfig: 'plugins/phone-caller/tsconfig.json' },
-  { files: 'plugins/screen-reader/src/**/*.ts', tsconfig: 'plugins/screen-reader/tsconfig.json' },
-  { files: 'plugins/screen-action/src/**/*.ts', tsconfig: 'plugins/screen-action/tsconfig.json' },
-  { files: 'plugins/screen-find/src/**/*.ts', tsconfig: 'plugins/screen-find/tsconfig.json' },
-  { files: 'plugins/http/src/**/*.ts', tsconfig: 'plugins/http/tsconfig.json' },
-];
+// Every TypeScript source in the repository, CLI and plugins alike. Each
+// file is type-checked through the tsconfig nearest to it.
+const sources = ['cli/src/**/*.ts', 'plugins/*/src/**/*.ts'];
+const tests = ['**/src/**/__tests__/**/*.test.ts'];
 
 export default [
   js.configs.recommended,
-
-  ...projectConfigs.map(({ files, tsconfig }) => ({
-    files: [files],
+  {
+    files: sources,
     languageOptions: {
       parser: tsParser,
       parserOptions: {
         ecmaVersion: 2020,
         sourceType: 'module',
-        project: path.join(__dirname, tsconfig),
+        projectService: { tsconfigRootDir: __dirname },
       },
-      globals: {
-        ...globals.node,
-        ...globals.es2020,
-      },
+      // The plugins run in a WebView; the CLI in Node.
+      globals: { ...globals.node, ...globals.browser, ...globals.es2020 },
     },
     plugins: {
       '@typescript-eslint': ts,
@@ -62,38 +48,21 @@ export default [
       curly: 'error',
       'no-throw-literal': 'error',
     },
-  })),
-
-  {
-    files: ['cli/src/commands/devices.ts', 'cli/src/commands/config.ts'],
-    rules: {
-      'no-console': 'off',
-    },
   },
   {
-    files: ['cli/src/utils/logger.ts'],
-    rules: {
-      'no-console': 'off',
-    },
+    // The only places that print to the terminal on purpose.
+    files: ['cli/src/utils/logger.ts', 'cli/src/commands/devices.ts', 'cli/src/commands/config.ts'],
+    rules: { 'no-console': 'off' },
   },
   {
-    files: ['**/src/**/__tests__/**/*.test.ts'],
-    languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.es2020,
-        describe: 'readonly',
-        it: 'readonly',
-        test: 'readonly',
-        expect: 'readonly',
-        beforeEach: 'readonly',
-        afterEach: 'readonly',
-        beforeAll: 'readonly',
-        afterAll: 'readonly',
-        jest: 'readonly',
-        fail: 'readonly',
-      },
-    },
+    // test-utils hands out jest mocks to the app that tests against the bridge.
+    files: ['plugins/test-utils/src/**/*.ts'],
+    ignores: tests,
+    languageOptions: { globals: { jest: 'readonly' } },
+  },
+  {
+    files: tests,
+    languageOptions: { globals: { ...globals.jest } },
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
@@ -103,25 +72,7 @@ export default [
     },
   },
   {
-    files: ['plugins/bridge/src/**/*.ts', 'plugins/test-utils/src/**/*.ts', 'plugins/app-launcher/src/**/*.ts', 'plugins/device-info/src/**/*.ts', 'plugins/contact-search/src/**/*.ts', 'plugins/notification-reader/src/**/*.ts', 'plugins/sms-sender/src/**/*.ts', 'plugins/phone-caller/src/**/*.ts', 'plugins/screen-reader/src/**/*.ts', 'plugins/screen-action/src/**/*.ts', 'plugins/screen-find/src/**/*.ts', 'plugins/http/src/**/*.ts'],
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-      },
-    },
-  },
-  {
-    files: ['plugins/test-utils/src/**/*.ts'],
-    ignores: ['**/__tests__/**'],
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-        jest: 'readonly',
-      },
-    },
-  },
-  {
-    ignores: ['**/dist/', '**/node_modules/', 'cli/templates/', '**/*.js', '**/*.cjs'],
+    ignores: ['**/dist/', '**/node_modules/', 'cli/templates/', '**/*.js', '**/*.cjs', 'cli/e2e/'],
   },
   eslintConfigPrettier,
 ];

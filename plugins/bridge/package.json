@@ -1,6 +1,6 @@
 {
   "name": "@gyo-framework/bridge",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Core bridge library for Gyo framework - enables web-native communication",
   "type": "module",
   "main": "dist/index.js",
@@ -15,11 +15,6 @@
   "sideEffects": false,
   "files": [
     "dist",
-    "android/src",
-    "android/build.gradle.kts",
-    "ios/Sources",
-    "ios/Package.swift",
-    "docs",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

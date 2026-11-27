@@ -185,6 +185,45 @@ describe('plugin.service', () => {
       );
     });
 
+    it('should fail when a plugin needs the module of a plugin that is not installed', async () => {
+      const screenReader = addPlugin(
+        '@gyo-framework/screen-reader',
+        'gyo.plugins.screen_reader.ScreenReaderBridge',
+        'screen_reader'
+      );
+      fs.appendFileSync(
+        path.join(screenReader.path, 'android/build.gradle.kts'),
+        'dependencies { implementation(project(":gyo-plugin-accessibility")) }\n'
+      );
+
+      await expect(syncAndroidPlugins(projectPath, [screenReader])).rejects.toThrow(
+        'needs the plugin that gyo includes as gyo-plugin-accessibility'
+      );
+    });
+
+    it('should accept a plugin that depends on an installed plugin', async () => {
+      const screenReader = addPlugin(
+        '@gyo-framework/screen-reader',
+        'gyo.plugins.screen_reader.ScreenReaderBridge',
+        'screen_reader'
+      );
+      fs.appendFileSync(
+        path.join(screenReader.path, 'android/build.gradle.kts'),
+        'dependencies { implementation(project(":gyo-plugin-accessibility")) }\n'
+      );
+      const accessibility = addPlugin(
+        '@gyo-framework/accessibility',
+        'gyo.plugins.accessibility.AccessibilityBridge',
+        'accessibility'
+      );
+
+      await expect(
+        syncAndroidPlugins(projectPath, [screenReader, accessibility])
+      ).resolves.toBeUndefined();
+
+      expect(readAndroid('gyo.settings.gradle')).toContain("include ':gyo-plugin-accessibility'");
+    });
+
     it('should fail when two plugins are included as the same Gradle project', async () => {
       const plugins = [
         addPlugin('@gyo-framework/sms-sender', SMS_SENDER_HANDLER, 'sms_sender'),

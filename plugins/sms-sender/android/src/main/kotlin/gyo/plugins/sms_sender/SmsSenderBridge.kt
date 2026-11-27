@@ -14,7 +14,7 @@ import org.json.JSONObject
 class SmsSenderBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-SmsSender"
+        private const val TAG = "Gyo-SmsSender"
         private const val SMS_INBOX_URI = "content://sms/inbox"
     }
 

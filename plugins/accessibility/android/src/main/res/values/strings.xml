@@ -1,0 +1,4 @@
+<resources>
+    <string name="accessibility_service_label">Gyo accessibility service</string>
+    <string name="accessibility_service_description">Lets the app read what is on the screen and act on it, for the Gyo plugins the app includes.</string>
+</resources>

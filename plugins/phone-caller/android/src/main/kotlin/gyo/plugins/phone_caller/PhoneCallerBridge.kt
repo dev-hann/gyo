@@ -12,7 +12,7 @@ import org.json.JSONObject
 class PhoneCallerBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-PhoneCaller"
+        private const val TAG = "Gyo-PhoneCaller"
     }
 
     override fun handle(method: String, data: JSONObject): Any? {

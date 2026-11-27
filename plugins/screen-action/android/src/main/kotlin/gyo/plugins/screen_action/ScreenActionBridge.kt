@@ -9,6 +9,7 @@ import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_QUICK_SET
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS
 import android.accessibilityservice.GestureDescription
 import android.content.Context
+import gyo.plugins.accessibility.GyoAccessibilityService
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
@@ -18,20 +19,8 @@ import org.json.JSONObject
 class ScreenActionBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-ScreenAction"
+        private const val TAG = "Gyo-ScreenAction"
 
-        @Volatile
-        var activeService: AccessibilityService? = null
-
-        fun setService(accessibilityService: AccessibilityService) {
-            activeService = accessibilityService
-            Log.d(TAG, "AccessibilityService registered")
-        }
-
-        fun clearService() {
-            activeService = null
-            Log.d(TAG, "AccessibilityService cleared")
-        }
     }
 
     override fun handle(method: String, data: JSONObject): Any? {
@@ -48,9 +37,9 @@ class ScreenActionBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun tap(data: JSONObject): Boolean {
-        val currentService = activeService
+        val currentService = GyoAccessibilityService.instance
         if (currentService == null) {
-            Log.w(TAG, "tap: AccessibilityService not available")
+            Log.w(TAG, "tap: accessibility service is not enabled")
             return false
         }
 
@@ -90,9 +79,9 @@ class ScreenActionBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun type(data: JSONObject): Boolean {
-        val currentService = activeService
+        val currentService = GyoAccessibilityService.instance
         if (currentService == null) {
-            Log.w(TAG, "type: AccessibilityService not available")
+            Log.w(TAG, "type: accessibility service is not enabled")
             return false
         }
 
@@ -130,9 +119,9 @@ class ScreenActionBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun swipe(data: JSONObject): Boolean {
-        val currentService = activeService
+        val currentService = GyoAccessibilityService.instance
         if (currentService == null) {
-            Log.w(TAG, "swipe: AccessibilityService not available")
+            Log.w(TAG, "swipe: accessibility service is not enabled")
             return false
         }
 
@@ -180,9 +169,9 @@ class ScreenActionBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun globalAction(data: JSONObject): Boolean {
-        val currentService = activeService
+        val currentService = GyoAccessibilityService.instance
         if (currentService == null) {
-            Log.w(TAG, "global: AccessibilityService not available")
+            Log.w(TAG, "global: accessibility service is not enabled")
             return false
         }
 

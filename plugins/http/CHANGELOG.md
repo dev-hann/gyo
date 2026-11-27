@@ -8,4 +8,4 @@
   the final url, the response headers and the raw body as base64
 - Cookies per `jar` name, kept across app restarts
 - `decodeText`, `base64ToBytes` helpers
-- Android handler `HttpBridge`
+- Android handler `HttpBridge`, in an `android/` Gradle library module that declares its own OkHttp dependency

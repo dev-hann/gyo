@@ -2,6 +2,7 @@ package gyo.plugins.screen_reader
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import gyo.plugins.accessibility.GyoAccessibilityService
 import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
@@ -12,10 +13,8 @@ import org.json.JSONObject
 class ScreenReaderBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-ScreenReader"
+        private const val TAG = "Gyo-ScreenReader"
 
-        @Volatile
-        var service: AccessibilityService? = null
     }
 
     override fun handle(method: String, data: JSONObject): Any? {
@@ -30,7 +29,7 @@ class ScreenReaderBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun read(): JSONObject {
-        val svc = service
+        val svc = GyoAccessibilityService.instance
         if (svc == null) {
             Log.w(TAG, "read: AccessibilityService not connected")
             return JSONObject().apply {
@@ -63,7 +62,7 @@ class ScreenReaderBridge(private val context: Context) : BridgeHandler {
     }
 
     private fun find(data: JSONObject): JSONObject {
-        val svc = service
+        val svc = GyoAccessibilityService.instance
         if (svc == null) {
             Log.w(TAG, "find: AccessibilityService not connected")
             return JSONObject().apply {

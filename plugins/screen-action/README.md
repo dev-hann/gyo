@@ -90,19 +90,22 @@ interface GlobalActionParams {
 
 `gyo run`, `gyo build android` and `gyo install` include the plugin's Android module in the app and register the handler. Nothing in `MainActivity.kt` needs editing.
 
-The handler acts through an `AccessibilityService` of the app, which the user enables in the system settings. Hand it over for as long as it is connected:
+The handler acts through `@gyo-framework/accessibility`, which this plugin brings. The user enables that service once, under Settings, Accessibility:
 
-```kotlin
-// In onServiceConnected():
-ScreenActionBridge.setService(this)
+```typescript
+import { Accessibility } from '@gyo-framework/accessibility';
 
-// In onDestroy():
-ScreenActionBridge.clearService()
+const accessibility = new Accessibility();
+if (!(await accessibility.isEnabled()).enabled) {
+  await accessibility.openSettings();
+}
 ```
+
+Until the service is enabled, every method returns `false`.
 
 ## Peer Dependencies
 
-- `@gyo-framework/bridge@^0.1.3`
+- `@gyo-framework/bridge@^0.2.0`
 
 ## License
 

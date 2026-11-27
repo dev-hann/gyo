@@ -44,6 +44,8 @@ interface AndroidPlugin {
   project: string;
   /** The module directory, relative to android/ and with forward slashes. */
   moduleDir: string;
+  /** The module's Gradle build file, Groovy or Kotlin. */
+  buildFile: string;
   permissions: string[];
 }
 
@@ -159,10 +161,9 @@ async function toAndroidPlugin(
     throw new GyoError(`${plugin.name} declares "${String(bridgeName)}" as its bridge name.`);
   }
 
-  const isModule = await Promise.all(
-    GRADLE_MODULE_FILES.map((file) => pathExists(path.join(plugin.path, file)))
-  );
-  if (!isModule.some(Boolean)) {
+  const buildFiles = GRADLE_MODULE_FILES.map((file) => path.join(plugin.path, file));
+  const buildFile = (await Promise.all(buildFiles.map(pathExists))).findIndex(Boolean);
+  if (buildFile === -1) {
     throw new GyoError(
       `${plugin.name} has Android sources but no ${GRADLE_MODULE_FILES.join(' or ')}: ` +
         'it is not a library module the app build can include.'
@@ -182,6 +183,7 @@ async function toAndroidPlugin(
     handlerClass,
     project: gradleProjectName(plugin.name),
     moduleDir: gradlePath(path.relative(androidPath, realModule)),
+    buildFile: buildFiles[buildFile],
     permissions: permissions as string[],
   };
 }
@@ -279,6 +281,25 @@ function renderAppGradle(plugins: AndroidPlugin[]): string {
     );
   }
   return `${lines.join('\n')}\n`;
+}
+
+/**
+ * A module may depend on the module of another plugin, which it names as
+ * gyo includes it. That plugin has to be installed too.
+ */
+async function requireInstalledNeighbours(plugins: AndroidPlugin[]): Promise<void> {
+  const installed = new Set(plugins.map(({ project }) => project));
+
+  for (const { plugin, buildFile } of plugins) {
+    const gradle = await fs.readFile(buildFile, 'utf-8');
+    for (const [, slug] of gradle.matchAll(/project\(":gyo-plugin-([a-z0-9_-]+)"\)/g)) {
+      if (!installed.has(`gyo-plugin-${slug}`)) {
+        throw new GyoError(
+          `${plugin.name} needs the plugin that gyo includes as gyo-plugin-${slug}; install it in lib/ too.`
+        );
+      }
+    }
+  }
 }
 
 function registryFile(androidPath: string): string {
@@ -444,6 +465,7 @@ export async function syncAndroidPlugins(
   await removeCopiedSources(androidPath, manifest);
   if (modules.length > 0) {
     await requireModuleShell(androidPath, modules);
+    await requireInstalledNeighbours(modules);
   }
 
   await writeGenerated(path.join(androidPath, SETTINGS_FILE), renderSettings(modules));

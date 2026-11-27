@@ -14,7 +14,7 @@ import org.json.JSONObject
 class DeviceInfoBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "AIOS-DeviceInfo"
+        private const val TAG = "Gyo-DeviceInfo"
     }
 
     override fun handle(method: String, data: JSONObject): Any? {

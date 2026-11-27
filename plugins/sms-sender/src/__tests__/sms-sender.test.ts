@@ -44,13 +44,13 @@ describe('SmsSender', () => {
 
       const result = await smsSender.send({
         phoneNumber: '+821012345678',
-        message: 'Hello from AIOS',
+        message: 'Hello from Gyo',
       });
 
       expect(result).toBe(true);
       expect(invokeSpy).toHaveBeenCalledWith('send', {
         phoneNumber: '+821012345678',
-        message: 'Hello from AIOS',
+        message: 'Hello from Gyo',
       });
     });
 
