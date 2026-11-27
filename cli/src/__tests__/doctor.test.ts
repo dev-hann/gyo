@@ -56,7 +56,9 @@ const mockedCheck = checkCommandExists as jest.MockedFunction<typeof checkComman
 const mockedPathExists = pathExists as jest.MockedFunction<typeof pathExists>;
 const mockedReaddirSync = fs.readdirSync as jest.Mock;
 
-function execResult(overrides: Partial<{ success: boolean; stdout: string; stderr: string }> = {}) {
+function execResult(
+  overrides: Partial<{ success: boolean; stdout: string; stderr: string; code: number }> = {}
+) {
   return { success: true, stdout: '', stderr: '', code: 0, ...overrides };
 }
 
@@ -459,5 +461,156 @@ describe('DoctorCommand requirements', () => {
       if (originalHome) process.env.ANDROID_HOME = originalHome;
       if (originalRoot) process.env.ANDROID_SDK_ROOT = originalRoot;
     }
+  });
+});
+
+// `--fix` runs the machine's package manager, with sudo on Linux: what it
+// installs follows from what a failed check named, never from everything
+// that failed.
+describe('DoctorCommand --fix', () => {
+  let command: TestableDoctorCommand;
+  const platform = process.platform;
+  const environment = {
+    ANDROID_HOME: process.env.ANDROID_HOME,
+    ANDROID_SDK_ROOT: process.env.ANDROID_SDK_ROOT,
+  };
+
+  function onPlatform(value: typeof process.platform): void {
+    Object.defineProperty(process, 'platform', { value });
+  }
+
+  /** node and npm answer; java is there when `javaOutput` is a string, and prints it. */
+  function tools(javaOutput: string | null): void {
+    const installed = javaOutput === null ? ['node', 'npm'] : ['node', 'npm', 'java'];
+    mockedCheck.mockImplementation(async (cmd: string) => installed.includes(cmd));
+    mockedExec.mockImplementation((cmd: string) => {
+      if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
+      if (cmd === 'java') return Promise.resolve(execResult({ stderr: javaOutput ?? '' }));
+      return Promise.resolve(execResult());
+    });
+    mockedPathExists.mockResolvedValue(false);
+  }
+
+  /** Everything a Linux machine needs for both platforms is in place. */
+  function everythingInstalled(): void {
+    mockedCheck.mockResolvedValue(true);
+    mockedExec.mockImplementation((cmd: string, args?: string[]) => {
+      if (cmd === 'node') return Promise.resolve(execResult({ stdout: 'v24.0.0' }));
+      if (cmd === 'java') return Promise.resolve(execResult({ stderr: 'openjdk 17.0.20' }));
+      if (cmd === 'swift' && args?.[0] === 'sdk')
+        return Promise.resolve(execResult({ stdout: 'darwin' }));
+      return Promise.resolve(execResult());
+    });
+    mockedPathExists.mockResolvedValue(true);
+    mockedReaddirSync
+      .mockReturnValueOnce(['android-34'])
+      .mockReturnValueOnce(['34.0.0'])
+      .mockReturnValueOnce(['android-sdk-license']);
+    process.env.ANDROID_HOME = '/opt/android-sdk';
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    command = new TestableDoctorCommand();
+    delete process.env.ANDROID_HOME;
+    delete process.env.ANDROID_SDK_ROOT;
+  });
+
+  afterEach(() => {
+    onPlatform(platform);
+    for (const [name, value] of Object.entries(environment)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  it('should install with apt what apt can get, and leave the rest as a hint', async () => {
+    onPlatform('linux');
+    command.setOptions({ fix: true });
+    tools('openjdk 11.0.22'); // too old: the JDK is still what is missing
+
+    await command.testRun();
+
+    expect(mockedExec).toHaveBeenCalledWith(
+      'sudo',
+      ['apt', 'install', '-y', 'git', 'openjdk-17-jdk', 'libimobiledevice-utils'],
+      { stdio: 'inherit' }
+    );
+    expect(logger.info).toHaveBeenCalledWith('\nManual installation required for:');
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('xtool: Download the latest xtool AppImage')
+    );
+    expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('JDK:'));
+  });
+
+  it('should install with Homebrew only what Homebrew can get', async () => {
+    onPlatform('darwin');
+    command.setOptions({ fix: true });
+    tools(null);
+
+    await command.testRun();
+
+    expect(mockedExec).toHaveBeenCalledWith('brew', ['install', 'git'], { stdio: 'inherit' });
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('JDK: brew install --cask zulu@17')
+    );
+    expect(mockedExec).not.toHaveBeenCalledWith('sudo', expect.anything(), expect.anything());
+  });
+
+  it('should say how to run the install by hand when it fails', async () => {
+    onPlatform('linux');
+    command.setOptions({ fix: true });
+    tools(null);
+    mockedExec.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'node' ? execResult() : execResult({ success: false, code: 100 }))
+    );
+
+    await command.testRun();
+
+    expect(logger.info).toHaveBeenCalledWith(
+      '  sudo apt install -y git openjdk-17-jdk libimobiledevice-utils'
+    );
+  });
+
+  it('should only show the hints where it cannot drive a package manager', async () => {
+    onPlatform('win32');
+    command.setOptions({ fix: true });
+    tools(null);
+
+    await command.testRun();
+
+    expect(logger.warn).toHaveBeenCalledWith('Auto-fix is not supported on this platform.');
+    expect(logger.info).toHaveBeenCalledWith('Fix missing dependencies:\n');
+    expect(mockedExec).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining(['install']),
+      expect.anything()
+    );
+  });
+
+  it('should have nothing to do when everything it could name is there', async () => {
+    onPlatform('linux');
+    command.setOptions({ fix: true });
+    everythingInstalled();
+
+    await command.testRun();
+
+    expect(logger.success).toHaveBeenCalledWith('\nAll checkable dependencies are installed!');
+    expect(mockedExec).not.toHaveBeenCalledWith('sudo', expect.anything(), expect.anything());
+  });
+
+  it('should call what is missing optional when only optional tools are', async () => {
+    onPlatform('linux');
+    everythingInstalled();
+    // The iOS tools are the ones a machine may lack and still be ready.
+    mockedCheck.mockImplementation(async (cmd: string) => !['xtool', 'swift'].includes(cmd));
+
+    await command.testRun();
+
+    expect(logger.success).toHaveBeenCalledWith(
+      expect.stringContaining('Android - Ready to build and run')
+    );
+    expect(logger.info).toHaveBeenCalledWith('Optional tools:\n');
+    expect(logger.info).not.toHaveBeenCalledWith('Fix missing dependencies:\n');
   });
 });

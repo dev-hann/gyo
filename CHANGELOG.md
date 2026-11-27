@@ -43,6 +43,7 @@
 ### Fixed
 
 - `gyo create` writes a valid Android package name for hyphenated names and names starting with a digit
+- `gyo doctor` asked for Node 18, JDK 11 and API 24, less than the CLI and a generated project need. It requires the Node release of `engines.node`, JDK 17 and the platform of the template's `compileSdk`. It no longer calls the environment ready and then lists dependencies to fix when only the optional iOS tools are missing
 - `gyo run` fails before spawning the dev server when its port is already in use
 - `gyo run` no longer writes the detected LAN address into `gyo.config.json`; `gyo build` resolves a `localhost` development profile to the LAN address itself
 - New projects ignore `android/app/src/main/assets/gyo-config.json`, which `gyo run` and `gyo build` generate

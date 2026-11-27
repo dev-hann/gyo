@@ -1,14 +1,218 @@
+import * as path from 'path';
+import * as fs from 'fs';
 import type { CommandMeta } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { checkCommandExists, executeCommand } from '../utils/exec';
 import { pathExists } from '../utils/fs';
-import * as path from 'path';
-import * as fs from 'fs';
 import { getAndroidCompileSdk, getRequiredNodeMajor } from '../utils/paths';
+
+export interface CheckResult {
+  name: string;
+  passed: boolean;
+  message: string;
+  category: Category;
+  /** What may be missing on a machine that can still build for the other platform. */
+  optional?: boolean;
+  /** How to get what is missing, where that can be said. */
+  installHint?: string;
+  /** What would make the check pass, when a hint or `--fix` can name it. */
+  install?: Installable;
+}
+
+export interface DoctorOptions {
+  fix?: boolean;
+  verbose?: boolean;
+}
+
+type Category = 'Core' | 'Android' | 'iOS';
+
+/** What the install hints and `--fix` know how to get. */
+type Installable =
+  | 'node'
+  | 'npm'
+  | 'git'
+  | 'jdk'
+  | 'android-sdk'
+  | 'adb'
+  | 'xtool'
+  | 'swift'
+  | 'libimobiledevice';
+
+/** The package managers `--fix` can drive. */
+type PackageManager = 'apt' | 'brew';
+
+/** What a check knows before it has run. */
+type Known = Omit<CheckResult, 'passed' | 'message'>;
+
+/** A tool whose version is the answer to one command. */
+interface ToolCheck {
+  name: string;
+  category: Category;
+  command: string;
+  args: string[];
+  /** The version as the user reads it, from what the command printed. */
+  version: (output: string) => string;
+  /** What to say when the tool is not installed, where "Not installed" is not enough. */
+  missing?: string;
+  /** The lowest major version that is enough. */
+  minimum?: number;
+  /** What may be missing on a machine that can still build for the other platform. */
+  optional?: boolean;
+  install: Installable;
+}
 
 /** The Android Gradle Plugin needs it, and the template compiles for Java 17. */
 const REQUIRED_JDK_MAJOR = 17;
+
+/** Install hints by platform; a platform without one of its own gets the Linux hint. */
+type PlatformHints = Partial<Record<typeof process.platform, string>> & { linux: string };
+
+const INSTALL_HINTS: Record<Installable, PlatformHints> = {
+  node: {
+    linux: 'sudo apt install -y nodejs  or  https://nodejs.org',
+    darwin: 'brew install node  or  https://nodejs.org',
+    win32: 'https://nodejs.org  or  choco install nodejs-lts',
+  },
+  npm: {
+    linux: 'sudo apt install -y npm  (usually included with Node.js)',
+    darwin: 'Included with Node.js',
+    win32: 'Included with Node.js',
+  },
+  git: {
+    linux: 'sudo apt install -y git',
+    darwin: 'brew install git  or  xcode-select --install',
+    win32: 'https://git-scm.com  or  choco install git',
+  },
+  jdk: {
+    linux: `sudo apt install -y openjdk-${REQUIRED_JDK_MAJOR}-jdk`,
+    darwin: `brew install --cask zulu@${REQUIRED_JDK_MAJOR}`,
+    win32: `choco install -y microsoft-openjdk${REQUIRED_JDK_MAJOR}`,
+  },
+  'android-sdk': {
+    linux:
+      'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your shell config',
+    darwin:
+      'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your shell config',
+    win32:
+      'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your system environment',
+  },
+  adb: {
+    linux:
+      'Included with Android SDK. Set ANDROID_HOME and add to PATH:\n  export PATH=$PATH:$ANDROID_HOME/platform-tools',
+    darwin:
+      'Included with Android SDK. Set ANDROID_HOME and add to PATH:\n  export PATH=$PATH:$ANDROID_HOME/platform-tools',
+    win32: 'Included with Android SDK. Add %ANDROID_HOME%\\platform-tools to PATH',
+  },
+  xtool: {
+    linux:
+      'Download the latest xtool AppImage:\n  curl -fL "https://github.com/xtool-org/xtool/releases/latest/download/xtool-$(uname -m).AppImage" -o xtool && chmod +x xtool && sudo mv xtool /usr/local/bin/',
+    darwin: 'brew install xtool  or  visit https://xtool.sh',
+    win32: 'Visit https://xtool.sh',
+  },
+  swift: {
+    linux:
+      'Install via swiftly:\n  curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz && tar zxf swiftly-$(uname -m).tar.gz && ./swiftly init',
+    darwin: 'Install Xcode from the App Store',
+    win32: 'Install from https://swift.org/install',
+  },
+  libimobiledevice: {
+    linux: 'sudo apt install -y libimobiledevice-utils',
+    darwin: 'brew install libimobiledevice',
+    win32: 'Not available on Windows',
+  },
+};
+
+/** How `--fix` drives a package manager: the command it runs, and the name that goes by. */
+const PACKAGE_MANAGERS: Record<PackageManager, { label: string; command: string[] }> = {
+  apt: { label: 'apt', command: ['sudo', 'apt', 'install', '-y'] },
+  brew: { label: 'Homebrew', command: ['brew', 'install'] },
+};
+
+/** The package a package manager gets for what a failed check named. The rest stays a hint. */
+const FIXABLE: Record<PackageManager, Partial<Record<Installable, string>>> = {
+  apt: {
+    jdk: `openjdk-${REQUIRED_JDK_MAJOR}-jdk`,
+    git: 'git',
+    libimobiledevice: 'libimobiledevice-utils',
+  },
+  brew: { git: 'git' },
+};
+
+const ACCEPT_LICENSES =
+  'Accept SDK licenses:\n  yes | sdkmanager --licenses\n  Or via Android Studio: SDK Manager → SDK Tools → License';
+
+/**
+ * The tools doctor asks for their version. Made when the command runs: the
+ * Node release that is enough is read from a file, which no other command
+ * should pay for, or fail on, at start-up.
+ */
+function toolChecks(): Record<'node' | 'npm' | 'git' | 'adb' | 'xtool' | 'swift', ToolCheck> {
+  return {
+    node: {
+      name: 'Node.js',
+      category: 'Core',
+      command: 'node',
+      args: ['--version'],
+      version: (output) => output.trim(),
+      minimum: getRequiredNodeMajor(),
+      install: 'node',
+    },
+    npm: {
+      name: 'npm',
+      category: 'Core',
+      command: 'npm',
+      args: ['--version'],
+      version: (output) => `v${output.trim()}`,
+      install: 'npm',
+    },
+    git: {
+      name: 'Git',
+      category: 'Core',
+      command: 'git',
+      args: ['--version'],
+      version: (output) => output.trim(),
+      optional: true,
+      install: 'git',
+    },
+    adb: {
+      name: 'ADB',
+      category: 'Android',
+      command: 'adb',
+      args: ['version'],
+      version: (output) => captured(/Android Debug Bridge version ([\d.]+)/, output) ?? 'Installed',
+      optional: true,
+      install: 'adb',
+    },
+    xtool: {
+      name: 'xtool',
+      category: 'iOS',
+      command: 'xtool',
+      args: ['--version'],
+      version: (output) => output.trim(),
+      optional: true,
+      install: 'xtool',
+    },
+    swift: {
+      name: 'Swift',
+      category: 'iOS',
+      command: 'swift',
+      args: ['--version'],
+      version: (output) => {
+        const version = captured(/Swift version ([\d.]+)/, output);
+        return version ? `v${version}` : 'Installed';
+      },
+      missing: 'Not installed (required for xtool)',
+      optional: true,
+      install: 'swift',
+    },
+  };
+}
+
+/** The first capture of `pattern` in `output`; undefined when there is none. */
+function captured(pattern: RegExp, output: string): string | undefined {
+  return output.match(pattern)?.[1];
+}
 
 /** The version `java --version` prints, with or without a patch release: "17.0.20", "21", "1.8.0_392". */
 function javaVersion(output: string): string {
@@ -21,36 +225,10 @@ function javaMajor(version: string): number {
   return major === 1 ? minor : major;
 }
 
-interface CheckResult {
-  name: string;
-  passed: boolean;
-  message: string;
-  category: string;
-  optional?: boolean;
-  installHint?: string;
-}
-
-interface CheckConfig {
-  name: string;
-  command: string;
-  versionArgs?: string[];
-  versionParser?: (stdout: string) => string;
-  notInstalledMessage?: string;
-  optional?: boolean;
-  minVersion?: { parse: (stdout: string) => number; required: number };
-  installHint?: string;
-  category?: string;
-}
-
-export interface DoctorOptions {
-  fix?: boolean;
-  verbose?: boolean;
-}
-
 export class DoctorCommand extends BaseCommand<DoctorOptions> {
-  private androidHome: string = '';
-  private isLinux: boolean = false;
-  private isMac: boolean = false;
+  private androidHome = '';
+  private isLinux = false;
+  private isMac = false;
 
   getMeta(): CommandMeta {
     return {
@@ -65,6 +243,9 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
 
   protected async run(): Promise<void> {
     this.detectPlatform();
+    // Both are read from files shipped with the CLI, when the command runs.
+    const tools = toolChecks();
+    const compileSdk = getAndroidCompileSdk();
     this.androidHome = await this.locateAndroidSdk();
 
     logger.info('Running gyo environment checks...\n');
@@ -72,24 +253,38 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     const results: CheckResult[] = [];
 
     logger.info('Core Dependencies:');
-    await this.runGroup(results, [this.checkNode(), this.checkNpm(), this.checkGit()]);
+    await this.runGroup(results, [
+      this.tool(tools.node),
+      this.tool(tools.npm),
+      this.tool(tools.git),
+    ]);
 
     logger.info('\nAndroid Toolchain:');
     await this.runGroup(results, [
       this.checkJDK(),
       this.checkAndroidSDK(),
-      this.checkAndroidPlatforms(),
-      this.checkAndroidBuildTools(),
-      this.checkADB(),
+      this.checkSdkComponents(
+        'Android SDK Platform',
+        'platforms',
+        `sdkmanager "platforms;android-${compileSdk}"`,
+        compileSdk
+      ),
+      this.checkSdkComponents(
+        'Android Build-Tools',
+        'build-tools',
+        `sdkmanager "build-tools;${compileSdk}.0.0}"`,
+        compileSdk
+      ),
+      this.tool(tools.adb),
       this.checkGradle(),
     ]);
 
     logger.info('\niOS Toolchain:');
     await this.runGroup(results, [
-      this.checkXtool(),
+      this.tool(tools.xtool),
       this.checkDarwinSDK(),
       this.checkLibimobiledevice(),
-      this.checkSwift(),
+      this.tool(tools.swift),
     ]);
 
     logger.info('\nAndroid Configuration:');
@@ -110,8 +305,7 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
   }
 
   private async runGroup(results: CheckResult[], checks: Promise<CheckResult>[]): Promise<void> {
-    const groupResults = await Promise.all(checks);
-    for (const result of groupResults) {
+    for (const result of await Promise.all(checks)) {
       results.push(result);
       this.displayCheck(result);
     }
@@ -130,95 +324,89 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     }
   }
 
-  private async checkNode(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'Node.js',
-      command: 'node',
-      versionArgs: ['--version'],
-      notInstalledMessage: 'Not installed',
-      installHint: this.getInstallHint('node'),
-      minVersion: {
-        parse: (stdout) => parseInt(stdout.trim().replace('v', '').split('.')[0]),
-        required: getRequiredNodeMajor(),
-      },
-      versionParser: (stdout) => stdout.trim(),
-      category: 'Core',
-    });
+  private installHint(install: Installable): string {
+    const hints: PlatformHints = INSTALL_HINTS[install];
+    return hints[process.platform] ?? hints.linux;
   }
 
-  private async checkNpm(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'npm',
-      command: 'npm',
-      versionArgs: ['--version'],
-      versionParser: (stdout) => `v${stdout.trim()}`,
-      notInstalledMessage: 'Not installed',
-      installHint: this.getInstallHint('npm'),
-      category: 'Core',
-    });
-  }
+  /** Runs a tool that answers one command, and judges what it printed. */
+  private async tool(check: ToolCheck): Promise<CheckResult> {
+    const base: Known = {
+      name: check.name,
+      category: check.category,
+      optional: check.optional,
+      install: check.install,
+      installHint: this.installHint(check.install),
+    };
 
-  private async checkGit(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'Git',
-      command: 'git',
-      versionArgs: ['--version'],
-      optional: true,
-      installHint: this.getInstallHint('git'),
-      category: 'Core',
-    });
+    if (!(await checkCommandExists(check.command))) {
+      return { ...base, passed: false, message: check.missing ?? 'Not installed' };
+    }
+
+    const output = await executeCommand(check.command, check.args, { stdio: 'pipe' });
+    if (!output.success) {
+      return {
+        ...base,
+        passed: false,
+        message: `Failed to get version (exit code ${output.code})`,
+      };
+    }
+
+    const shown = check.version(output.stdout);
+    const major = Number.parseInt(shown.replace(/^v/, ''), 10);
+    // NaN is never enough: a version that could not be read fails the check.
+    const enough = check.minimum === undefined || major >= check.minimum;
+
+    if (!enough) {
+      const why = Number.isNaN(major)
+        ? 'version format not recognized'
+        : `requires v${check.minimum}+`;
+      return { ...base, passed: false, message: `${shown} (${why})` };
+    }
+
+    return { ...base, passed: true, message: shown || 'Installed' };
   }
 
   private async checkJDK(): Promise<CheckResult> {
-    const exists = await checkCommandExists('java');
-    if (!exists) {
-      return {
-        name: 'JDK',
-        passed: false,
-        message: 'Not installed',
-        category: 'Android',
-        installHint: this.getInstallHint('jdk'),
-      };
-    }
-
-    const result = await executeCommand('java', ['--version'], { stdio: 'pipe' });
-    if (!result.success) {
-      return {
-        name: 'JDK',
-        passed: false,
-        message: 'Installed but version check failed',
-        category: 'Android',
-        installHint: this.getInstallHint('jdk'),
-      };
-    }
-
-    const output = result.stderr || result.stdout;
-    const version = javaVersion(output);
-
-    let javaPath = '';
-    const javaHome = process.env.JAVA_HOME;
-    if (javaHome) {
-      javaPath = javaHome;
-    } else if (this.isLinux || this.isMac) {
-      try {
-        const whichResult = await executeCommand('which', ['java'], { stdio: 'pipe' });
-        if (whichResult.success) {
-          javaPath = whichResult.stdout.trim();
-        }
-      } catch {
-        logger.debug('Failed to locate java via which');
-      }
-    }
-
-    const passed = javaMajor(version) >= REQUIRED_JDK_MAJOR;
-
-    return {
+    const base: Known = {
       name: 'JDK',
-      passed,
-      message: `${version}${javaPath && this.options.verbose ? ` (${javaPath})` : ''}`,
       category: 'Android',
-      installHint: passed ? undefined : this.getInstallHint('jdk'),
+      install: 'jdk',
+      installHint: this.installHint('jdk'),
     };
+
+    if (!(await checkCommandExists('java'))) {
+      return { ...base, passed: false, message: 'Not installed' };
+    }
+
+    const output = await executeCommand('java', ['--version'], { stdio: 'pipe' });
+    if (!output.success) {
+      return { ...base, passed: false, message: 'Installed but version check failed' };
+    }
+
+    const version = javaVersion(output.stderr || output.stdout);
+    return {
+      ...base,
+      passed: javaMajor(version) >= REQUIRED_JDK_MAJOR,
+      message: `${version}${this.options.verbose ? ` (${await this.javaLocation()})` : ''}`,
+    };
+  }
+
+  /** Where Java lives, for the verbose listing: JAVA_HOME when set, else what `which` says. */
+  private async javaLocation(): Promise<string> {
+    if (process.env.JAVA_HOME) {
+      return process.env.JAVA_HOME;
+    }
+    if (!this.isLinux && !this.isMac) {
+      return '';
+    }
+    try {
+      const which = await executeCommand('which', ['java'], { stdio: 'pipe' });
+      return which.success ? which.stdout.trim() : '';
+    } catch {
+      logger.debug('Failed to locate java via which');
+      return '';
+    }
   }
 
   /**
@@ -246,457 +434,242 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
   }
 
   private async checkAndroidSDK(): Promise<CheckResult> {
+    const base: Known = { name: 'Android SDK', category: 'Android' };
+
     if (!this.androidHome) {
       return {
-        name: 'Android SDK',
+        ...base,
         passed: false,
         message: 'ANDROID_HOME not set and no SDK found',
-        category: 'Android',
-        installHint: this.getInstallHint('android-sdk'),
+        install: 'android-sdk',
+        installHint: this.installHint('android-sdk'),
       };
     }
 
     if (!(await pathExists(this.androidHome))) {
       return {
-        name: 'Android SDK',
+        ...base,
         passed: false,
         message: `ANDROID_HOME set but path does not exist: ${this.androidHome}`,
-        category: 'Android',
         installHint: 'Verify your Android SDK installation path',
       };
     }
 
     const namedByEnv = Boolean(process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT);
     return {
-      name: 'Android SDK',
+      ...base,
       passed: true,
       message: namedByEnv
         ? this.androidHome
         : `Found at ${this.androidHome} (set ANDROID_HOME for reliability)`,
-      category: 'Android',
       installHint: namedByEnv
         ? undefined
         : `Add to shell config:\n  export ANDROID_HOME=${this.androidHome}`,
     };
   }
 
-  private async checkAndroidPlatforms(): Promise<CheckResult> {
-    const sdkPath = this.androidHome;
-    if (!sdkPath || !(await pathExists(sdkPath))) {
+  /**
+   * One folder of the SDK that holds versioned parts, platforms or
+   * build-tools. `sdkmanager` is the command that gets what is missing.
+   */
+  private async checkSdkComponents(
+    name: string,
+    folder: 'platforms' | 'build-tools',
+    sdkmanager: string,
+    compileSdk: number
+  ): Promise<CheckResult> {
+    const base: Known = { name, category: 'Android' };
+    const missing = `Install via Android Studio SDK Manager or:\n  ${sdkmanager}`;
+
+    if (!this.androidHome || !(await pathExists(this.androidHome))) {
       return {
-        name: 'Android SDK Platform',
+        ...base,
         passed: false,
         message: 'SDK not found (see Android SDK check)',
-        category: 'Android',
         optional: true,
       };
     }
 
-    const compileSdk = getAndroidCompileSdk();
-    const platformsDir = path.join(sdkPath, 'platforms');
-    if (!(await pathExists(platformsDir))) {
-      return {
-        name: 'Android SDK Platform',
-        passed: false,
-        message: 'No platforms installed',
-        category: 'Android',
-        installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-${compileSdk}"`,
-      };
+    const dir = path.join(this.androidHome, folder);
+    if (!(await pathExists(dir))) {
+      return { ...base, passed: false, message: `No ${folder} installed`, installHint: missing };
     }
 
+    let versions: string[];
     try {
-      const entries = fs.readdirSync(platformsDir).filter((e) => e.startsWith('android-'));
-      if (entries.length === 0) {
-        return {
-          name: 'Android SDK Platform',
-          passed: false,
-          message: 'No platforms installed',
-          category: 'Android',
-          installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "platforms;android-${compileSdk}"`,
-        };
-      }
-
-      const versions = entries.map((e) => e.replace('android-', '')).join(', ');
-      const hasRequired = entries.some(
-        (e) => parseInt(e.replace('android-', ''), 10) >= compileSdk
-      );
-
-      return {
-        name: 'Android SDK Platform',
-        passed: hasRequired,
-        message: `API ${versions}`,
-        category: 'Android',
-        installHint: hasRequired
-          ? undefined
-          : `Gyo compiles against API ${compileSdk}. Install it via SDK Manager.`,
-      };
+      versions = fs
+        .readdirSync(dir)
+        .filter((entry) => /^\d/.test(entry.replace('android-', '')))
+        .map((entry) => entry.replace('android-', ''));
     } catch {
       return {
-        name: 'Android SDK Platform',
+        ...base,
         passed: false,
-        message: 'Failed to read platforms directory',
-        category: 'Android',
-        optional: true,
-      };
-    }
-  }
-
-  private async checkAndroidBuildTools(): Promise<CheckResult> {
-    const sdkPath = this.androidHome;
-    if (!sdkPath || !(await pathExists(sdkPath))) {
-      return {
-        name: 'Android Build-Tools',
-        passed: false,
-        message: 'SDK not found (see Android SDK check)',
-        category: 'Android',
+        message: `Failed to read ${folder} directory`,
         optional: true,
       };
     }
 
-    const buildToolsDir = path.join(sdkPath, 'build-tools');
-    if (!(await pathExists(buildToolsDir))) {
-      return {
-        name: 'Android Build-Tools',
-        passed: false,
-        message: 'No build-tools installed',
-        category: 'Android',
-        installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;${getAndroidCompileSdk()}.0.0"`,
-      };
+    if (versions.length === 0) {
+      return { ...base, passed: false, message: `No ${folder} installed`, installHint: missing };
     }
 
-    try {
-      const entries = fs.readdirSync(buildToolsDir).filter((e) => /^\d/.test(e));
-      if (entries.length === 0) {
-        return {
-          name: 'Android Build-Tools',
-          passed: false,
-          message: 'No build-tools installed',
-          category: 'Android',
-          installHint: `Install via Android Studio SDK Manager or:\n  sdkmanager "build-tools;${getAndroidCompileSdk()}.0.0"`,
-        };
-      }
+    // A platform has to be the one the template compiles against or newer;
+    // any build-tools version builds it.
+    const hasWhatIsNeeded =
+      folder === 'build-tools' || versions.some((version) => parseInt(version, 10) >= compileSdk);
 
-      return {
-        name: 'Android Build-Tools',
-        passed: true,
-        message: entries.join(', '),
-        category: 'Android',
-      };
-    } catch {
-      return {
-        name: 'Android Build-Tools',
-        passed: false,
-        message: 'Failed to read build-tools directory',
-        category: 'Android',
-        optional: true,
-      };
-    }
-  }
-
-  private async checkADB(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'ADB',
-      command: 'adb',
-      versionArgs: ['version'],
-      versionParser: (stdout) => {
-        const match = stdout.match(/Android Debug Bridge version ([\d.]+)/);
-        return match ? match[1] : 'Installed';
-      },
-      optional: true,
-      installHint: this.getInstallHint('adb'),
-      category: 'Android',
-    });
+    return {
+      ...base,
+      passed: hasWhatIsNeeded,
+      message: folder === 'platforms' ? `API ${versions.join(', ')}` : versions.join(', '),
+      installHint: hasWhatIsNeeded
+        ? undefined
+        : `Gyo compiles against API ${compileSdk}. Install it via SDK Manager.`,
+    };
   }
 
   private async checkGradle(): Promise<CheckResult> {
-    const exists = await checkCommandExists('gradle');
-    if (!exists) {
-      return {
-        name: 'Gradle',
-        passed: true,
-        message: 'Not installed globally (gradlew will be used)',
-        category: 'Android',
-      };
+    const base: Known = { name: 'Gradle', category: 'Android' };
+
+    // The project's wrapper brings its own Gradle; a global one is a convenience.
+    if (!(await checkCommandExists('gradle'))) {
+      return { ...base, passed: true, message: 'Not installed globally (gradlew will be used)' };
     }
 
-    const result = await executeCommand('gradle', ['--version'], { stdio: 'pipe' });
-    if (!result.success) {
-      return {
-        name: 'Gradle',
-        passed: true,
-        message: 'Installed but version check failed',
-        category: 'Android',
-      };
+    const output = await executeCommand('gradle', ['--version'], { stdio: 'pipe' });
+    if (!output.success) {
+      return { ...base, passed: true, message: 'Installed but version check failed' };
     }
 
-    const match = result.stdout.match(/Gradle ([\d.]+)/);
+    const version = captured(/Gradle ([\d.]+)/, output.stdout);
     return {
-      name: 'Gradle',
+      ...base,
       passed: true,
-      message: match ? `v${match[1]} (global)` : 'Installed (global)',
-      category: 'Android',
+      message: version ? `v${version} (global)` : 'Installed (global)',
     };
   }
 
   private async checkAndroidLicenses(): Promise<CheckResult> {
-    const sdkPath = this.androidHome;
-    if (!sdkPath || !(await pathExists(sdkPath))) {
+    const base: Known = { name: 'Android SDK Licenses', category: 'Android' };
+
+    if (!this.androidHome || !(await pathExists(this.androidHome))) {
       return {
-        name: 'Android SDK Licenses',
+        ...base,
         passed: false,
         message: 'SDK not found (see Android SDK check)',
-        category: 'Android',
         optional: true,
       };
     }
 
-    const licensesDir = path.join(sdkPath, 'licenses');
+    const licensesDir = path.join(this.androidHome, 'licenses');
     if (!(await pathExists(licensesDir))) {
       return {
-        name: 'Android SDK Licenses',
+        ...base,
         passed: false,
         message: 'Licenses directory not found — licenses not accepted',
-        category: 'Android',
-        installHint:
-          'Accept SDK licenses:\n  yes | sdkmanager --licenses\n  Or via Android Studio: SDK Manager → SDK Tools → License',
+        installHint: ACCEPT_LICENSES,
       };
     }
 
+    let files: string[];
     try {
-      const licenseFiles = fs
+      files = fs
         .readdirSync(licensesDir)
-        .filter((f) => f.includes('license') || f.includes('License'));
-      if (licenseFiles.length === 0) {
-        return {
-          name: 'Android SDK Licenses',
-          passed: false,
-          message: 'No license files found — licenses not accepted',
-          category: 'Android',
-          installHint:
-            'Accept SDK licenses:\n  yes | sdkmanager --licenses\n  Or via Android Studio: SDK Manager → SDK Tools → License',
-        };
-      }
-
-      const androidSdkLicense = licenseFiles.find(
-        (f) => f === 'android-sdk-license' || f === 'android-sdk-arm-dbt-license'
-      );
-      if (!androidSdkLicense) {
-        return {
-          name: 'Android SDK Licenses',
-          passed: false,
-          message: `Found ${licenseFiles.length} license file(s) but android-sdk-license is missing`,
-          category: 'Android',
-          installHint: 'Accept SDK licenses:\n  yes | sdkmanager --licenses',
-        };
-      }
-
-      return {
-        name: 'Android SDK Licenses',
-        passed: true,
-        message: `Accepted (${licenseFiles.length} license file(s))`,
-        category: 'Android',
-      };
+        .filter((file) => file.includes('license') || file.includes('License'));
     } catch {
       return {
-        name: 'Android SDK Licenses',
+        ...base,
         passed: false,
         message: 'Failed to read licenses directory',
-        category: 'Android',
         optional: true,
       };
     }
-  }
 
-  private async checkXtool(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'xtool',
-      command: 'xtool',
-      versionArgs: ['--version'],
-      notInstalledMessage: 'Not installed',
-      installHint: this.getInstallHint('xtool'),
-      optional: true,
-      category: 'iOS',
-    });
-  }
-
-  private async checkDarwinSDK(): Promise<CheckResult> {
-    const swiftExists = await checkCommandExists('swift');
-    if (!swiftExists) {
+    if (files.length === 0) {
       return {
-        name: 'Darwin SDK',
+        ...base,
+        passed: false,
+        message: 'No license files found — licenses not accepted',
+        installHint: ACCEPT_LICENSES,
+      };
+    }
+
+    const accepted = files.some(
+      (file) => file === 'android-sdk-license' || file === 'android-sdk-arm-dbt-license'
+    );
+    if (!accepted) {
+      return {
+        ...base,
+        passed: false,
+        message: `Found ${files.length} license file(s) but android-sdk-license is missing`,
+        installHint: 'Accept SDK licenses:\n  yes | sdkmanager --licenses',
+      };
+    }
+
+    return { ...base, passed: true, message: `Accepted (${files.length} license file(s))` };
+  }
+
+  /** The Darwin SDK that xtool builds with: it is there once `xtool setup` ran. */
+  private async checkDarwinSDK(): Promise<CheckResult> {
+    const base: Known = { name: 'Darwin SDK', category: 'iOS', optional: true };
+    const setup = 'Run `xtool setup` to install the Darwin SDK';
+
+    if (!(await checkCommandExists('swift'))) {
+      return {
+        ...base,
         passed: false,
         message: 'Swift not installed (required for Darwin SDK)',
-        category: 'iOS',
-        optional: true,
-        installHint: this.getInstallHint('swift'),
+        install: 'swift',
+        installHint: this.installHint('swift'),
       };
     }
-
-    const xtoolExists = await checkCommandExists('xtool');
-    if (!xtoolExists) {
+    if (!(await checkCommandExists('xtool'))) {
       return {
-        name: 'Darwin SDK',
+        ...base,
         passed: false,
         message: 'xtool not installed (required to install Darwin SDK)',
-        category: 'iOS',
-        optional: true,
-        installHint: this.getInstallHint('xtool'),
+        install: 'xtool',
+        installHint: this.installHint('xtool'),
       };
     }
 
-    const result = await executeCommand('swift', ['sdk', 'list'], { stdio: 'pipe' });
-    if (!result.success) {
-      return {
-        name: 'Darwin SDK',
-        passed: false,
-        message: 'Failed to list SDKs',
-        category: 'iOS',
-        optional: true,
-        installHint: 'Run `xtool setup` to install the Darwin SDK',
-      };
+    const sdks = await executeCommand('swift', ['sdk', 'list'], { stdio: 'pipe' });
+    if (!sdks.success) {
+      return { ...base, passed: false, message: 'Failed to list SDKs', installHint: setup };
     }
 
-    const hasDarwin = result.stdout.toLowerCase().includes('darwin');
-    if (!hasDarwin) {
-      return {
-        name: 'Darwin SDK',
-        passed: false,
-        message: 'Not installed',
-        category: 'iOS',
-        optional: true,
-        installHint: 'Run `xtool setup` to install the Darwin SDK (requires Xcode.xip from Apple)',
-      };
-    }
-
-    return {
-      name: 'Darwin SDK',
-      passed: true,
-      message: 'Installed',
-      category: 'iOS',
-    };
+    return sdks.stdout.toLowerCase().includes('darwin')
+      ? { ...base, passed: true, message: 'Installed' }
+      : {
+          ...base,
+          passed: false,
+          message: 'Not installed',
+          installHint: `${setup} (requires Xcode.xip from Apple)`,
+        };
   }
 
   private async checkLibimobiledevice(): Promise<CheckResult> {
     const tools = ['idevice_id', 'idevicesyslog', 'ideviceinfo'];
-    const missing: string[] = [];
+    const present = await Promise.all(tools.map((tool) => checkCommandExists(tool)));
+    const missing = tools.filter((_, index) => !present[index]);
 
-    for (const tool of tools) {
-      if (!(await checkCommandExists(tool))) {
-        missing.push(tool);
-      }
-    }
+    const base: Known = {
+      name: 'libimobiledevice',
+      category: 'iOS',
+      optional: true,
+      install: 'libimobiledevice',
+      installHint: this.installHint('libimobiledevice'),
+    };
 
     if (missing.length === tools.length) {
-      return {
-        name: 'libimobiledevice',
-        passed: false,
-        message: 'Not installed',
-        category: 'iOS',
-        optional: true,
-        installHint: this.getInstallHint('libimobiledevice'),
-      };
+      return { ...base, passed: false, message: 'Not installed' };
     }
-
-    if (missing.length > 0) {
-      return {
-        name: 'libimobiledevice',
-        passed: true,
-        message: `Partially installed (missing: ${missing.join(', ')})`,
-        category: 'iOS',
-        optional: true,
-        installHint: `Install missing tools: sudo apt install libimobiledevice-utils`,
-      };
-    }
-
     return {
-      name: 'libimobiledevice',
+      ...base,
       passed: true,
-      message: 'Installed',
-      category: 'iOS',
-      optional: true,
-    };
-  }
-
-  private async checkSwift(): Promise<CheckResult> {
-    return this.runToolCheck({
-      name: 'Swift',
-      command: 'swift',
-      versionArgs: ['--version'],
-      versionParser: (stdout: string): string => {
-        const match = stdout.match(/Swift version ([\d.]+)/);
-        return match ? `v${match[1]}` : 'Installed';
-      },
-      notInstalledMessage: 'Not installed (required for xtool)',
-      optional: true,
-      installHint: this.getInstallHint('swift'),
-      category: 'iOS',
-    });
-  }
-
-  private async runToolCheck(config: CheckConfig): Promise<CheckResult> {
-    const exists = await checkCommandExists(config.command);
-    if (!exists) {
-      return {
-        name: config.name,
-        passed: false,
-        message: config.notInstalledMessage || 'Not installed',
-        category: config.category || 'General',
-        optional: config.optional,
-        installHint: config.installHint,
-      };
-    }
-
-    if (!config.versionArgs) {
-      return {
-        name: config.name,
-        passed: true,
-        message: 'Installed',
-        category: config.category || 'General',
-        optional: config.optional,
-      };
-    }
-
-    const result = await executeCommand(config.command, config.versionArgs, { stdio: 'pipe' });
-
-    if (!result.success) {
-      return {
-        name: config.name,
-        passed: false,
-        message: config.notInstalledMessage || `Failed to get version (exit code ${result.code})`,
-        category: config.category || 'General',
-        optional: config.optional,
-        installHint: config.installHint,
-      };
-    }
-
-    const versionOutput = config.versionParser
-      ? config.versionParser(result.stdout)
-      : result.stdout.trim();
-
-    if (config.minVersion) {
-      const currentVersion = config.minVersion.parse(result.stdout);
-      const isValidVersion = !isNaN(currentVersion);
-      const passed = isValidVersion && currentVersion >= config.minVersion.required;
-      return {
-        name: config.name,
-        passed,
-        message: passed
-          ? versionOutput
-          : isValidVersion
-            ? `${versionOutput} (requires v${config.minVersion.required}+)`
-            : `${versionOutput} (version format not recognized)`,
-        category: config.category || 'General',
-        optional: config.optional,
-        installHint: passed ? undefined : config.installHint,
-      };
-    }
-
-    return {
-      name: config.name,
-      passed: true,
-      message: versionOutput || 'Installed',
-      category: config.category || 'General',
-      optional: config.optional,
+      message:
+        missing.length > 0 ? `Partially installed (missing: ${missing.join(', ')})` : 'Installed',
     };
   }
 
@@ -704,8 +677,16 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     logger.info('\n' + '='.repeat(60));
     logger.info('Platform Readiness:\n');
 
-    const androidReady = this.isAndroidReady(results);
-    const iosReady = this.isIOSReady(results);
+    const androidReady = [
+      'JDK',
+      'Android SDK',
+      'Android SDK Platform',
+      'Android Build-Tools',
+      'Android SDK Licenses',
+    ].every((name) => results.find((r) => r.name === name)?.passed);
+    const iosReady = ['xtool', 'Darwin SDK'].every(
+      (name) => results.find((r) => r.name === name)?.passed
+    );
 
     if (androidReady) {
       logger.success('  [✓] Android - Ready to build and run');
@@ -735,48 +716,31 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     }
   }
 
-  private isAndroidReady(results: CheckResult[]): boolean {
-    const jdk = results.find((r) => r.name === 'JDK');
-    const sdk = results.find((r) => r.name === 'Android SDK');
-    const platforms = results.find((r) => r.name === 'Android SDK Platform');
-    const buildTools = results.find((r) => r.name === 'Android Build-Tools');
-    const licenses = results.find((r) => r.name === 'Android SDK Licenses');
-
-    return !!(
-      jdk?.passed &&
-      sdk?.passed &&
-      platforms?.passed &&
-      buildTools?.passed &&
-      licenses?.passed
-    );
-  }
-
-  private isIOSReady(results: CheckResult[]): boolean {
-    const xtool = results.find((r) => r.name === 'xtool');
-    const darwinSDK = results.find((r) => r.name === 'Darwin SDK');
-
-    return !!(xtool?.passed && darwinSDK?.passed);
-  }
-
   private showFixSuggestions(results: CheckResult[]): void {
     const failed = results.filter((r) => !r.passed && r.installHint);
     if (failed.length === 0) return;
 
+    // The summary just said the environment is ready when only optional
+    // tools are missing: the list must not contradict it.
+    const optionalOnly = failed.every((item) => item.optional);
+
     logger.info('\n' + '='.repeat(60));
-    logger.info('Fix missing dependencies:\n');
+    logger.info(optionalOnly ? 'Optional tools:\n' : 'Fix missing dependencies:\n');
 
     for (const item of failed) {
       logger.info(`  ${item.name}:`);
       logger.info(`    ${item.installHint}`);
     }
 
-    logger.info('');
-    logger.info('Tip: Run `gyo doctor --fix` to auto-install where possible.');
+    if (!this.options.fix) {
+      logger.info('\nTip: Run `gyo doctor --fix` to install what it can by itself.');
+    }
   }
 
+  /** Installs what the package manager can get; the rest stays a hint. */
   private async autoFix(results: CheckResult[]): Promise<void> {
-    const fixable = results.filter((r) => !r.passed && r.installHint);
-    if (fixable.length === 0) {
+    const failed = results.filter((r) => !r.passed && r.installHint);
+    if (failed.length === 0) {
       logger.success('\nAll checkable dependencies are installed!');
       return;
     }
@@ -784,157 +748,45 @@ export class DoctorCommand extends BaseCommand<DoctorOptions> {
     logger.info('\n' + '='.repeat(60));
     logger.info('Auto-fixing missing dependencies...\n');
 
-    if (this.isLinux) {
-      await this.autoFixLinux(fixable);
-    } else if (this.isMac) {
-      await this.autoFixMac(fixable);
-    } else {
+    const manager: PackageManager | undefined = this.isLinux
+      ? 'apt'
+      : this.isMac
+        ? 'brew'
+        : undefined;
+    if (!manager) {
       logger.warn('Auto-fix is not supported on this platform.');
       this.showFixSuggestions(results);
-    }
-  }
-
-  private async autoFixLinux(fixable: CheckResult[]): Promise<void> {
-    const aptPackages: string[] = [];
-    const manualFix: CheckResult[] = [];
-
-    for (const item of fixable) {
-      switch (item.name) {
-        case 'JDK':
-          aptPackages.push('openjdk-17-jdk');
-          break;
-        case 'libimobiledevice':
-          aptPackages.push('libimobiledevice-utils');
-          break;
-        case 'Git':
-          aptPackages.push('git');
-          break;
-        default:
-          manualFix.push(item);
-          break;
-      }
+      return;
     }
 
-    if (aptPackages.length > 0) {
-      const pkgList = aptPackages.join(' ');
-      logger.info(`Installing via apt: ${pkgList}\n`);
-      const result = await executeCommand('sudo', ['apt', 'install', '-y', ...aptPackages], {
+    const packageFor = (item: CheckResult): string | undefined =>
+      item.install ? FIXABLE[manager][item.install] : undefined;
+    const toInstall = failed.map(packageFor).filter((name): name is string => name !== undefined);
+    const manual = failed.filter((item) => packageFor(item) === undefined);
+
+    if (toInstall.length > 0) {
+      const { label, command } = PACKAGE_MANAGERS[manager];
+      const list = toInstall.join(' ');
+      logger.info(`Installing via ${label}: ${list}\n`);
+
+      const [program, ...args] = command;
+      const installed = await executeCommand(program, [...args, ...toInstall], {
         stdio: 'inherit',
       });
-      if (result.success) {
-        logger.success('System packages installed successfully!');
+
+      if (installed.success) {
+        logger.success(`\nInstalled with ${label}: ${list}`);
       } else {
-        logger.error('Failed to install system packages. Try manually:');
-        logger.info(`  sudo apt install -y ${pkgList}`);
+        logger.error(`\nFailed to install with ${label}. Run this by hand:`);
+        logger.info(`  ${[...command, ...toInstall].join(' ')}`);
       }
     }
 
-    if (manualFix.length > 0) {
+    if (manual.length > 0) {
       logger.info('\nManual installation required for:');
-      for (const item of manualFix) {
+      for (const item of manual) {
         logger.info(`  ${item.name}: ${item.installHint}`);
       }
     }
-  }
-
-  private async autoFixMac(fixable: CheckResult[]): Promise<void> {
-    const brewPackages: string[] = [];
-    const manualFix: CheckResult[] = [];
-
-    for (const item of fixable) {
-      switch (item.name) {
-        case 'Git':
-          brewPackages.push('git');
-          break;
-        default:
-          manualFix.push(item);
-          break;
-      }
-    }
-
-    if (brewPackages.length > 0) {
-      const pkgList = brewPackages.join(' ');
-      logger.info(`Installing via Homebrew: ${pkgList}\n`);
-      const result = await executeCommand('brew', ['install', ...brewPackages], {
-        stdio: 'inherit',
-      });
-      if (result.success) {
-        logger.success('Homebrew packages installed successfully!');
-      } else {
-        logger.error('Failed to install Homebrew packages. Try manually:');
-        logger.info(`  brew install ${pkgList}`);
-      }
-    }
-
-    if (manualFix.length > 0) {
-      logger.info('\nManual installation required for:');
-      for (const item of manualFix) {
-        logger.info(`  ${item.name}: ${item.installHint}`);
-      }
-    }
-  }
-
-  private getInstallHint(tool: string): string {
-    const hints: Record<string, Record<string, string>> = {
-      node: {
-        linux: 'sudo apt install -y nodejs  or  https://nodejs.org',
-        darwin: 'brew install node  or  https://nodejs.org',
-        win32: 'https://nodejs.org  or  choco install nodejs-lts',
-      },
-      npm: {
-        linux: 'sudo apt install -y npm  (usually included with Node.js)',
-        darwin: 'Included with Node.js',
-        win32: 'Included with Node.js',
-      },
-      git: {
-        linux: 'sudo apt install -y git',
-        darwin: 'brew install git  or  xcode-select --install',
-        win32: 'https://git-scm.com  or  choco install git',
-      },
-      jdk: {
-        linux: 'sudo apt install -y openjdk-17-jdk',
-        darwin: 'brew install --cask zulu@17',
-        win32: 'choco install -y microsoft-openjdk17',
-      },
-      'android-sdk': {
-        linux:
-          'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your shell config',
-        darwin:
-          'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your shell config',
-        win32:
-          'Install Android Studio: https://developer.android.com/studio\n  Then set ANDROID_HOME in your system environment',
-      },
-      adb: {
-        linux:
-          'Included with Android SDK. Set ANDROID_HOME and add to PATH:\n  export PATH=$PATH:$ANDROID_HOME/platform-tools',
-        darwin:
-          'Included with Android SDK. Set ANDROID_HOME and add to PATH:\n  export PATH=$PATH:$ANDROID_HOME/platform-tools',
-        win32: 'Included with Android SDK. Add %ANDROID_HOME%\\platform-tools to PATH',
-      },
-      xtool: {
-        linux:
-          'Download the latest xtool AppImage:\n  curl -fL "https://github.com/xtool-org/xtool/releases/latest/download/xtool-$(uname -m).AppImage" -o xtool && chmod +x xtool && sudo mv xtool /usr/local/bin/',
-        darwin: 'brew install xtool  or  visit https://xtool.sh',
-        win32: 'Visit https://xtool.sh',
-      },
-      swift: {
-        linux:
-          'Install via swiftly:\n  curl -O https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz && tar zxf swiftly-$(uname -m).tar.gz && ./swiftly init',
-        darwin: 'Install Xcode from the App Store',
-        win32: 'Install from https://swift.org/install',
-      },
-      libimobiledevice: {
-        linux: 'sudo apt install -y libimobiledevice-utils',
-        darwin: 'brew install libimobiledevice',
-        win32: 'Not available on Windows',
-      },
-    };
-
-    const platform = process.platform as string;
-    const toolHints = hints[tool as keyof typeof hints];
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!toolHints) return `Visit the official documentation for ${tool}`;
-
-    return toolHints[platform] || toolHints['linux'] || `Install ${tool}`;
   }
 }

@@ -84,7 +84,7 @@ Check and diagnose development environment. Requires the Node release the CLI na
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `-v` | boolean | false | Verbose: show paths |
-| `--fix` | boolean | false | Auto-install missing deps |
+| `--fix` | boolean | false | Install with apt (Linux) or Homebrew (macOS) what they can get for a failed check: the JDK, Git, libimobiledevice. Prints how to get the rest |
 
 ### `gyo debug <platform>`
 
