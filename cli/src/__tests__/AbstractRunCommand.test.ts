@@ -1,515 +1,672 @@
-jest.mock('../utils/exec', () => ({
-  executeCommand: jest.fn(),
-  getGradlew: jest.fn().mockReturnValue('./gradlew'),
-  checkCommandExists: jest.fn(),
-  signalProcessTree: jest.requireActual('../utils/exec').signalProcessTree,
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
+}));
+// ESM-only
+jest.mock('inquirer', () => ({ prompt: jest.fn(), default: { prompt: jest.fn() } }));
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
 }));
 
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    verbose: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
+// A signal the CLI sends reaches a real process group, so a fake pid must never get there.
+jest.mock('../utils/exec', () => ({ signalProcessTree: jest.fn() }));
+// The log process the platform part starts.
+jest.mock('child_process', () => ({ spawn: jest.fn() }));
 
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-jest.mock('../services/config.service', () => ({
-  loadConfig: jest.fn().mockResolvedValue(null),
-  validateConfig: jest.fn(),
-  saveConfig: jest.fn().mockResolvedValue(undefined),
-  shouldStartLocalServer: jest.fn(),
-}));
-
-// One `start` for every instance, so that a test can read what was asked of it.
-jest.mock('../services/web-server.service', () => {
-  const start = jest.fn().mockResolvedValue({ process: null, url: 'http://192.168.0.7:3000' });
-  return { WebServerService: jest.fn().mockImplementation(() => ({ start })) };
-});
-
+import type { ChildProcess } from 'child_process';
+import { spawn } from 'child_process';
+import fs from 'fs-extra';
+import type { CommandMeta } from '../commands/base';
 import { AbstractRunCommand } from '../commands/run/AbstractRunCommand';
-import type { CommandMeta } from '../commands/base/BaseCommand';
-import { DEFAULT_PORT, PARENT_WATCH_INTERVAL_MS, PROCESS_KILL_TIMEOUT_MS } from '../core/index';
+import { DEFAULT_PORT, PARENT_WATCH_INTERVAL_MS, PROCESS_KILL_TIMEOUT_MS } from '../core/constants';
+import { GyoError, ServerStartError } from '../core/errors';
+import { WebServerService } from '../services/web-server.service';
+import { signalProcessTree } from '../utils/exec';
+import { logger } from '../utils/logger';
+import { silenceLogger } from './helpers/logger';
+import { fakeChildProcess, type FakeChildProcess } from './helpers/process';
+import { createTestProject, type TestProject } from './helpers/project';
 
-class TestableRunCommand extends AbstractRunCommand {
+/** Where the dev server answers, as the run learns it from WebServerService. */
+const SERVER_URL = 'http://192.168.1.5:3000';
+/** The signals that end the CLI, and the event that every end of the process runs. */
+const END_OF_CLI = ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT', 'exit'] as const;
+type EndOfCli = (typeof END_OF_CLI)[number];
+
+/** A promise that is resolved by hand. */
+function deferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+/** A listener the run registered on `process`; the signal runs it without arguments. */
+type Listener = () => void;
+
+/** The listeners on `process` for an event that ends the CLI. */
+function listenersOn(event: EndOfCli): Listener[] {
+  // `process` types its listeners per event; each of these is run without arguments.
+  return process.listeners(event as 'exit') as Listener[];
+}
+
+/**
+ * Stands in for the platform part of a run, the way AndroidRunCommand writes
+ * it: the platform directory is checked, the user is told the app is
+ * connected, and the log process is followed until it ends. It records what
+ * the base class hands it.
+ */
+class RecordingRunCommand extends AbstractRunCommand {
+  /** The server URL of each run, in order. */
+  public readonly serverUrls: string[] = [];
+  /** Resolves once the log process is running, which is where a run waits. */
+  public readonly following = deferred();
+
   getMeta(): CommandMeta {
-    return { name: 'test-run', description: 'test' };
+    return { name: 'test-run', description: 'Runs nothing' };
   }
 
-  public testGetPortFromProfile(profile: string): number {
-    return this.getPortFromProfile(profile);
+  protected async runPlatform(serverUrl: string): Promise<void> {
+    this.serverUrls.push(serverUrl);
+    await this.checkPlatformDirectoryExists();
+    this.showSuccessMessage(serverUrl);
+    await this.monitorLogs('device-1');
   }
 
-  public testGetStartCommand(): string {
-    return this.getStartCommand();
-  }
-
-  protected runPlatform(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  protected monitorLogs(): Promise<void> {
-    return Promise.resolve();
+  protected monitorLogs(_identifier: string): Promise<void> {
+    this.platformProcess = spawn('adb', ['logcat'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    this.following.resolve();
+    return this.followLogProcess(this.platformProcess, (line) => logger.info(line));
   }
 }
 
-describe('AbstractRunCommand', () => {
-  let command: TestableRunCommand;
+const mockedSpawn = spawn as jest.MockedFunction<typeof spawn>;
+const mockedSignal = signalProcessTree as jest.MockedFunction<typeof signalProcessTree>;
 
-  beforeEach(() => {
+describe('AbstractRunCommand', () => {
+  let project: TestProject;
+  let command: RecordingRunCommand;
+  /** The run of the current test, in progress. */
+  let run: Promise<void>;
+  let mockedStart: jest.SpiedFunction<WebServerService['start']>;
+  let devServer: FakeChildProcess;
+  let logProcess: FakeChildProcess;
+  /** Resolves when the CLI first signals a process it started. */
+  let signalled: Promise<void>;
+  /** The listeners on `process` before the run, by event. */
+  let listenersBefore: Map<string, Listener[]>;
+
+  /** The listeners the run added for `event`. */
+  function addedListeners(event: EndOfCli): Listener[] {
+    return listenersOn(event).filter((listener) => !listenersBefore.get(event)?.includes(listener));
+  }
+
+  /** Runs the handler the run registered for `event`, as the signal itself would. */
+  function emit(event: EndOfCli): void {
+    for (const listener of addedListeners(event)) {
+      listener();
+    }
+  }
+
+  /** Runs the command until the log process is running, which is where a run waits. */
+  async function startRun(): Promise<void> {
+    run = command.runDirectly();
+    await Promise.race([
+      command.following.promise,
+      run.then(() => {
+        throw new Error('The run ended before the log process was running');
+      }),
+    ]);
+  }
+
+  /** Ends the waiting run the way the log process ending does. */
+  async function endRun(): Promise<void> {
+    logProcess.emit('exit', 0);
+    await run;
+  }
+
+  /** What a run rejects with. */
+  function failureOf(pending: Promise<unknown>): Promise<unknown> {
+    return pending.catch((error: unknown) => error);
+  }
+
+  /** How `process.kill(pid, 0)` answers for the launcher: alive, or an error code. */
+  function launcherAnswers(code?: 'EPERM' | 'ESRCH'): void {
+    jest.mocked(process.kill).mockImplementation((_pid, signal) => {
+      if (signal === 0 && code) {
+        throw Object.assign(new Error(`kill ${code}`), { code });
+      }
+      return true;
+    });
+  }
+
+  beforeEach(async () => {
+    silenceLogger();
     jest.clearAllMocks();
-    command = new TestableRunCommand();
-    (command as any).options = { profile: 'development' };
+    mockedSpawn.mockReset();
+    mockedSignal.mockReset();
+
+    project = await createTestProject();
+    devServer = fakeChildProcess(1001);
+    logProcess = fakeChildProcess(1002);
+
+    // The run watches its launcher on an interval; with fake timers none is left behind.
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
+    jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+    jest.spyOn(process, 'kill').mockReturnValue(true);
+    // Starts a real dev server otherwise.
+    mockedStart = jest.spyOn(WebServerService.prototype, 'start').mockResolvedValue({
+      process: devServer as unknown as ChildProcess,
+      url: SERVER_URL,
+    });
+    mockedSpawn.mockReturnValue(logProcess as unknown as ChildProcess);
+    signalled = new Promise<void>((resolve) => mockedSignal.mockImplementation(() => resolve()));
+
+    command = new RecordingRunCommand();
+    command.setPlatform('android');
+    command.setOptions({ profile: 'development' });
+    listenersBefore = new Map(END_OF_CLI.map((event) => [event, listenersOn(event)] as const));
   });
 
   afterEach(() => {
-    (command as any).platformProcess = null;
-    (command as any).isCleaningUp = false;
+    for (const event of END_OF_CLI) {
+      for (const listener of addedListeners(event)) {
+        process.removeListener(event, listener);
+      }
+    }
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    project.remove();
   });
 
-  describe('getStartCommand', () => {
-    it('should return configured start command', () => {
-      (command as any).config = {
-        script: { start: 'npm run dev' },
-      };
-
-      expect(command.testGetStartCommand()).toBe('npm run dev');
+  describe('the local web server', () => {
+    beforeEach(() => {
+      project.setWebApp({ start: 'npm run dev' });
     });
 
-    it('should trim whitespace from command', () => {
-      (command as any).config = {
-        script: { start: '  npm run dev  ' },
-      };
+    it('should start it in lib/ with the start command, the port and the paths to clean up', async () => {
+      await project.setConfig({
+        script: { start: 'npm run dev', preStartCleanup: ['.next', 'dist'] },
+      });
 
-      expect(command.testGetStartCommand()).toBe('npm run dev');
+      await startRun();
+
+      expect(mockedStart).toHaveBeenCalledWith({
+        webPath: project.lib(),
+        port: DEFAULT_PORT,
+        startCommand: 'npm run dev',
+        preStartCleanup: ['.next', 'dist'],
+        advertiseHost: undefined,
+      });
+      await endRun();
     });
 
-    it('should throw when start command is not configured', () => {
-      (command as any).config = {};
+    it('should trim the start command', async () => {
+      await project.setConfig({ script: { start: '  npm run dev  ' } });
 
-      expect(() => command.testGetStartCommand()).toThrow('Start command is not configured');
-    });
+      await startRun();
 
-    it('should throw when start command is empty string', () => {
-      (command as any).config = { script: { start: '   ' } };
-
-      expect(() => command.testGetStartCommand()).toThrow('Start command is not configured');
-    });
-  });
-
-  describe('getPortFromProfile', () => {
-    it('should return default port when profile not found', () => {
-      (command as any).config = { profiles: {} };
-
-      expect(command.testGetPortFromProfile('production')).toBe(DEFAULT_PORT);
-    });
-
-    it('should return default port when config has no profiles', () => {
-      (command as any).config = {};
-
-      expect(command.testGetPortFromProfile('development')).toBe(DEFAULT_PORT);
-    });
-
-    it('should extract port from profile serverUrl', () => {
-      (command as any).config = {
-        profiles: {
-          development: { serverUrl: 'http://localhost:8080' },
-        },
-      };
-
-      expect(command.testGetPortFromProfile('development')).toBe(8080);
-    });
-
-    it('should return default port when URL has no explicit port', () => {
-      (command as any).config = {
-        profiles: {
-          production: { serverUrl: 'https://example.com' },
-        },
-      };
-
-      expect(command.testGetPortFromProfile('production')).toBe(DEFAULT_PORT);
-    });
-
-    it('should return default port for invalid URL', () => {
-      (command as any).config = {
-        profiles: {
-          development: { serverUrl: 'not-a-url' },
-        },
-      };
-
-      expect(command.testGetPortFromProfile('development')).toBe(DEFAULT_PORT);
-    });
-  });
-
-  describe('startWebServer', () => {
-    const startOf = (): jest.Mock => {
-      const { WebServerService } = jest.requireMock('../services/web-server.service');
-      return new WebServerService().start as jest.Mock;
-    };
-
-    it('should leave the address to this machine when the profile says localhost', async () => {
-      (command as any).config = {
-        script: { start: 'npm run dev' },
-        profiles: { development: { serverUrl: 'http://localhost:3000' } },
-      };
-
-      await command['startWebServer']('/project/lib', 3000);
-
-      expect(startOf()).toHaveBeenCalledWith(
-        expect.objectContaining({ advertiseHost: undefined, port: 3000 })
+      expect(mockedStart).toHaveBeenCalledWith(
+        expect.objectContaining({ startCommand: 'npm run dev' })
       );
+      await endRun();
+    });
+
+    it.each([
+      ['left out', {}],
+      ['blank', { start: '   ' }],
+    ])(
+      'should refuse to run when script.start is %s, and say where to set it',
+      async (_case, script) => {
+        await project.setConfig({ script });
+
+        const failure = await failureOf(command.runDirectly());
+
+        expect(failure).toBeInstanceOf(ServerStartError);
+        expect(failure).toHaveProperty(
+          'message',
+          expect.stringContaining(
+            "Start command is not configured. Please set 'script.start' in gyo.config.json"
+          )
+        );
+        expect(mockedStart).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      { serverUrl: 'http://localhost:8080', port: 8080 },
+      { serverUrl: 'https://example.com', port: DEFAULT_PORT },
+      { serverUrl: 'http://', port: DEFAULT_PORT },
+    ])(
+      'should ask for port $port when the profile’s serverUrl is $serverUrl',
+      async ({ serverUrl, port }) => {
+        await project.setConfig({ profiles: { development: { serverUrl } } });
+
+        await startRun();
+
+        expect(mockedStart).toHaveBeenCalledWith(expect.objectContaining({ port }));
+        await endRun();
+      }
+    );
+
+    it('should warn when the profile’s serverUrl cannot be parsed', async () => {
+      await project.setConfig({ profiles: { development: { serverUrl: 'http://' } } });
+
+      await startRun();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /Failed to parse URL from profile 'development', using default port 3000: .+/
+        )
+      );
+      await endRun();
+    });
+
+    it.each([
+      ['an empty profiles object', {}],
+      ['no profiles object', undefined],
+    ])('should ask for the default port when the config has %s', async (_case, profiles) => {
+      // JSON drops an undefined value, which removes `profiles` altogether.
+      await project.setConfig({ profiles });
+
+      await startRun();
+
+      expect(mockedStart).toHaveBeenCalledWith(expect.objectContaining({ port: DEFAULT_PORT }));
+      await endRun();
+    });
+
+    it('should let --port win over the profile', async () => {
+      await project.setConfig({
+        profiles: { development: { serverUrl: 'http://localhost:8080' } },
+      });
+      command.setOptions({ profile: 'development', port: 5173 });
+
+      await startRun();
+
+      expect(mockedStart).toHaveBeenCalledWith(expect.objectContaining({ port: 5173 }));
+      await endRun();
     });
 
     it('should advertise the machine the profile names', async () => {
-      (command as any).config = {
-        script: { start: 'npm run dev' },
+      await project.setConfig({
         profiles: { development: { serverUrl: 'http://192.168.0.7:3000' } },
-      };
+      });
 
-      await command['startWebServer']('/project/lib', 3000);
+      await startRun();
 
-      expect(startOf()).toHaveBeenCalledWith(
+      expect(mockedStart).toHaveBeenCalledWith(
         expect.objectContaining({ advertiseHost: '192.168.0.7' })
       );
+      await endRun();
+    });
+
+    it('should leave the address to this machine when the profile says localhost', async () => {
+      await startRun();
+
+      expect(mockedStart).toHaveBeenCalledWith(
+        expect.objectContaining({ advertiseHost: undefined })
+      );
+      await endRun();
+    });
+
+    it('should tell the user when the dev server stops unexpectedly, and keep the app running', async () => {
+      await startRun();
+
+      devServer.emit('exit', 1);
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Web server unexpectedly stopped with code 1')
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        'Check if another development server is running or if there are any errors above.'
+      );
+      expect(logger.info).toHaveBeenCalledWith(
+        'The app will continue running but may not be able to connect to the server.'
+      );
+      await endRun();
+    });
+
+    it('should say nothing when the dev server stops cleanly', async () => {
+      await startRun();
+
+      devServer.emit('exit', 0);
+
+      expect(logger.error).not.toHaveBeenCalled();
+      await endRun();
     });
   });
 
-  describe('validateLibDirectory', () => {
-    it('should throw ServerStartError when lib/ directory not found', async () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+  describe('lib/', () => {
+    it('should refuse a project without lib/ before anything is started, and say what to run', async () => {
+      fs.removeSync(project.lib());
 
-      const { pathExists } = jest.requireMock('../utils/fs');
-      pathExists.mockResolvedValue(false);
+      const failure = await failureOf(command.runDirectly());
 
-      await expect((command as any)['validateLibDirectory']('/project/lib')).rejects.toThrow(
-        "'lib/' directory not found"
+      expect(failure).toBeInstanceOf(ServerStartError);
+      expect(failure).toHaveProperty(
+        'message',
+        expect.stringContaining(`'lib/' directory not found in ${project.path}.`)
       );
+      expect(failure).toHaveProperty(
+        'message',
+        expect.stringContaining("Run 'gyo create <project-name>' to scaffold a project")
+      );
+      expect(mockedStart).not.toHaveBeenCalled();
     });
 
-    it('should throw ServerStartError when lib/package.json not found', async () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
+    it('should refuse a project whose lib/ has no package.json before anything is started', async () => {
+      // `gyo create` leaves lib/ empty.
+      const failure = await failureOf(command.runDirectly());
 
-      const { pathExists } = jest.requireMock('../utils/fs');
-      pathExists.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-
-      await expect((command as any)['validateLibDirectory']('/project/lib')).rejects.toThrow(
-        "'lib/package.json' not found"
+      expect(failure).toBeInstanceOf(ServerStartError);
+      expect(failure).toHaveProperty(
+        'message',
+        expect.stringContaining("'lib/package.json' not found.\n  Run 'gyo create <project-name>'")
       );
-    });
-
-    it('should not throw when lib/ and package.json exist', async () => {
-      (command as any).config = { name: 'test', version: '1.0.0', platforms: {} };
-
-      const { pathExists } = jest.requireMock('../utils/fs');
-      pathExists.mockResolvedValue(true);
-
-      await expect(
-        (command as any)['validateLibDirectory']('/project/lib')
-      ).resolves.toBeUndefined();
+      expect(mockedStart).not.toHaveBeenCalled();
     });
   });
 
-  describe('cleanupPlatformOnly', () => {
-    it('should kill platform process when it exists and is not killed', () => {
-      const mockKill = jest.fn();
-      const mockProcess = {
-        killed: false,
-        pid: 12345,
-        kill: mockKill,
-      };
-      (command as any).platformProcess = mockProcess;
-
-      (command as any)['cleanupPlatformOnly']();
-
-      expect(mockKill).toHaveBeenCalledWith('SIGTERM');
-    });
-
-    it('should not attempt kill when platform process is null', () => {
-      (command as any).platformProcess = null;
-
-      expect(() => (command as any)['cleanupPlatformOnly']()).not.toThrow();
-    });
-
-    it('should not attempt kill when platform process is already killed', () => {
-      const mockKill = jest.fn();
-      const mockProcess = {
-        killed: true,
-        pid: 12345,
-        kill: mockKill,
-      };
-      (command as any).platformProcess = mockProcess;
-
-      (command as any)['cleanupPlatformOnly']();
-
-      expect(mockKill).not.toHaveBeenCalled();
-    });
-
-    it('should ignore errors during kill', () => {
-      const mockKill = jest.fn(() => {
-        throw new Error('EPERM');
+  describe('another profile', () => {
+    it('should give the platform part the profile’s serverUrl and start no local server', async () => {
+      await project.setConfig({
+        profiles: { production: { serverUrl: 'https://app.example.com' } },
       });
-      const mockProcess = {
-        killed: false,
-        pid: 12345,
-        kill: mockKill,
-      };
-      (command as any).platformProcess = mockProcess;
+      command.setOptions({ profile: 'production' });
 
-      expect(() => (command as any)['cleanupPlatformOnly']()).not.toThrow();
+      await startRun();
+
+      expect(command.serverUrls).toEqual(['https://app.example.com']);
+      expect(mockedStart).not.toHaveBeenCalled();
+      await endRun();
     });
 
-    it('should not kill when pid is undefined', () => {
-      const mockKill = jest.fn();
-      const mockProcess = {
-        killed: false,
-        pid: undefined,
-        kill: mockKill,
-      };
-      (command as any).platformProcess = mockProcess;
+    it('should refuse a profile the config does not define and name those it does', async () => {
+      await project.setConfig({
+        profiles: {
+          development: { serverUrl: 'http://localhost:3000' },
+          production: { serverUrl: 'https://app.example.com' },
+        },
+      });
+      command.setOptions({ profile: 'staging' });
 
-      (command as any)['cleanupPlatformOnly']();
+      const failure = await failureOf(command.runDirectly());
 
-      expect(mockKill).not.toHaveBeenCalled();
+      expect(failure).toBeInstanceOf(GyoError);
+      expect(failure).toHaveProperty(
+        'message',
+        "Profile 'staging' not found in gyo.config.json. Available profiles: development, production"
+      );
+      expect(mockedStart).not.toHaveBeenCalled();
+    });
+
+    it('should refuse a profile when the config has none, and say so', async () => {
+      await project.setConfig({ profiles: {} });
+      command.setOptions({ profile: 'staging' });
+
+      const failure = await failureOf(command.runDirectly());
+
+      expect(failure).toHaveProperty(
+        'message',
+        "Profile 'staging' not found in gyo.config.json. No profiles configured"
+      );
     });
   });
 
-  describe('setupSignalHandlers', () => {
-    let handlers: Record<string, () => void>;
+  describe('the success message', () => {
+    it('should name the server URL and how to stop', async () => {
+      project.setWebApp({ start: 'npm run dev' });
 
+      await startRun();
+
+      expect(logger.success).toHaveBeenCalledWith(`App is connected to: ${SERVER_URL}`);
+      expect(logger.info).toHaveBeenCalledWith('Monitoring console logs (Press Ctrl+C to stop)...');
+      await endRun();
+    });
+  });
+
+  describe('the platform process', () => {
     beforeEach(() => {
-      handlers = {};
-      jest.spyOn(process, 'on').mockImplementation(((event: string, listener: () => void) => {
-        handlers[event] = listener;
-        return process;
-      }) as typeof process.on);
-      jest.spyOn(process, 'kill').mockImplementation(() => true);
-      command['setupSignalHandlers']();
+      project.setWebApp({ start: 'npm run dev' });
     });
 
-    afterEach(() => {
-      jest.restoreAllMocks();
+    it('should stop the platform process when the platform part ends', async () => {
+      await startRun();
+
+      await endRun();
+
+      expect(logProcess.kill).toHaveBeenCalledWith('SIGTERM');
     });
 
-    it('should clean up on exit, which also covers crashes', () => {
-      expect(handlers.exit).toBeDefined();
-      expect(handlers.SIGINT).toBeDefined();
-      expect(handlers.SIGTERM).toBeDefined();
+    it('should stop the platform process when the platform part throws', async () => {
+      await startRun();
+      const error = new Error('adb: device offline');
 
-      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
-      (command as any).platformProcess = { pid: 1002, killed: false, kill: jest.fn() };
+      logProcess.emit('error', error);
 
-      handlers.exit();
-
-      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
-      expect(process.kill).toHaveBeenCalledWith(-1002, 'SIGKILL');
+      await expect(run).rejects.toBe(error);
+      expect(logProcess.kill).toHaveBeenCalledWith('SIGTERM');
     });
 
-    it('should clean up on every signal that ends the CLI', () => {
-      const exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
-      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
+    it.each([
+      ['was asked to stop already', { killed: true }],
+      ['never started and has no pid', { pid: undefined }],
+    ])('should leave alone a platform process that %s', async (_case, state) => {
+      Object.assign(logProcess, state);
 
-      // SIGHUP is a closed terminal, SIGQUIT is Ctrl+\: neither runs the
-      // 'exit' handler, and the detached dev server would outlive the CLI.
-      for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT']) {
-        (command as any).isCleaningUp = false;
-        (process.kill as jest.Mock).mockClear();
+      await startRun();
+      await endRun();
 
-        handlers[signal]?.();
-
-        expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
-        expect(exit).toHaveBeenCalledWith(0);
-      }
+      expect(logProcess.kill).not.toHaveBeenCalled();
     });
 
-    it('should fall back to the process itself when it leads no process group', () => {
-      (process.kill as jest.Mock).mockImplementation(() => {
-        throw new Error('ESRCH');
+    it('should still end the run when the platform process cannot be stopped', async () => {
+      jest.spyOn(logProcess, 'kill').mockImplementation(() => {
+        throw new Error('EPERM: operation not permitted');
       });
-      const kill = jest.fn();
-      (command as any).platformProcess = { pid: 1002, killed: false, kill };
 
-      handlers.exit();
+      await startRun();
+      await endRun();
 
-      expect(kill).toHaveBeenCalledWith('SIGKILL');
+      expect(logger.debug).toHaveBeenCalledWith(
+        'Failed to kill platform process: EPERM: operation not permitted'
+      );
+    });
+
+    it('should warn when the log process stops on its own, and end the run', async () => {
+      await startRun();
+
+      logProcess.emit('exit', 1);
+
+      await run;
+      expect(logger.warn).toHaveBeenCalledWith('Log monitoring stopped');
     });
   });
 
-  describe('launcher watch', () => {
-    let exit: jest.SpyInstance;
+  describe('signals', () => {
+    beforeEach(() => {
+      project.setWebApp({ start: 'npm run dev' });
+    });
 
-    /** `process.kill(pid, 0)` answers for the launcher: alive, or gone. */
-    function launcherState(state: 'alive' | 'gone'): void {
-      (process.kill as jest.Mock).mockImplementation((_pid: number, signal?: number | string) => {
-        if (signal === 0 && state === 'gone') {
-          throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
-        }
-        return true;
-      });
+    it.each(['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGQUIT'] as const)(
+      'should stop the dev server and the log process and exit on %s',
+      async (signal) => {
+        await startRun();
+
+        emit(signal);
+
+        expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGKILL');
+        expect(mockedSignal).toHaveBeenCalledWith(logProcess, 'SIGKILL');
+        expect(process.exit).toHaveBeenCalledWith(0);
+        expect(jest.getTimerCount()).toBe(0);
+        await endRun();
+      }
+    );
+
+    it('should stop the dev server and the log process when the process exits, as after a crash', async () => {
+      await startRun();
+
+      emit('exit');
+
+      expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGKILL');
+      expect(mockedSignal).toHaveBeenCalledWith(logProcess, 'SIGKILL');
+      await endRun();
+    });
+  });
+
+  describe('the launcher watch', () => {
+    beforeEach(() => {
+      project.setWebApp({ start: 'npm run dev' });
+    });
+
+    it.each([
+      ['alive', undefined],
+      ['alive but not its own to signal', 'EPERM'],
+    ] as const)('should keep running while the launcher is %s', async (_case, code) => {
+      launcherAnswers(code);
+
+      await startRun();
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS * 3);
+
+      expect(process.exit).not.toHaveBeenCalled();
+      expect(mockedSignal).not.toHaveBeenCalled();
+      await endRun();
+    });
+
+    it('should probe the launcher every PARENT_WATCH_INTERVAL_MS', async () => {
+      await startRun();
+
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS - 1);
+      expect(process.kill).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS);
+      expect(process.kill).toHaveBeenCalledTimes(1);
+      expect(process.kill).toHaveBeenCalledWith(process.ppid, 0);
+      await endRun();
+    });
+
+    it('should stop everything and exit once the launcher is gone', async () => {
+      launcherAnswers('ESRCH');
+
+      await startRun();
+      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS);
+
+      expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGKILL');
+      expect(mockedSignal).toHaveBeenCalledWith(logProcess, 'SIGKILL');
+      expect(process.exit).toHaveBeenCalledWith(0);
+      expect(jest.getTimerCount()).toBe(0);
+      await endRun();
+    });
+  });
+
+  // `execute()` is the entry point that reports an error: it is where handleError,
+  // which stops the processes first, is reached.
+  describe('stopping with a timeout', () => {
+    function runAndReport(): Promise<unknown> {
+      return failureOf(command.execute());
     }
 
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      jest.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
-      jest.spyOn(process, 'kill').mockImplementation(() => true);
-      exit = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
-      command['setupSignalHandlers']();
-      (command as any).webServerProcess = { pid: 1001, killed: false, kill: jest.fn() };
+      project.setWebApp({ start: 'npm run dev' });
+      // The platform part fails once the dev server runs.
+      fs.removeSync(project.android());
     });
 
-    afterEach(() => {
-      clearInterval((command as any).parentWatch);
-      jest.useRealTimers();
-      jest.restoreAllMocks();
+    it('should ask the dev server to stop and kill it once it has not exited after PROCESS_KILL_TIMEOUT_MS', async () => {
+      const failure = runAndReport();
+      await signalled;
+
+      expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGTERM');
+
+      jest.advanceTimersByTime(PROCESS_KILL_TIMEOUT_MS - 1);
+      expect(mockedSignal).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(1);
+      expect(mockedSignal).toHaveBeenNthCalledWith(2, devServer, 'SIGKILL');
+      await failure;
     });
 
-    it('should keep running while the launcher is alive', () => {
-      launcherState('alive');
-      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS * 3);
+    it('should let a dev server that stops when asked go without a kill', async () => {
+      const failure = runAndReport();
+      await signalled;
 
-      expect(exit).not.toHaveBeenCalled();
-      expect(process.kill).not.toHaveBeenCalledWith(-1001, 'SIGKILL');
+      devServer.emit('exit', 0);
+      await failure;
+      jest.advanceTimersByTime(PROCESS_KILL_TIMEOUT_MS);
+
+      expect(mockedSignal).toHaveBeenCalledTimes(1);
+      expect(mockedSignal).toHaveBeenCalledWith(devServer, 'SIGTERM');
     });
 
-    it('should shut down once the launcher is gone', () => {
-      launcherState('gone');
-      jest.advanceTimersByTime(PARENT_WATCH_INTERVAL_MS);
+    it('should report the error once, after the dev server has stopped', async () => {
+      const failure = runAndReport();
+      await signalled;
 
-      expect(process.kill).toHaveBeenCalledWith(process.ppid, 0);
-      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
-      expect(exit).toHaveBeenCalledWith(0);
-    });
-
-    it('should check the launcher often enough to matter', () => {
-      expect(PARENT_WATCH_INTERVAL_MS).toBeLessThanOrEqual(1000);
-    });
-  });
-
-  describe('killProcessWithTimeout', () => {
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
-    it('should terminate the whole process group, then kill it when it ignores the signal', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      jest.spyOn(process, 'kill').mockImplementation(() => true);
-      const { EventEmitter } = jest.requireActual('events');
-      const proc = new EventEmitter() as any;
-      proc.pid = 1001;
-      proc.killed = false;
-      proc.kill = jest.fn();
-
-      const promise = (command as any)['killProcessWithTimeout'](proc);
-      await Promise.resolve();
-
-      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGTERM');
+      expect(logger.error).not.toHaveBeenCalled();
 
       jest.advanceTimersByTime(PROCESS_KILL_TIMEOUT_MS);
-      await promise;
 
-      expect(process.kill).toHaveBeenCalledWith(-1001, 'SIGKILL');
-      jest.useRealTimers();
-    });
-  });
-
-  describe('showSuccessMessage', () => {
-    it('should log success message with server URL', () => {
-      const { logger } = jest.requireMock('../utils/logger');
-
-      (command as any)['showSuccessMessage']('http://192.168.1.5:3000');
-
-      expect(logger.success).toHaveBeenCalledWith(
-        expect.stringContaining('http://192.168.1.5:3000')
+      expect(await failure).toHaveProperty(
+        'message',
+        expect.stringContaining("Platform 'android' not found")
       );
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Ctrl+C'));
-    });
-  });
-
-  describe('getValidPlatforms', () => {
-    it('should return android and ios', () => {
-      expect((command as any)['getValidPlatforms']()).toEqual(['android', 'ios']);
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("Platform 'android' not found")
+      );
     });
   });
 
   describe('handleError', () => {
-    it('should wrap non-GyoError in GyoError with cause', async () => {
-      (command as any).failSpinner = jest.fn();
-      (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
-
-      const error = new Error('something broke');
-
-      await expect((command as any)['handleError'](error)).rejects.toThrow('something broke');
+    beforeEach(() => {
+      project.setWebApp({ start: 'npm run dev' });
     });
 
-    it('should re-throw GyoError as-is', async () => {
-      const { GyoError } = jest.requireActual('../core/errors');
-      (command as any).failSpinner = jest.fn();
-      (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
+    it.each([
+      ['an Error', new Error('dev server is gone')],
+      ['a value that is not an Error', 'dev server is gone'],
+    ])('should wrap %s in a GyoError that keeps it as the cause', async (_case, cause) => {
+      mockedStart.mockRejectedValueOnce(cause);
 
-      const error = new GyoError('gyo fail', 2);
-      let thrown: unknown;
-      try {
-        await (command as any)['handleError'](error);
-      } catch (e) {
-        thrown = e;
-      }
+      const failure = await failureOf(command.execute());
 
-      expect(thrown).toBe(error);
-    });
-
-    it('should log debug stack when error has stack', async () => {
-      const { logger } = jest.requireMock('../utils/logger');
-      (command as any).failSpinner = jest.fn();
-      (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
-
-      const error = new Error('stack-test');
-      error.stack = 'Error: stack-test\n    at test.js:1:1';
-
-      try {
-        await (command as any)['handleError'](error);
-      } catch {
-        /* expected rethrow */
-      }
-
-      expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('stack-test'));
-    });
-
-    it('should handle non-Error values', async () => {
-      (command as any).failSpinner = jest.fn();
-      (command as any).cleanup = jest.fn().mockResolvedValue(undefined);
-
-      await expect((command as any)['handleError']('string error')).rejects.toThrow('string error');
-    });
-
-    it('should stop the dev server before reporting the error', async () => {
-      const { logger } = jest.requireMock('../utils/logger');
-      const order: string[] = [];
-      (command as any).cleanup = jest.fn().mockImplementation(async () => {
-        order.push('cleanup');
-      });
-      logger.error.mockImplementation(() => {
-        order.push('report');
-      });
-
-      await (command as any)['handleError'](new Error('x')).catch(() => undefined);
-
-      expect(order).toEqual(['cleanup', 'report']);
+      expect(failure).toBeInstanceOf(GyoError);
+      expect(failure).toMatchObject({ message: 'dev server is gone', cause });
       expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith('dev server is gone');
+    });
+
+    it('should throw a GyoError again as it is', async () => {
+      const error = new ServerStartError('Port 3000 is already in use');
+      mockedStart.mockRejectedValueOnce(error);
+
+      const failure = await failureOf(command.execute());
+
+      expect(failure).toBe(error);
+      expect(logger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('should log the stack of the error it reports', async () => {
+      mockedStart.mockRejectedValueOnce(new Error('dev server is gone'));
+
+      await failureOf(command.execute());
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringMatching(/^Error: dev server is gone\n\s+at /)
+      );
+    });
+  });
+
+  describe('the platform', () => {
+    it('should refuse a platform it cannot run and name those it can', async () => {
+      command.setPositionalArgs(['web']);
+
+      await expect(command.runDirectly()).rejects.toThrow('Valid platforms are: android, ios');
     });
   });
 });
