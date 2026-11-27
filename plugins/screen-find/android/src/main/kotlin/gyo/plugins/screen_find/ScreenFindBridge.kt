@@ -1,5 +1,7 @@
 package gyo.plugins.screen_find
 
+import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
@@ -7,7 +9,7 @@ import gyo.plugins.bridge.BridgeHandler
 import org.json.JSONArray
 import org.json.JSONObject
 
-class ScreenFindBridge : BridgeHandler {
+class ScreenFindBridge(private val context: Context) : BridgeHandler {
 
     companion object {
         private const val TAG = "AIOS-ScreenFind"

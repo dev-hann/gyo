@@ -4,29 +4,32 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
 import android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS
+import android.accessibilityservice.GestureDescription
+import android.content.Context
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import gyo.plugins.bridge.BridgeHandler
 import org.json.JSONObject
 
-class ScreenActionBridge : BridgeHandler {
+class ScreenActionBridge(private val context: Context) : BridgeHandler {
 
     companion object {
         private const val TAG = "AIOS-ScreenAction"
 
         @Volatile
-        var service: AccessibilityService? = null
+        var activeService: AccessibilityService? = null
 
         fun setService(accessibilityService: AccessibilityService) {
-            service = accessibilityService
+            activeService = accessibilityService
             Log.d(TAG, "AccessibilityService registered")
         }
 
         fun clearService() {
-            service = null
+            activeService = null
             Log.d(TAG, "AccessibilityService cleared")
         }
     }
@@ -45,7 +48,7 @@ class ScreenActionBridge : BridgeHandler {
     }
 
     private fun tap(data: JSONObject): Boolean {
-        val currentService = service
+        val currentService = activeService
         if (currentService == null) {
             Log.w(TAG, "tap: AccessibilityService not available")
             return false
@@ -62,18 +65,18 @@ class ScreenActionBridge : BridgeHandler {
             moveTo(x, y)
         }
 
-        val gesture = AccessibilityService.GestureDescription.Builder()
-            .addStroke(AccessibilityService.GestureDescription.StrokeDescription(path, 0L, 50L))
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0L, 50L))
             .build()
 
         return try {
             val result = BooleanArray(1)
             val callback = object : AccessibilityService.GestureResultCallback() {
-                override fun onCompleted(gestureDescription: AccessibilityService.GestureDescription?) {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
                     result[0] = true
                 }
 
-                override fun onCancelled(gestureDescription: AccessibilityService.GestureDescription?) {
+                override fun onCancelled(gestureDescription: GestureDescription?) {
                     result[0] = false
                 }
             }
@@ -87,7 +90,7 @@ class ScreenActionBridge : BridgeHandler {
     }
 
     private fun type(data: JSONObject): Boolean {
-        val currentService = service
+        val currentService = activeService
         if (currentService == null) {
             Log.w(TAG, "type: AccessibilityService not available")
             return false
@@ -127,7 +130,7 @@ class ScreenActionBridge : BridgeHandler {
     }
 
     private fun swipe(data: JSONObject): Boolean {
-        val currentService = service
+        val currentService = activeService
         if (currentService == null) {
             Log.w(TAG, "swipe: AccessibilityService not available")
             return false
@@ -149,9 +152,9 @@ class ScreenActionBridge : BridgeHandler {
             lineTo(endX, endY)
         }
 
-        val gesture = AccessibilityService.GestureDescription.Builder()
+        val gesture = GestureDescription.Builder()
             .addStroke(
-                AccessibilityService.GestureDescription.StrokeDescription(
+                GestureDescription.StrokeDescription(
                     path, 0L, duration
                 )
             )
@@ -159,11 +162,11 @@ class ScreenActionBridge : BridgeHandler {
 
         return try {
             val callback = object : AccessibilityService.GestureResultCallback() {
-                override fun onCompleted(gestureDescription: AccessibilityService.GestureDescription?) {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
                     Log.d(TAG, "swipe completed")
                 }
 
-                override fun onCancelled(gestureDescription: AccessibilityService.GestureDescription?) {
+                override fun onCancelled(gestureDescription: GestureDescription?) {
                     Log.w(TAG, "swipe cancelled")
                 }
             }
@@ -177,7 +180,7 @@ class ScreenActionBridge : BridgeHandler {
     }
 
     private fun globalAction(data: JSONObject): Boolean {
-        val currentService = service
+        val currentService = activeService
         if (currentService == null) {
             Log.w(TAG, "global: AccessibilityService not available")
             return false
