@@ -1,126 +1,169 @@
+// Every device tool leaves the process: `adb`, `idevice_id`, `ideviceinfo`
+// and the `which` that looks for them. Only that boundary is mocked, so the
+// real device service parses what the tools print.
+jest.mock('../utils/exec', () => ({
+  executeCommand: jest.fn(),
+  checkCommandExists: jest.fn(),
+}));
+
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+}));
+
 import { DevicesCommand } from '../commands/devices';
 import type { Device } from '../services/device.service';
-
-jest.mock('../services/device.service', () => ({
-  getAllDevices: jest.fn(),
-  getAndroidDevices: jest.fn().mockResolvedValue([]),
-  getIOSDevices: jest.fn().mockResolvedValue([]),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-import { getAllDevices } from '../services/device.service';
+import { executeCommand, checkCommandExists } from '../utils/exec';
 import { logger } from '../utils/logger';
+import { silenceLogger } from './helpers/logger';
 
-const mockedGetAllDevices = getAllDevices as jest.MockedFunction<typeof getAllDevices>;
+const mockedExec = jest.mocked(executeCommand);
+const mockedCheck = jest.mocked(checkCommandExists);
 
-class TestableDevicesCommand extends DevicesCommand {
-  protected run(): Promise<void> {
-    return super.run();
-  }
+/**
+ * What the machine answers: `installed` is what `which` finds, and the
+ * command that joins its words to a key of `output` prints that output.
+ */
+function tools(installed: string[], output: Record<string, string>): void {
+  mockedCheck.mockImplementation(async (tool) => installed.includes(tool));
+  mockedExec.mockImplementation(async (command, args = []) => {
+    const stdout = output[[command, ...args].join(' ')];
+    return { success: stdout !== undefined, stdout: stdout ?? '', stderr: '', code: 0 };
+  });
 }
 
-const sampleDevices: Device[] = [
-  { platform: 'android', id: 'emulator-5554', name: 'Pixel 7', state: 'Available' },
-  { platform: 'ios', id: 'abc123', name: 'iPhone 15 Pro', state: 'Available' },
-];
+const PIXEL_7: Device = {
+  platform: 'android',
+  id: 'emulator-5554',
+  name: 'Pixel 7',
+  state: 'device',
+};
+const IPHONE: Device = {
+  platform: 'ios',
+  id: 'abc123',
+  name: 'iPhone 15 Pro (iPhone16,1)',
+  state: 'Available',
+};
+
+/**
+ * What the tools print for an Android device that is ready, one that is not
+ * authorized, and an iOS device.
+ */
+const ONE_OF_EACH: Record<string, string> = {
+  'adb devices -l':
+    'List of devices attached\n' +
+    'emulator-5554   device usb:1-1 product:sdk_gphone64_x86_64 model:Pixel_7 device:emu64x\n' +
+    'emulator-5556   unauthorized usb:1-2\n',
+  'idevice_id -l': 'abc123\n',
+  'ideviceinfo -u abc123 -k DeviceName': 'iPhone 15 Pro\n',
+  'ideviceinfo -u abc123 -k ProductType': 'iPhone16,1\n',
+};
+
+const EVERY_TOOL = ['adb', 'idevice_id', 'ideviceinfo'];
+
+/** `gyo devices` with its options, as Commander hands them over. */
+function devices(options: { json?: boolean } = {}): Promise<void> {
+  const command = new DevicesCommand();
+  command.setOptions(options);
+  return command.execute();
+}
 
 describe('DevicesCommand', () => {
-  let command: TestableDevicesCommand;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    command = new TestableDevicesCommand();
+    silenceLogger();
   });
 
-  it('should warn when no devices found', async () => {
-    mockedGetAllDevices.mockResolvedValue([]);
-
-    await command['run']();
-
-    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('No available devices'));
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Troubleshooting'));
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  it('should display table with devices', async () => {
-    mockedGetAllDevices.mockResolvedValue(sampleDevices);
+  describe('with devices connected', () => {
+    it('should list the devices of every platform as a table', async () => {
+      tools(EVERY_TOOL, ONE_OF_EACH);
 
-    await command['run']();
+      await devices();
 
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('2 available device'));
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('ANDROID'));
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('IOS'));
+      expect(logger.success).toHaveBeenCalledWith('Found 2 available device(s):');
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringMatching(/^Platform\s+ID\s+Name\/Model\s+State\s*$/)
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringMatching(/^ANDROID\s+emulator-5554\s+Pixel 7\s+device\s*$/)
+      );
+      expect(logger.log).toHaveBeenCalledWith(
+        expect.stringMatching(/^IOS\s+abc123\s+iPhone 15 Pro \(iPhone16,1\)\s+Available\s*$/)
+      );
+    });
+
+    it('should keep the table aligned under a name longer than its header', async () => {
+      const longName = 'A'.repeat(50);
+      tools(['adb'], {
+        'adb devices -l': `List of devices attached\nemulator-5556   device model:${longName}\n`,
+      });
+
+      await devices();
+
+      const lines = jest.mocked(logger.log).mock.calls.map(([line]) => line);
+      const header = lines.filter((line) => line.startsWith('Platform'))[0];
+      const row = lines.filter((line) => line.startsWith('ANDROID'))[0];
+      expect(row).toContain(longName);
+      expect(row.indexOf('device')).toBe(header.indexOf('State'));
+    });
   });
 
-  it('should output JSON when --json flag is set', async () => {
-    mockedGetAllDevices.mockResolvedValue(sampleDevices);
-    command.setOptions({ json: true });
+  describe('gyo devices --json', () => {
+    it('should print the devices as JSON, and nothing else', async () => {
+      tools(EVERY_TOOL, ONE_OF_EACH);
 
-    await command['run']();
+      await devices({ json: true });
 
-    expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('emulator-5554'));
+      expect(jest.mocked(logger.log)).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(jest.mocked(logger.log).mock.calls[0][0])).toEqual([PIXEL_7, IPHONE]);
+      expect(logger.success).not.toHaveBeenCalled();
+    });
   });
 
-  it('should throw GyoError when getAllDevices rejects', async () => {
-    mockedGetAllDevices.mockRejectedValue(new Error('ADB crashed'));
+  describe('without a device', () => {
+    it('should say so, and what to check for each platform', async () => {
+      tools(['adb'], { 'adb devices -l': 'List of devices attached\n' });
 
-    await expect(command['run']()).rejects.toThrow('ADB crashed');
+      await devices();
+
+      expect(logger.warn).toHaveBeenCalledWith('No available devices found');
+      expect(logger.info).toHaveBeenCalledWith('Troubleshooting:');
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Android'));
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('iOS'));
+      expect(logger.log).not.toHaveBeenCalled();
+    });
   });
 
-  it('should throw GyoError with ADB permission message on EACCES', async () => {
-    const eaccErr = Object.assign(new Error('EACCES'), { code: 'EACCES' });
-    mockedGetAllDevices.mockRejectedValue(eaccErr);
+  describe('when a device tool cannot even be looked for', () => {
+    // The service lets nothing through of what `adb` and `idevice_id` fail
+    // with; only a lookup that itself fails reaches the command.
+    it.each([
+      {
+        code: 'EACCES',
+        failure: 'spawn adb EACCES',
+        reported: 'ADB permission denied. Run with sudo or check USB debugging.',
+      },
+      {
+        code: 'ENOENT',
+        failure: 'spawn adb ENOENT',
+        reported: 'adb not found. Install Android SDK.',
+      },
+      { code: 'EPERM', failure: 'some failure', reported: 'some failure' },
+      { code: undefined, failure: 'ADB crashed', reported: 'ADB crashed' },
+    ])('should report $failure as "$reported"', async ({ code, failure, reported }) => {
+      mockedCheck.mockRejectedValue(Object.assign(new Error(failure), code && { code }));
 
-    await expect(command['run']()).rejects.toThrow('ADB permission denied');
-  });
+      await expect(devices()).rejects.toThrow(reported);
 
-  it('should throw GyoError with adb not found message on ENOENT', async () => {
-    const enoentErr = Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-    mockedGetAllDevices.mockRejectedValue(enoentErr);
-
-    await expect(command['run']()).rejects.toThrow('adb not found');
-  });
-
-  it('should throw GyoError with original message on unknown error code', async () => {
-    const unknownErr = Object.assign(new Error('some failure'), { code: 'EPERM' });
-    mockedGetAllDevices.mockRejectedValue(unknownErr);
-
-    await expect(command['run']()).rejects.toThrow('some failure');
-  });
-
-  it('should handle calculateColumnWidths for long names', async () => {
-    const longNameDevice: Device = {
-      platform: 'android',
-      id: 'device-1',
-      name: 'A'.repeat(50),
-      state: 'Available',
-    };
-    mockedGetAllDevices.mockResolvedValue([longNameDevice]);
-
-    await command['run']();
-
-    expect(logger.success).toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
   });
 });

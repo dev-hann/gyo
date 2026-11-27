@@ -1,226 +1,250 @@
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot
+// run. Point it at the real templates instead.
+jest.mock('../utils/paths', () => ({
+  getTemplatesPath: () => jest.requireActual('path').join(__dirname, '../../templates'),
+}));
+
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+}));
+
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
+import type { BaseCommand } from '../commands/base';
 import { ConfigCommand } from '../commands/config';
-
-jest.mock('../services/config.service', () => ({
-  loadConfig: jest.fn(),
-  validateConfig: jest.fn(),
-  setConfigValue: jest.fn(),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
-
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-}));
-
-import { loadConfig, setConfigValue } from '../services/config.service';
+import type { ConfigAction } from '../commands/config';
+import type { GyoConfig } from '../core/index';
 import { logger } from '../utils/logger';
-
-const mockedLoadConfig = loadConfig as jest.MockedFunction<typeof loadConfig>;
-const mockedSetConfigValue = setConfigValue as jest.MockedFunction<typeof setConfigValue>;
-
-const sampleConfig = {
-  name: 'my-app',
-  version: '1.0.0',
-  serverUrl: 'http://localhost:3000',
-  platforms: {
-    android: { enabled: true, packageName: 'com.example.myapp' },
-    ios: { enabled: true, bundleId: 'com.example.myapp' },
-  },
-};
-
-function freshConfig() {
-  return structuredClone(sampleConfig);
-}
+import { silenceLogger } from './helpers/logger';
+import { createTestProject } from './helpers/project';
+import type { TestProject } from './helpers/project';
 
 describe('ConfigCommand', () => {
-  let command: ConfigCommand;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    command = new ConfigCommand();
+    silenceLogger();
   });
 
-  describe('getSubcommands', () => {
-    it('should return show, set, and get subcommands', () => {
-      const subcommands = ConfigCommand.getSubcommands();
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
-      expect(subcommands.map((s) => s.name)).toEqual(['show', 'set', 'get']);
+  /**
+   * `gyo config <action> [key] [value]`, handed over as `registerConfigCommand`
+   * does: the action, then the key and the value.
+   */
+  function config(action: ConfigAction, ...args: string[]): Promise<void> {
+    const command = new ConfigCommand();
+    command.setAction(action);
+    if (action !== 'show') {
+      command.setKeyValue(args[0], args[1]);
+    }
+    // The entry point hands every command its arguments and options as a BaseCommand.
+    const entry: BaseCommand = command;
+    entry.setPositionalArgs(args);
+    entry.setOptions({});
+    return entry.execute();
+  }
+
+  describe('getSubcommands', () => {
+    it('should list show, set and get with the arguments Commander takes', () => {
+      expect(ConfigCommand.getSubcommands()).toEqual([
+        { name: 'show', description: 'Show current configuration' },
+        { name: 'set', arguments: '<key> <value>', description: 'Set a configuration value' },
+        { name: 'get', arguments: '<key>', description: 'Get a configuration value' },
+      ]);
     });
   });
 
   describe('getMeta', () => {
-    it('should return the config command metadata', () => {
-      const meta = command.getMeta();
-
-      expect(meta.name).toBe('config');
-      expect(meta.description).toBe('Manage gyo configuration');
+    it('should name the command and say what it manages', () => {
+      expect(new ConfigCommand().getMeta()).toEqual({
+        name: 'config',
+        description: 'Manage gyo configuration',
+      });
     });
   });
 
-  describe('setAction', () => {
-    it('should record the subcommand to run', () => {
-      command.setAction('set');
+  describe('in a project', () => {
+    let project: TestProject;
 
-      expect(command['options'].action).toBe('set');
-    });
-  });
+    const configFile = (): string => project.file('gyo.config.json');
+    const readConfig = (): Promise<GyoConfig> => fs.readJson(configFile());
+    const readConfigText = (): string => fs.readFileSync(configFile(), 'utf-8');
 
-  describe('setKeyValue', () => {
-    it('should record the key and the value', () => {
-      command.setKeyValue('test.key', 'value');
-
-      expect(command['options']).toMatchObject({ key: 'test.key', value: 'value' });
+    beforeEach(async () => {
+      project = await createTestProject();
     });
 
-    it('should record a key without a value', () => {
-      command.setKeyValue('test.key');
-
-      expect(command['options'].key).toBe('test.key');
-      expect(command['options'].value).toBeUndefined();
-    });
-  });
-
-  describe('showConfig', () => {
-    it('should throw GyoError when config not found', async () => {
-      command.setAction('show');
-      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
-
-      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
+    afterEach(() => {
+      project.remove();
     });
 
-    it('should display config as JSON when found', async () => {
-      command.setAction('show');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
+    describe('show', () => {
+      it('should print the configuration as JSON', async () => {
+        await config('show');
 
-      const { logger } = await import('../utils/logger');
-      const logSpy = jest.spyOn(logger, 'log');
-
-      await command['run']();
-
-      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('my-app'));
-
-      logSpy.mockRestore();
+        expect(logger.info).toHaveBeenCalledWith('Current gyo configuration:\n');
+        expect(jest.mocked(logger.log)).toHaveBeenCalledTimes(1);
+        const printed = jest.mocked(logger.log).mock.calls[0][0];
+        expect(JSON.parse(printed)).toEqual(await readConfig());
+        expect(printed).toContain('\n  "name": "demo-app"');
+      });
     });
-  });
 
-  describe('setConfig', () => {
-    it('should set the value through the config service', async () => {
-      command.setAction('set');
-      command.setKeyValue('platforms.ios.enabled', 'false');
-      mockedSetConfigValue.mockResolvedValue({ previous: true, next: false });
+    describe('set', () => {
+      it('should write the value into gyo.config.json and say what it replaced', async () => {
+        const before = await readConfig();
 
-      await command['run']();
+        await config('set', 'platforms.ios.enabled', 'false');
 
-      expect(mockedSetConfigValue).toHaveBeenCalledWith(
-        expect.any(String),
-        'platforms.ios.enabled',
-        'false'
+        expect(await readConfig()).toEqual({
+          ...before,
+          platforms: {
+            ...before.platforms,
+            ios: { ...before.platforms.ios, enabled: false },
+          },
+        });
+        expect(logger.success).toHaveBeenCalledWith(
+          'Set platforms.ios.enabled = false (was: true)'
+        );
+      });
+
+      it.each([
+        { key: 'version', value: '2', type: 'a string', written: { version: '2' } },
+        {
+          key: 'platforms.android.versionCode',
+          value: '73',
+          type: 'a number',
+          written: { platforms: { android: { versionCode: 73 } } },
+        },
+      ])('should read "$value" given to $key as $type', async ({ key, value, written }) => {
+        await config('set', key, value);
+
+        expect(await readConfig()).toMatchObject(written);
+      });
+
+      it('should read a new key as a boolean', async () => {
+        // A project made before the setting existed has no such key.
+        await project.setConfig({ webview: { allowFileAccess: false } });
+
+        await config('set', 'webview.allowUniversalAccessFromFileURLs', 'true');
+
+        expect(await readConfig()).toMatchObject({
+          webview: { allowFileAccess: false, allowUniversalAccessFromFileURLs: true },
+        });
+      });
+
+      it('should name the previous value when it overwrites one', async () => {
+        await config('set', 'name', 'renamed-app');
+
+        expect(logger.success).toHaveBeenCalledWith('Set name = renamed-app (was: "demo-app")');
+        expect(await readConfig()).toMatchObject({ name: 'renamed-app' });
+      });
+
+      it('should not name a previous value when the key has none', async () => {
+        await config('set', 'displayName', 'My App');
+
+        expect(logger.success).toHaveBeenCalledWith('Set displayName = My App');
+        expect(await readConfig()).toMatchObject({ displayName: 'My App' });
+      });
+
+      it.each([
+        [
+          'displayName',
+          '',
+          "Invalid gyo.config.json:\n  - 'displayName' must be a non-empty string",
+        ],
+        [
+          'platforms.android.versionCode',
+          '0',
+          "Invalid gyo.config.json:\n  - 'platforms.android.versionCode' must be a positive integer",
+        ],
+        [
+          'profiles.development.serverUrl',
+          'example.com',
+          "Invalid gyo.config.json:\n  - 'profiles.development.serverUrl' must be a string starting with http:// or https://",
+        ],
+        // The key is not created under a parent the config does not have.
+        [
+          'profiles.production.serverUrl',
+          'https://example.com',
+          'Invalid configuration key: profiles.production.serverUrl',
+        ],
+      ])('should refuse to set %s to "%s" and write nothing', async (key, value, error) => {
+        const before = readConfigText();
+
+        await expect(config('set', key, value)).rejects.toThrow(error);
+        expect(logger.success).not.toHaveBeenCalled();
+        expect(readConfigText()).toBe(before);
+      });
+
+      it('should refuse set without a key', async () => {
+        await expect(config('set')).rejects.toThrow('Key and value are required for set operation');
+      });
+
+      it('should refuse set without a value', async () => {
+        await expect(config('set', 'name')).rejects.toThrow(
+          'Key and value are required for set operation'
+        );
+      });
+    });
+
+    describe('get', () => {
+      it.each([
+        ['name', 'name = "demo-app"'],
+        ['platforms.android.packageName', 'platforms.android.packageName = "com.example.demo_app"'],
+        [
+          'profiles',
+          'profiles = {\n  "development": {\n    "serverUrl": "http://localhost:3000"\n  }\n}',
+        ],
+      ])('should print the value of %s', async (key, printed) => {
+        await config('get', key);
+
+        expect(logger.info).toHaveBeenCalledWith(printed);
+      });
+
+      it('should refuse get without a key', async () => {
+        await expect(config('get')).rejects.toThrow('Key is required for get operation');
+      });
+
+      it.each(['nonexistent.key', 'platforms.android.missing', 'name.length'])(
+        'should say that %s is not in the configuration',
+        async (key) => {
+          await expect(config('get', key)).rejects.toThrow(`Configuration key not found: ${key}`);
+        }
       );
     });
-
-    it('should throw when key is missing', async () => {
-      command.setAction('set');
-
-      await expect(command['run']()).rejects.toThrow('Key and value are required');
-    });
-
-    it('should throw when value is undefined', async () => {
-      command.setAction('set');
-      command.setKeyValue('name');
-
-      await expect(command['run']()).rejects.toThrow('Key and value are required');
-    });
-
-    it('should include previous value in success message when overwriting', async () => {
-      command.setAction('set');
-      command.setKeyValue('name', 'renamed-app');
-      mockedSetConfigValue.mockResolvedValue({ previous: 'my-app', next: 'renamed-app' });
-
-      await command['run']();
-
-      expect(logger.success).toHaveBeenCalledWith('Set name = renamed-app (was: "my-app")');
-    });
-
-    it('should omit previous value in success message when key has no prior value', async () => {
-      command.setAction('set');
-      command.setKeyValue('displayName', 'My App');
-      mockedSetConfigValue.mockResolvedValue({ previous: undefined, next: 'My App' });
-
-      await command['run']();
-
-      expect(logger.success).toHaveBeenCalledWith('Set displayName = My App');
-    });
-
-    it('should not report success when the config service refuses the value', async () => {
-      command.setAction('set');
-      command.setKeyValue('displayName', '');
-      mockedSetConfigValue.mockRejectedValue(new Error("'displayName' must be a non-empty string"));
-
-      await expect(command['run']()).rejects.toThrow('must be a non-empty string');
-      expect(logger.success).not.toHaveBeenCalled();
-    });
   });
 
-  describe('getConfig', () => {
-    it('should throw when key is not provided', async () => {
-      command.setAction('get');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
+  describe('outside a project', () => {
+    let outside: string;
+    let previousCwd: string;
 
-      await expect(command['run']()).rejects.toThrow('Key is required');
+    beforeEach(() => {
+      previousCwd = process.cwd();
+      outside = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-outside-'));
+      process.chdir(outside);
     });
 
-    it('should get a top-level value', async () => {
-      command.setAction('get');
-      command.setKeyValue('name');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await command['run']();
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('my-app'));
+    afterEach(() => {
+      process.chdir(previousCwd);
+      fs.removeSync(outside);
     });
 
-    it('should get a nested value', async () => {
-      command.setAction('get');
-      command.setKeyValue('platforms.android.packageName');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
+    it.each([
+      { line: 'show', run: () => config('show') },
+      { line: 'get name', run: () => config('get', 'name') },
+      { line: 'set name other', run: () => config('set', 'name', 'other') },
+    ])('should refuse `gyo config $line`', async ({ run }) => {
+      await expect(run()).rejects.toThrow(`gyo.config.json not found in: ${outside}`);
 
-      await command['run']();
-
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('com.example.myapp'));
-    });
-
-    it('should throw for missing key path', async () => {
-      command.setAction('get');
-      command.setKeyValue('nonexistent.key');
-      mockedLoadConfig.mockResolvedValue(freshConfig());
-
-      await expect(command['run']()).rejects.toThrow('Configuration key not found');
-    });
-
-    it('should throw GyoError when config not found on get', async () => {
-      command.setAction('get');
-      command.setKeyValue('name');
-      mockedLoadConfig.mockRejectedValue(new Error('gyo.config.json not found in: /project'));
-
-      await expect(command['run']()).rejects.toThrow('gyo.config.json not found in: /project');
+      expect(logger.error).toHaveBeenCalledWith(`gyo.config.json not found in: ${outside}`);
     });
   });
 });

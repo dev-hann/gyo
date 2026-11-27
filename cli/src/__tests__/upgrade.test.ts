@@ -1,183 +1,179 @@
-jest.mock('../utils/exec', () => ({
-  executeCommand: jest.fn(),
-  getGradlew: jest.fn().mockReturnValue('./gradlew'),
-  checkCommandExists: jest.fn(),
-}));
-
-jest.mock('../utils/logger', () => ({
-  logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    success: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    setVerbose: jest.fn(),
-    isVerbose: jest.fn().mockReturnValue(false),
-  },
-}));
-
+// `utils/paths` reads import.meta.url, which Jest's CommonJS transform cannot
+// run. Point the version at the real package.json instead, so that the test
+// sees the version of the CLI whose sources are under test.
 jest.mock('../utils/paths', () => ({
-  getCliVersion: jest.fn().mockReturnValue('0.1.0'),
+  getCliVersion: () =>
+    jest
+      .requireActual('fs-extra')
+      .readJsonSync(jest.requireActual('path').join(__dirname, '../../package.json')).version,
 }));
 
+jest.mock('ora', () => () => ({
+  start: jest.fn(),
+  stop: jest.fn(),
+  succeed: jest.fn(),
+  fail: jest.fn(),
+  warn: jest.fn(),
+}));
+
+jest.mock('../utils/exec', () => ({ executeCommand: jest.fn() }));
+
+import * as path from 'path';
+import fs from 'fs-extra';
 import { UpgradeCommand } from '../commands/upgrade';
 import { executeCommand } from '../utils/exec';
-import { getCliVersion } from '../utils/paths';
+import type { ExecResult } from '../utils/exec';
 import { logger } from '../utils/logger';
-import { GyoError } from '../core/index';
+import { silenceLogger } from './helpers/logger';
 
-const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
-const mockedGetCliVersion = getCliVersion as jest.MockedFunction<typeof getCliVersion>;
+const mockedExec = jest.mocked(executeCommand);
 
-function makeExecSuccess(stdout: string): ReturnType<typeof executeCommand> {
-  return Promise.resolve({
-    success: true,
-    stdout,
-    stderr: '',
-    code: 0,
-  });
+const { version: installed }: { version: string } = fs.readJsonSync(
+  path.join(__dirname, '../../package.json')
+);
+const [major, minor, patch] = installed.split('.').map(Number);
+/** A version newer than the installed one. */
+const released = `${major}.${minor}.${patch + 1}`;
+/** A version to ask for with `--version`: neither the installed nor the latest one. */
+const chosen = `${major}.${minor + 1}.0`;
+
+function npm(stdout: string): ExecResult {
+  return { success: true, stdout, stderr: '', code: 0 };
 }
 
-describe('UpgradeCommand', () => {
-  let command: UpgradeCommand;
+const NPM_UNREACHABLE: ExecResult = {
+  success: false,
+  stdout: '',
+  stderr: 'network error',
+  code: 1,
+};
 
+/** `gyo upgrade` with its options, as Commander hands them over. */
+function upgrade(options: { check?: boolean; version?: string } = {}): Promise<void> {
+  const command = new UpgradeCommand();
+  command.setOptions(options);
+  return command.execute();
+}
+
+const view = ['view', '@gyo-framework/cli', 'version'];
+
+describe('UpgradeCommand', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    command = new UpgradeCommand();
+    silenceLogger();
   });
 
-  it('should display version info and upgrade when newer available', async () => {
-    mockedExec
-      .mockResolvedValueOnce(makeExecSuccess('0.2.0\n'))
-      .mockResolvedValueOnce(makeExecSuccess(''));
-
-    command.setOptions({});
-    await command['run']();
-
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Current version'));
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Successfully upgraded'));
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
-  it('should compare against the version of the installed CLI', async () => {
-    mockedGetCliVersion.mockReturnValueOnce('9.9.9');
-    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.2.0\n'));
+  describe('gyo upgrade', () => {
+    it('should install the newer version npm has, and report the upgrade', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${released}\n`)).mockResolvedValueOnce(npm(''));
 
-    command.setOptions({ check: true });
-    await command['run']();
+      await upgrade();
 
-    expect(logger.info).toHaveBeenCalledWith('Current version: 9.9.9');
-    expect(logger.info).toHaveBeenCalledWith('Latest version:  0.2.0');
-  });
-
-  it('should say already up to date when versions match', async () => {
-    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.1.0\n'));
-
-    command.setOptions({});
-    await command['run']();
-
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Already up to date'));
-  });
-
-  it('should check only without upgrading', async () => {
-    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.2.0\n'));
-
-    command.setOptions({ check: true });
-    await command['run']();
-
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('new version is available'));
-    expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('gyo upgrade'));
-  });
-
-  it('should report latest when check only and up to date', async () => {
-    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.1.0\n'));
-
-    command.setOptions({ check: true });
-    await command['run']();
-
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('already on the latest'));
-  });
-
-  it('should throw when npm view fails', async () => {
-    mockedExec.mockResolvedValueOnce({
-      success: false,
-      stdout: '',
-      stderr: 'network error',
-      code: 1,
+      expect(mockedExec).toHaveBeenNthCalledWith(1, 'npm', view, { stdio: 'pipe' });
+      expect(mockedExec).toHaveBeenNthCalledWith(
+        2,
+        'npm',
+        ['install', '-g', `@gyo-framework/cli@${released}`],
+        { stdio: 'inherit' }
+      );
+      expect(logger.info).toHaveBeenCalledWith(`Current version: ${installed}`);
+      expect(logger.info).toHaveBeenCalledWith(`Latest version:  ${released}`);
+      expect(logger.success).toHaveBeenCalledWith(`\nSuccessfully upgraded to v${released}!`);
     });
 
-    command.setOptions({});
+    it('should say it is up to date when npm has the installed version', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${installed}\n`));
 
-    await expect(command['run']()).rejects.toThrow();
-  });
+      await upgrade();
 
-  it('should throw when upgrade install fails', async () => {
-    mockedExec
-      .mockResolvedValueOnce(makeExecSuccess('0.2.0\n'))
-      .mockResolvedValueOnce({ success: false, stdout: '', stderr: 'perm', code: 1 });
-
-    command.setOptions({});
-
-    await expect(command['run']()).rejects.toThrow();
-  });
-
-  it('should not double-log errors', async () => {
-    mockedExec.mockResolvedValueOnce({
-      success: false,
-      stdout: '',
-      stderr: 'network error',
-      code: 1,
+      expect(logger.success).toHaveBeenCalledWith('\nAlready up to date!');
+      expect(mockedExec).toHaveBeenCalledTimes(1);
     });
 
-    command.setOptions({});
+    it('should fail when npm cannot install the new version', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${released}\n`)).mockResolvedValueOnce(NPM_UNREACHABLE);
 
-    await expect(command['run']()).rejects.toThrow();
-    expect(logger.error).not.toHaveBeenCalled();
+      await expect(upgrade()).rejects.toThrow('Failed to upgrade CLI');
+
+      expect(logger.success).not.toHaveBeenCalled();
+    });
   });
 
-  it('should upgrade to specified version when --version flag is set', async () => {
-    mockedExec
-      .mockResolvedValueOnce(makeExecSuccess('0.3.0\n'))
-      .mockResolvedValueOnce(makeExecSuccess(''));
+  describe('gyo upgrade --check', () => {
+    it('should only ask npm, and say how to upgrade', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${released}\n`));
 
-    command.setOptions({ version: '0.2.0' });
-    await command['run']();
+      await upgrade({ check: true });
 
-    expect(mockedExec).toHaveBeenNthCalledWith(
-      2,
-      'npm',
-      ['install', '-g', '@gyo-framework/cli@0.2.0'],
-      { stdio: 'inherit' }
-    );
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('0.2.0'));
-  });
-
-  it('should say already up to date when --version matches current', async () => {
-    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.3.0\n'));
-
-    command.setOptions({ version: '0.1.0' });
-    await command['run']();
-
-    expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Already up to date'));
-    expect(mockedExec).toHaveBeenCalledTimes(1);
-  });
-
-  it('should re-throw GyoError without rewrapping', async () => {
-    mockedExec.mockResolvedValueOnce({
-      success: false,
-      stdout: '',
-      stderr: 'fail',
-      code: 1,
+      expect(mockedExec).toHaveBeenCalledTimes(1);
+      expect(logger.info).toHaveBeenCalledWith(`Current version: ${installed}`);
+      expect(logger.info).toHaveBeenCalledWith(`Latest version:  ${released}`);
+      expect(logger.info).toHaveBeenCalledWith(`\nA new version is available: ${released}`);
+      expect(logger.info).toHaveBeenCalledWith('Run `gyo upgrade` to update');
     });
 
-    command.setOptions({});
+    it('should say so when the installed version is the latest', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${installed}\n`));
 
-    try {
-      await command['run']();
-      throw new Error('Expected error');
-    } catch (error) {
-      expect(error).toBeInstanceOf(GyoError);
-      expect((error as GyoError).message).toBe('Could not fetch latest version from npm');
-    }
+      await upgrade({ check: true });
+
+      expect(logger.success).toHaveBeenCalledWith('\nYou are already on the latest version!');
+      expect(mockedExec).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('gyo upgrade --version <version>', () => {
+    it('should install that version rather than the latest one', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${released}\n`)).mockResolvedValueOnce(npm(''));
+
+      await upgrade({ version: chosen });
+
+      expect(mockedExec).toHaveBeenNthCalledWith(
+        2,
+        'npm',
+        ['install', '-g', `@gyo-framework/cli@${chosen}`],
+        { stdio: 'inherit' }
+      );
+      expect(logger.success).toHaveBeenCalledWith(`\nSuccessfully upgraded to v${chosen}!`);
+    });
+
+    it('should say it is up to date when it is the installed version', async () => {
+      mockedExec.mockResolvedValueOnce(npm(`${released}\n`));
+
+      await upgrade({ version: installed });
+
+      expect(logger.success).toHaveBeenCalledWith('\nAlready up to date!');
+      expect(mockedExec).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('when npm cannot say what the latest version is', () => {
+    it('should fail with the GyoError as it is, without installing anything', async () => {
+      mockedExec.mockResolvedValueOnce(NPM_UNREACHABLE);
+
+      const failing = upgrade();
+
+      await expect(failing).rejects.toThrow('Could not fetch latest version from npm');
+      // Not wrapped again by the entry point, which would keep the original as its cause.
+      await expect(failing).rejects.toMatchObject({
+        name: 'GyoError',
+        exitCode: 1,
+        cause: undefined,
+      });
+      expect(mockedExec).toHaveBeenCalledTimes(1);
+    });
+
+    it('should report the failure once', async () => {
+      mockedExec.mockResolvedValueOnce(NPM_UNREACHABLE);
+
+      await expect(upgrade()).rejects.toThrow('Could not fetch latest version from npm');
+
+      expect(logger.error).toHaveBeenCalledTimes(1);
+      expect(logger.error).toHaveBeenCalledWith('Could not fetch latest version from npm');
+    });
   });
 });
