@@ -143,21 +143,17 @@ function mockExecResult(overrides = {}) {
 
 Run with coverage: `npx jest --coverage`. The thresholds apply only to a run with coverage; `npm test` does not collect it.
 
-## App Testing with @gyo-framework/test-utils
+## App Testing with @gyo-framework/bridge/testing
 
-Apps created with `gyo create` can use `@gyo-framework/test-utils` to mock bridge interactions.
+Apps created with `gyo create` use `@gyo-framework/bridge/testing` to stand in for the native side of the bridge. It comes with `@gyo-framework/bridge`; there is nothing to install apart from it.
 
-### Installation
-
-```bash
-npm install -D @gyo-framework/test-utils
-```
+### Bridge Mocking
 
 ### Bridge Mocking
 
 ```typescript
-import { AppLauncher } from '@gyo-framework/app-launcher';
-import { createBridgeMock } from '@gyo-framework/test-utils';
+import { AppLauncher } from '@gyo-community/app-launcher';
+import { createBridgeMock } from '@gyo-framework/bridge/testing';
 
 const mock = createBridgeMock('app_launcher');
 const launcher = new AppLauncher();
@@ -177,12 +173,12 @@ afterEach(() => mock.restore());
 
 The real `Bridge` stays in place: the mock replaces only the native side, so the test runs the path the app runs in the WebView.
 
-> See `plugins/test-utils/README.md` for the members of the mock.
+> See [Native Integration](#native-integration) of the bridge's README for the members of the mock.
 
 ### Platform Simulation
 
 ```typescript
-import { setPlatform, cleanupPlatform } from '@gyo-framework/test-utils';
+import { setPlatform, cleanupPlatform } from '@gyo-framework/bridge/testing';
 
 describe('Android-specific test', () => {
   beforeEach(() => setPlatform('android'));
@@ -196,7 +192,7 @@ describe('Android-specific test', () => {
 
 ```typescript
 import { Bridge } from '@gyo-framework/bridge';
-import { setPlatform, cleanupPlatform } from '@gyo-framework/test-utils';
+import { setPlatform, cleanupPlatform } from '@gyo-framework/bridge/testing';
 
 beforeEach(() => {
   setPlatform('android');

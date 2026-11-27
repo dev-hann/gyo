@@ -1,7 +1,7 @@
-import { Bridge } from '@gyo-framework/bridge';
-import { createBridgeMock } from '../bridge-mock';
-import { cleanupPlatform } from '../platform-setup';
-import type { BridgeMock } from '../bridge-mock';
+import { Bridge } from '../../index';
+import { createBridgeMock } from '../../testing';
+import { cleanupPlatform } from '../../testing';
+import type { BridgeMock } from '../../testing';
 
 /** The real Bridge posts on the next microtasks. */
 async function posted(): Promise<void> {

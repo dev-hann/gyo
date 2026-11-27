@@ -1,4 +1,4 @@
-import { setPlatform, cleanupPlatform } from '../platform-setup';
+import { setPlatform, cleanupPlatform } from '../../testing';
 
 describe('setPlatform', () => {
   afterEach(() => {

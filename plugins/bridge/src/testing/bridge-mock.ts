@@ -1,4 +1,4 @@
-import type { BridgeRequest } from '@gyo-framework/bridge';
+import type { BridgeRequest } from '../types';
 
 export interface BridgeMock {
   /** What the page posted to native, oldest first. */

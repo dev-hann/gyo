@@ -56,8 +56,8 @@ export default [
     rules: { 'no-console': 'off' },
   },
   {
-    // test-utils hands out jest mocks to the app that tests against the bridge.
-    files: ['plugins/test-utils/src/**/*.ts'],
+    // The testing entry hands out jest mocks to the app that tests against the bridge.
+    files: ['plugins/bridge/src/testing/**/*.ts'],
     ignores: tests,
     languageOptions: { globals: { jest: 'readonly' } },
   },

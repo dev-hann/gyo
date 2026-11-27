@@ -4,6 +4,7 @@
 
 ### Added
 
+- `@gyo-framework/bridge/testing`: `createBridgeMock(name)`, `setPlatform()` and `cleanupPlatform()`, for the tests of an app. They come from `@gyo-framework/test-utils`, which is withdrawn: that package could not answer a request of the real `Bridge`
 - `requestPermissions(permissions)`: asks the user for Android run-time permissions through the handler the Android shell registers in every app, and resolves with what is granted and what is not
 
 ### Fixed
