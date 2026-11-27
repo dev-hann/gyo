@@ -19,6 +19,8 @@
     "plugins/http"
   ],
   "scripts": {
+    "pretypecheck": "npm run build:bridge",
+    "pretest": "npm run build:bridge",
     "build": "npm run build:bridge && npm run build:test-utils && npm run build:cli",
     "build:cli": "npm run build -w @gyo-framework/cli",
     "build:bridge": "npm run build -w @gyo-framework/bridge",

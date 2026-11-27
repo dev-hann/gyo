@@ -23,8 +23,9 @@ node_modules
 dist
 **/dist
 
-# Lockfiles (root only)
-*/package-lock.json
+# Lockfiles: only the root one is tracked
+**/package-lock.json
+!/package-lock.json
 
 # Build caches
 .build/
