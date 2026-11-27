@@ -3,7 +3,8 @@ import fs from 'fs-extra';
 import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
-import { ensureDir, copyDir, pathExists, writeFile, readFile, getTemplatesPath } from '../utils/fs';
+import { ensureDir, copyDir, pathExists, writeFile, readFile } from '../utils/fs';
+import { getTemplatesPath } from '../utils/paths';
 import {
   GyoError,
   DirectoryExistsError,

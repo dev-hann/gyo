@@ -9,6 +9,9 @@ jest.mock('../utils/fs', () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
   readFile: jest.fn().mockResolvedValue(''),
   removeDir: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/paths', () => ({
   getTemplatesPath: jest.fn().mockReturnValue('/templates'),
 }));
 

@@ -1,30 +1,6 @@
-jest.mock('fs-extra', () => ({
-  ensureDir: jest.fn(),
-  copy: jest.fn(),
-  pathExists: jest.fn(),
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
-  remove: jest.fn(),
-  existsSync: jest.fn(),
-}));
-
-jest.mock('../utils/fs', () => {
-  const actualFs = jest.requireMock('fs-extra');
-  return {
-    ensureDir: actualFs.ensureDir,
-    copyDir: actualFs.copy,
-    pathExists: actualFs.pathExists,
-    readJson: actualFs.readJson,
-    writeJson: actualFs.writeJson,
-    readFile: actualFs.readFile,
-    writeFile: actualFs.writeFile,
-    removeDir: actualFs.remove,
-    getTemplatesPath: jest.fn().mockReturnValue('/templates'),
-  };
-});
-
+import * as os from 'os';
+import * as path from 'path';
+import fs from 'fs-extra';
 import {
   ensureDir,
   copyDir,
@@ -36,98 +12,115 @@ import {
   removeDir,
 } from '../utils/fs';
 
-const mockFs = jest.requireMock('fs-extra');
-
+// The functions are thin wrappers, so they are run against a real temporary
+// directory: a mocked fs-extra would only answer what the test assumes.
 describe('fs utils', () => {
+  let dir: string;
+
   beforeEach(() => {
-    jest.clearAllMocks();
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gyo-fs-utils-'));
+  });
+
+  afterEach(() => {
+    fs.removeSync(dir);
   });
 
   describe('ensureDir', () => {
-    it('should call fs.ensureDir with the given path', async () => {
-      mockFs.ensureDir.mockResolvedValueOnce(undefined);
-      await ensureDir('/tmp/test-dir');
-      expect(mockFs.ensureDir).toHaveBeenCalledWith('/tmp/test-dir');
+    it('should create a directory and its parents', async () => {
+      await ensureDir(path.join(dir, 'a/b'));
+
+      expect(await pathExists(path.join(dir, 'a/b'))).toBe(true);
     });
 
-    it('should propagate fs.ensureDir errors', async () => {
-      mockFs.ensureDir.mockRejectedValueOnce(new Error('permission denied'));
-      await expect(ensureDir('/no-access')).rejects.toThrow('permission denied');
+    it('should keep the content of an existing directory', async () => {
+      await writeFile(path.join(dir, 'keep.txt'), 'content');
+
+      await ensureDir(dir);
+
+      expect(await readFile(path.join(dir, 'keep.txt'))).toBe('content');
     });
   });
 
   describe('copyDir', () => {
-    it('should call fs.copy with src and dest', async () => {
-      mockFs.copy.mockResolvedValueOnce(undefined);
-      await copyDir('/src', '/dest');
-      expect(mockFs.copy).toHaveBeenCalledWith('/src', '/dest');
+    it('should copy a directory recursively', async () => {
+      fs.outputFileSync(path.join(dir, 'src/nested/file.txt'), 'content');
+
+      await copyDir(path.join(dir, 'src'), path.join(dir, 'dest'));
+
+      expect(await readFile(path.join(dir, 'dest/nested/file.txt'))).toBe('content');
     });
 
-    it('should propagate fs.copy errors', async () => {
-      mockFs.copy.mockRejectedValueOnce(new Error('src not found'));
-      await expect(copyDir('/missing', '/dest')).rejects.toThrow('src not found');
+    it('should propagate errors for a missing source', async () => {
+      await expect(copyDir(path.join(dir, 'missing'), path.join(dir, 'dest'))).rejects.toThrow();
     });
   });
 
   describe('pathExists', () => {
-    it('should return true when path exists', async () => {
-      mockFs.pathExists.mockResolvedValueOnce(true);
-      const result = await pathExists('/exists');
-      expect(result).toBe(true);
+    it('should return true for an existing path', async () => {
+      await writeFile(path.join(dir, 'file.txt'), 'content');
+
+      expect(await pathExists(path.join(dir, 'file.txt'))).toBe(true);
     });
 
-    it('should return false when path does not exist', async () => {
-      mockFs.pathExists.mockResolvedValueOnce(false);
-      const result = await pathExists('/missing');
-      expect(result).toBe(false);
+    it('should return false for a missing path', async () => {
+      expect(await pathExists(path.join(dir, 'missing'))).toBe(false);
     });
   });
 
   describe('readJson', () => {
-    it('should call fs.readJson and return parsed data', async () => {
-      const testData = { name: 'gyo', version: '1.0.0' };
-      mockFs.readJson.mockResolvedValueOnce(testData);
-      const result = await readJson('/config.json');
-      expect(result).toEqual(testData);
-      expect(mockFs.readJson).toHaveBeenCalledWith('/config.json');
+    it('should return the parsed content', async () => {
+      await writeJson(path.join(dir, 'config.json'), { name: 'gyo', version: '1.0.0' });
+
+      expect(await readJson(path.join(dir, 'config.json'))).toEqual({
+        name: 'gyo',
+        version: '1.0.0',
+      });
     });
 
     it('should propagate parse errors', async () => {
-      mockFs.readJson.mockRejectedValueOnce(new Error('Unexpected token'));
-      await expect(readJson('/bad.json')).rejects.toThrow('Unexpected token');
+      await writeFile(path.join(dir, 'bad.json'), '{');
+
+      await expect(readJson(path.join(dir, 'bad.json'))).rejects.toThrow();
     });
   });
 
   describe('writeJson', () => {
-    it('should call fs.writeJson with data', async () => {
-      mockFs.writeJson.mockResolvedValueOnce(undefined);
-      await writeJson('/out.json', { key: 'value' });
-      expect(mockFs.writeJson).toHaveBeenCalledWith('/out.json', { key: 'value' });
+    it('should write indented JSON', async () => {
+      await writeJson(path.join(dir, 'out.json'), { key: 'value' });
+
+      expect(await readFile(path.join(dir, 'out.json'))).toBe('{\n  "key": "value"\n}\n');
     });
   });
 
   describe('readFile', () => {
-    it('should call fs.readFile and return content', async () => {
-      mockFs.readFile.mockResolvedValueOnce('file content');
-      const result = await readFile('/file.txt');
-      expect(result).toBe('file content');
-      expect(mockFs.readFile).toHaveBeenCalledWith('/file.txt');
+    it('should return the content as UTF-8', async () => {
+      await fs.writeFile(path.join(dir, 'file.txt'), '안녕', 'utf-8');
+
+      expect(await readFile(path.join(dir, 'file.txt'))).toBe('안녕');
     });
   });
 
   describe('writeFile', () => {
-    it('should call fs.writeFile with content', async () => {
-      mockFs.writeFile.mockResolvedValueOnce(undefined);
-      await writeFile('/file.txt', 'hello');
-      expect(mockFs.writeFile).toHaveBeenCalledWith('/file.txt', 'hello');
+    it('should write the content as UTF-8', async () => {
+      await writeFile(path.join(dir, 'file.txt'), '안녕');
+
+      expect(await fs.readFile(path.join(dir, 'file.txt'), 'utf-8')).toBe('안녕');
     });
   });
 
   describe('removeDir', () => {
-    it('should call fs.remove with the given path', async () => {
-      mockFs.remove.mockResolvedValueOnce(undefined);
-      await removeDir('/tmp/dir');
-      expect(mockFs.remove).toHaveBeenCalledWith('/tmp/dir');
+    it('should remove a directory recursively', async () => {
+      fs.outputFileSync(path.join(dir, 'sub/file.txt'), 'content');
+
+      await removeDir(path.join(dir, 'sub'));
+
+      expect(await pathExists(path.join(dir, 'sub'))).toBe(false);
+    });
+
+    it('should do nothing for a missing directory', async () => {
+      await removeDir(path.join(dir, 'missing'));
+
+      expect(await pathExists(path.join(dir, 'missing'))).toBe(false);
     });
   });
 });

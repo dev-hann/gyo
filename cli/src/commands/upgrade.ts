@@ -1,9 +1,8 @@
-import * as path from 'path';
-import * as fs from 'fs-extra';
 import type { CommandMeta, BaseCommandOptions } from './base/index';
 import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import { executeCommand } from '../utils/exec';
+import { getCliVersion } from '../utils/paths';
 import { GyoError } from '../core/index';
 
 interface UpgradeCommandOptions extends BaseCommandOptions {
@@ -45,9 +44,6 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
   }
 
   private async getVersionInfo(): Promise<{ currentVersion: string; latestVersion: string }> {
-    const cliPackageJson = await fs.readJson(path.join(__dirname, '../../package.json'));
-    const currentVersion = cliPackageJson.version;
-
     const result = await executeCommand('npm', ['view', '@gyo-framework/cli', 'version'], {
       stdio: 'pipe',
     });
@@ -57,7 +53,7 @@ export class UpgradeCommand extends BaseCommand<UpgradeCommandOptions> {
     }
 
     return {
-      currentVersion,
+      currentVersion: getCliVersion(),
       latestVersion: result.stdout.trim(),
     };
   }

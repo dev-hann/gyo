@@ -29,7 +29,6 @@ jest.mock('../utils/fs', () => ({
   writeFile: jest.fn(),
   readFile: jest.fn(),
   removeDir: jest.fn(),
-  getTemplatesPath: jest.fn(),
 }));
 
 import { getAllDevices } from '../services/device.service';

@@ -27,7 +27,6 @@ jest.mock('../utils/fs', () => ({
   writeFile: jest.fn().mockResolvedValue(undefined),
   readFile: jest.fn(),
   removeDir: jest.fn(),
-  getTemplatesPath: jest.fn(),
 }));
 
 jest.mock('../services/config.service', () => ({

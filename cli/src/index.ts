@@ -1,6 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import type { BaseCommand, Platform, BaseCommandOptions } from './commands/base/index';
 import { BuildCommand } from './commands/build';
@@ -13,16 +10,13 @@ import { DevicesCommand } from './commands/devices';
 import { UpgradeCommand } from './commands/upgrade';
 import { DebugCommand } from './commands/debug';
 import { InstallCommand } from './commands/install';
-import { GyoError, getErrorMessage } from './core/index';
 import { logger } from './utils/logger';
+import { getErrorMessage, GyoError } from './core/index';
+import { getCliVersion } from './utils/paths';
 
 function getVersion(): string {
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const pkgPath = path.join(__dirname, '..', 'package.json');
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    return pkg.version;
+    return getCliVersion();
   } catch (error) {
     const message = getErrorMessage(error);
     logger.error(`Failed to read package.json for version: ${message}`);

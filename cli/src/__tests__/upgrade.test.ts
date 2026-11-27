@@ -17,28 +17,18 @@ jest.mock('../utils/logger', () => ({
   },
 }));
 
-jest.mock('../utils/fs', () => ({
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-  pathExists: jest.fn().mockResolvedValue(false),
-  ensureDir: jest.fn(),
-  copyDir: jest.fn(),
-  writeFile: jest.fn(),
-  readFile: jest.fn(),
-  removeDir: jest.fn(),
-  getTemplatesPath: jest.fn(),
-}));
-
-jest.mock('fs-extra', () => ({
-  readJson: jest.fn().mockResolvedValue({ version: '0.1.0' }),
+jest.mock('../utils/paths', () => ({
+  getCliVersion: jest.fn().mockReturnValue('0.1.0'),
 }));
 
 import { UpgradeCommand } from '../commands/upgrade';
 import { executeCommand } from '../utils/exec';
+import { getCliVersion } from '../utils/paths';
 import { logger } from '../utils/logger';
 import { GyoError } from '../core/index';
 
 const mockedExec = executeCommand as jest.MockedFunction<typeof executeCommand>;
+const mockedGetCliVersion = getCliVersion as jest.MockedFunction<typeof getCliVersion>;
 
 function makeExecSuccess(stdout: string): ReturnType<typeof executeCommand> {
   return Promise.resolve({
@@ -67,6 +57,17 @@ describe('UpgradeCommand', () => {
 
     expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Current version'));
     expect(logger.success).toHaveBeenCalledWith(expect.stringContaining('Successfully upgraded'));
+  });
+
+  it('should compare against the version of the installed CLI', async () => {
+    mockedGetCliVersion.mockReturnValueOnce('9.9.9');
+    mockedExec.mockResolvedValueOnce(makeExecSuccess('0.2.0\n'));
+
+    command.setOptions({ check: true });
+    await command['run']();
+
+    expect(logger.info).toHaveBeenCalledWith('Current version: 9.9.9');
+    expect(logger.info).toHaveBeenCalledWith('Latest version:  0.2.0');
   });
 
   it('should say already up to date when versions match', async () => {
