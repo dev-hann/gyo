@@ -3,17 +3,6 @@ import { BaseCommand } from './base/index';
 import { logger } from '../utils/logger';
 import type { Device } from '../services/device.service';
 import { getAllDevices } from '../services/device.service';
-import { GyoError, getErrorMessage } from '../core/index';
-
-interface SystemError extends Error {
-  code: string;
-}
-
-function isSystemError(error: unknown): error is SystemError {
-  return (
-    error instanceof Error && 'code' in error && typeof (error as SystemError).code === 'string'
-  );
-}
 
 interface DevicesCommandOptions extends BaseCommandOptions {
   json?: boolean;
@@ -30,36 +19,21 @@ export class DevicesCommand extends BaseCommand<DevicesCommandOptions> {
 
   protected async run(): Promise<void> {
     this.startSpinner('Detecting devices...');
+    // The service answers with no device of a platform whose tools are
+    // missing or fail, and says why at debug level.
+    const devices = await getAllDevices();
+    this.stopSpinner();
 
-    try {
-      const devices = await getAllDevices();
-      this.stopSpinner();
+    if (devices.length === 0) {
+      logger.warn('No available devices found');
+      this.showTroubleshootingInfo();
+      return;
+    }
 
-      if (devices.length === 0) {
-        logger.warn('No available devices found');
-        this.showTroubleshootingInfo();
-        return;
-      }
-
-      if (this.options.json) {
-        logger.log(JSON.stringify(devices, null, 2));
-      } else {
-        this.displayDevicesTable(devices);
-      }
-    } catch (error) {
-      const message = getErrorMessage(error);
-      this.stopSpinner();
-
-      if (isSystemError(error)) {
-        if (error.code === 'EACCES') {
-          throw new GyoError('ADB permission denied. Run with sudo or check USB debugging.');
-        }
-        if (error.code === 'ENOENT') {
-          throw new GyoError('adb not found. Install Android SDK.');
-        }
-      }
-
-      throw new GyoError(message);
+    if (this.options.json) {
+      logger.log(JSON.stringify(devices, null, 2));
+    } else {
+      this.displayDevicesTable(devices);
     }
   }
 

@@ -41,9 +41,9 @@ export class IOSBuildCommand extends AbstractBuildCommand {
   }
 
   private async checkDeviceConnected(): Promise<void> {
-    const configuration = this.options.release ? 'Release' : 'Debug';
+    // `--release` is refused before this runs, so the build is always a debug one.
     this.updateSpinner(
-      `Building iOS (${configuration})... Note: 'gyo build ios' will also install to connected device`
+      "Building iOS (Debug)... Note: 'gyo build ios' will also install to the connected device"
     );
 
     if (!(await checkCommandExists('idevice_id'))) {

@@ -140,30 +140,4 @@ describe('DevicesCommand', () => {
       expect(logger.log).not.toHaveBeenCalled();
     });
   });
-
-  describe('when a device tool cannot even be looked for', () => {
-    // The service lets nothing through of what `adb` and `idevice_id` fail
-    // with; only a lookup that itself fails reaches the command.
-    it.each([
-      {
-        code: 'EACCES',
-        failure: 'spawn adb EACCES',
-        reported: 'ADB permission denied. Run with sudo or check USB debugging.',
-      },
-      {
-        code: 'ENOENT',
-        failure: 'spawn adb ENOENT',
-        reported: 'adb not found. Install Android SDK.',
-      },
-      { code: 'EPERM', failure: 'some failure', reported: 'some failure' },
-      { code: undefined, failure: 'ADB crashed', reported: 'ADB crashed' },
-    ])('should report $failure as "$reported"', async ({ code, failure, reported }) => {
-      mockedCheck.mockRejectedValue(Object.assign(new Error(failure), code && { code }));
-
-      await expect(devices()).rejects.toThrow(reported);
-
-      expect(logger.error).toHaveBeenCalledTimes(1);
-      expect(logger.warn).not.toHaveBeenCalled();
-    });
-  });
 });
