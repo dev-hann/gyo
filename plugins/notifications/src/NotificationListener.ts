@@ -1,7 +1,7 @@
 import { Bridge } from '@gyo-framework/bridge';
 import type { NotificationListenerStatus, NotificationListResult } from './types';
 
-const BRIDGE_NAME = 'notification_listener';
+const BRIDGE_NAME = 'notifications';
 
 export class NotificationListener {
   private bridge: Bridge;

@@ -1,7 +1,7 @@
 import { Bridge } from '@gyo-framework/bridge';
 import type { ListResult } from './types';
 
-const BRIDGE_NAME = 'notification_reader';
+const BRIDGE_NAME = 'notifications';
 
 export class NotificationReader {
   private bridge: Bridge;

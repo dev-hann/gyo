@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "gyo.plugins.notification_listener"
+    namespace = "gyo.plugins.notifications"
     compileSdk = 36
 
     defaultConfig {

@@ -9,15 +9,14 @@
     "plugins/app-launcher",
     "plugins/device-info",
     "plugins/contact-search",
-    "plugins/notification-reader",
+    "plugins/notifications",
     "plugins/sms-sender",
     "plugins/phone-caller",
     "plugins/screen-reader",
     "plugins/screen-action",
     "plugins/screen-find",
     "plugins/http",
-    "plugins/accessibility",
-    "plugins/notification-listener"
+    "plugins/accessibility"
   ],
   "scripts": {
     "pretypecheck": "npm run build:bridge",

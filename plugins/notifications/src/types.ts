@@ -17,3 +17,8 @@ export interface NotificationListResult {
   notifications: NotificationInfo[];
   count: number;
 }
+
+export interface ListResult {
+  notifications: NotificationInfo[];
+  count: number;
+}

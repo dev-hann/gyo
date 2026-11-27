@@ -1,14 +1,13 @@
-package gyo.plugins.notification_listener
+package gyo.plugins.notifications
 
 import android.service.notification.NotificationListenerService
-import android.service.notification.StatusBarNotification
 import android.util.Log
 
 /**
- * The notification listener the notification plugins read through. It keeps
- * nothing: they ask for the active notifications when a call comes in. It is
- * connected for as long as the user allows notification access, which
- * `NotificationListener.openSettings()` leads to.
+ * The notification listener `NotificationListener` and `NotificationReader`
+ * read through. It keeps nothing: they ask for the active notifications when a
+ * call comes in. It is connected for as long as the user allows notification
+ * access, which `NotificationListener.openSettings()` leads to.
  */
 class GyoNotificationListenerService : NotificationListenerService() {
 

@@ -1,27 +1,37 @@
-package gyo.plugins.notification_reader
+package gyo.plugins.notifications
 
 import android.app.Notification
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import gyo.plugins.bridge.BridgeHandler
-import gyo.plugins.notification_listener.GyoNotificationListenerService
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Reads the active notifications through the service `@gyo-framework/notification-listener` brings. */
-@Suppress("UNUSED_PARAMETER")
-class NotificationReaderBridge(private val context: Context) : BridgeHandler {
+/**
+ * Answers `NotificationListener` and `NotificationReader`. Both read the active
+ * notifications through `GyoNotificationListenerService`, which this module
+ * declares.
+ */
+class NotificationsBridge(private val context: Context) : BridgeHandler {
 
     companion object {
-        private const val TAG = "Gyo-NotificationReader"
-        private const val DEFAULT_LIMIT = 20
+        private const val TAG = "Gyo-Notifications"
         private const val MAX_LIMIT = 200
+
+        /** How many notifications a method reads when the web side names no limit. */
+        private const val GET_NOTIFICATIONS_DEFAULT_LIMIT = 50
+        private const val LIST_DEFAULT_LIMIT = 20
     }
 
     override fun handle(method: String, data: JSONObject): Any? {
         return when (method) {
-            "list" -> listNotifications(data)
+            "is_enabled" -> isEnabled()
+            "get_notifications" -> activeNotifications(method, data, GET_NOTIFICATIONS_DEFAULT_LIMIT)
+            "open_settings" -> openSettings()
+            "list" -> activeNotifications(method, data, LIST_DEFAULT_LIMIT)
             else -> {
                 Log.w(TAG, "Unknown method: $method")
                 null
@@ -29,15 +39,19 @@ class NotificationReaderBridge(private val context: Context) : BridgeHandler {
         }
     }
 
+    private fun isEnabled(): JSONObject {
+        return JSONObject().put("enabled", GyoNotificationListenerService.instance != null)
+    }
+
     /** The newest first, at most `limit` of them; an empty list while notification access is not granted. */
-    private fun listNotifications(data: JSONObject): JSONObject {
+    private fun activeNotifications(method: String, data: JSONObject, defaultLimit: Int): JSONObject {
         val service = GyoNotificationListenerService.instance
         if (service == null) {
-            Log.w(TAG, "list: notification access is not granted")
+            Log.w(TAG, "$method: notification access is not granted")
             return result(JSONArray())
         }
 
-        val limit = data.optInt("limit", DEFAULT_LIMIT).coerceIn(1, MAX_LIMIT)
+        val limit = data.optInt("limit", defaultLimit).coerceIn(1, MAX_LIMIT)
         val notifications = JSONArray()
 
         try {
@@ -46,7 +60,7 @@ class NotificationReaderBridge(private val context: Context) : BridgeHandler {
                 .take(limit)
                 .forEach { notifications.put(describe(it)) }
         } catch (e: Exception) {
-            Log.e(TAG, "list: failed", e)
+            Log.e(TAG, "$method: failed", e)
         }
 
         return result(notifications)
@@ -70,5 +84,19 @@ class NotificationReaderBridge(private val context: Context) : BridgeHandler {
         return JSONObject()
             .put("notifications", notifications)
             .put("count", notifications.length())
+    }
+
+    /** Works before access is granted: that is when it is needed most. */
+    private fun openSettings(): JSONObject {
+        return try {
+            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            JSONObject().put("opened", true)
+        } catch (e: Exception) {
+            Log.e(TAG, "open_settings: failed", e)
+            JSONObject().put("opened", false).put("error", e.message)
+        }
     }
 }
