@@ -39,6 +39,10 @@ export class ConfigCommand extends BaseCommand<ConfigCommandOptions> {
     };
   }
 
+  protected async beforeRun(): Promise<void> {
+    await this.requireGyoProject();
+  }
+
   setAction(action: ConfigAction): void {
     this.options = { ...this.options, action };
   }

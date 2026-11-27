@@ -242,9 +242,13 @@ describe('ConfigCommand', () => {
       { line: 'get name', run: () => config('get', 'name') },
       { line: 'set name other', run: () => config('set', 'name', 'other') },
     ])('should refuse `gyo config $line`', async ({ run }) => {
-      await expect(run()).rejects.toThrow(`gyo.config.json not found in: ${outside}`);
+      await expect(run()).rejects.toThrow(
+        `Not a gyo project (gyo.config.json not found in ${outside})`
+      );
 
-      expect(logger.error).toHaveBeenCalledWith(`gyo.config.json not found in: ${outside}`);
+      expect(logger.error).toHaveBeenCalledWith(
+        `Not a gyo project (gyo.config.json not found in ${outside}).\n  Run 'gyo create <project-name>' to create a new project.`
+      );
     });
   });
 });
