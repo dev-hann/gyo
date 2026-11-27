@@ -7,6 +7,12 @@ import android.util.Log
 import gyo.plugins.bridge.BridgeHandler
 import org.json.JSONObject
 
+/**
+ * The one handler of the package, behind the `accessibility` bridge. It answers
+ * the calls of `Accessibility`, `ScreenReader`, `ScreenAction` and `ScreenFind`
+ * alike. Everything that needs the screen runs on [GyoAccessibilityService],
+ * which does nothing until the user enables it in the system settings.
+ */
 class AccessibilityBridge(private val context: Context) : BridgeHandler {
 
     companion object {
@@ -17,6 +23,14 @@ class AccessibilityBridge(private val context: Context) : BridgeHandler {
         return when (method) {
             "is_enabled" -> isEnabled()
             "open_settings" -> openSettings()
+            "read" -> readScreen()
+            "find" -> findNodes(data)
+            "find_by_text" -> findByText(data)
+            "find_by_id" -> findById(data)
+            "tap" -> tap(data)
+            "type" -> type(data)
+            "swipe" -> swipe(data)
+            "global" -> globalAction(data)
             else -> {
                 Log.w(TAG, "Unknown method: $method")
                 null

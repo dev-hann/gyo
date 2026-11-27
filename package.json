@@ -10,9 +10,6 @@
     "plugins/device-info",
     "plugins/communication",
     "plugins/notifications",
-    "plugins/screen-reader",
-    "plugins/screen-action",
-    "plugins/screen-find",
     "plugins/http",
     "plugins/accessibility"
   ],

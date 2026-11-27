@@ -1,7 +1,7 @@
 import { Bridge } from '@gyo-framework/bridge';
 import type { TapParams, TypeParams, SwipeParams, GlobalActionParams } from './types';
 
-const BRIDGE_NAME = 'screen_action';
+const BRIDGE_NAME = 'accessibility';
 
 export class ScreenAction {
   private bridge: Bridge;

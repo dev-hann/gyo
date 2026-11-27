@@ -1,7 +1,7 @@
 import { Bridge } from '@gyo-framework/bridge';
-import type { ReadResult, FindResult } from './types';
+import type { ReadResult, ScreenReaderFindResult, FindParams } from './types';
 
-const BRIDGE_NAME = 'screen_reader';
+const BRIDGE_NAME = 'accessibility';
 
 export class ScreenReader {
   private bridge: Bridge;
@@ -14,8 +14,8 @@ export class ScreenReader {
     return this.bridge.invoke<ReadResult>('read');
   }
 
-  async find(params: { text: string }): Promise<FindResult> {
-    return this.bridge.invoke<FindResult>('find', params);
+  async find(params: FindParams): Promise<ScreenReaderFindResult> {
+    return this.bridge.invoke<ScreenReaderFindResult>('find', params);
   }
 
   isAvailable(): boolean {
