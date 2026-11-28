@@ -8,7 +8,7 @@ The web app is deployed on a server (or run locally during development). The nat
 
 | Dependency | Minimum | Platform |
 |------------|---------|----------|
-| Node.js | 24.0 | All |
+| Node.js | 24.0 to run, 24.9 to run the tests | All |
 | npm | 11.0 | All |
 | Android Studio | Rabbit 2 (2026.2.2), the first to support Android Gradle Plugin 9.5 | Android |
 | Android SDK | platform 36 | Android |

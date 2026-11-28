@@ -4,12 +4,12 @@ Test conventions for the Gyo framework.
 
 ## Test Structure
 
-| Convention | Value |
-|------------|-------|
-| Location | `src/__tests__/*.test.ts` (co-located with source) |
-| Framework | Jest + ts-jest |
-| Environment | `node` (`cli/`), `jsdom` (`bridge/`, `plugins/`) |
-| Config | `jest.config.cjs` per package |
+| Convention  | Value                                              |
+| ----------- | -------------------------------------------------- |
+| Location    | `src/__tests__/*.test.ts` (co-located with source) |
+| Framework   | Jest + ts-jest                                     |
+| Environment | `node` (`cli/`), `jsdom` (`bridge/`, `plugins/`)   |
+| Config      | `jest.config.cjs` per package                      |
 
 ## Naming
 
@@ -29,15 +29,16 @@ A command is tested the way the entry point runs it: `setPositionalArgs()`, `set
 
 The command line itself is covered by `program.test.ts`, which goes through Commander for every command.
 
-| Need | How |
-|------|-----|
-| A project | `createTestProject()` in `__tests__/helpers/project.ts`: a project as `gyo create` leaves it, made with the real command in a temporary directory. The project is the working directory until `remove()`; `setConfig()` and `setWebApp()` give it a config and a web app |
-| The real templates | `utils/paths` reads `import.meta.url`, which Jest cannot run; the test mocks it with the path to `cli/templates` |
-| `inquirer` | ESM-only: every test file whose imports reach it mocks it |
-| What the user is told | `silenceLogger()` in `__tests__/helpers/logger.ts`: the real logger with every method silenced |
-| A process the CLI started | `fakeChildProcess()` in `__tests__/helpers/process.ts`. `signalProcessTree` and `process.kill` are mocked wherever a fake pid can reach them: the real ones signal a real process group |
-| What a run leaves on `process` | `watchRun()` in the same file: the handlers and timers a run adds, with `added()`, `emit()` and `restore()`. A test of `gyo run` calls `restore()` in `afterEach` |
-| The spinner | `ora` is mocked |
+| Need                           | How                                                                                                                                                                                                                                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A project                      | `createTestProject()` in `__tests__/helpers/project.ts`: a project as `gyo create` leaves it, made with the real command in a temporary directory. The project is the working directory until `remove()`; `setConfig()` and `setWebApp()` give it a config and a web app                   |
+| The real templates             | `utils/paths` reads `import.meta.url`, which Jest cannot run; the test mocks it with the path to `cli/templates`                                                                                                                                                                           |
+| `inquirer`                     | ESM-only: every test file whose imports reach it mocks it                                                                                                                                                                                                                                  |
+| Other ESM-only dependencies    | `chalk`, `commander`, `ora` and `open` are ESM-only, and the tests stay CommonJS because they rely on `jest.mock` being hoisted. So the CLI runs Jest with the VM modules of Node, which lets it require ESM natively. That needs Node 24.9+; `test` in `cli/package.json` passes the flag |
+| What the user is told          | `silenceLogger()` in `__tests__/helpers/logger.ts`: the real logger with every method silenced                                                                                                                                                                                             |
+| A process the CLI started      | `fakeChildProcess()` in `__tests__/helpers/process.ts`. `signalProcessTree` and `process.kill` are mocked wherever a fake pid can reach them: the real ones signal a real process group                                                                                                    |
+| What a run leaves on `process` | `watchRun()` in the same file: the handlers and timers a run adds, with `added()`, `emit()` and `restore()`. A test of `gyo run` calls `restore()` in `afterEach`                                                                                                                          |
+| The spinner                    | `ora` is mocked                                                                                                                                                                                                                                                                            |
 
 ## Pattern (AAA)
 
@@ -55,23 +56,23 @@ it('should ...', async () => {
 
 ### What to mock
 
-| Target | Reason |
-|--------|--------|
-| `fs-extra` operations | File system I/O |
-| `child_process` (`exec`) | Shell command execution |
-| `logger` | Side effect (console output) |
+| Target                                                   | Reason                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------ |
+| `fs-extra` operations                                    | File system I/O                                        |
+| `child_process` (`exec`)                                 | Shell command execution                                |
+| `logger`                                                 | Side effect (console output)                           |
 | The native object of the bridge (`window.androidBridge`) | Native communication; the real `Bridge` stays in place |
-| External API calls | Network I/O |
+| External API calls                                       | Network I/O                                            |
 
 ### What NOT to mock
 
-| Target | Reason |
-|--------|--------|
-| Pure functions (`core/`) | Deterministic, no side effects |
-| Business logic under test | Testing the actual code |
-| TypeScript type checks | Compiler handles this |
+| Target                                             | Reason                                                                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Pure functions (`core/`)                           | Deterministic, no side effects                                                                                           |
+| Business logic under test                          | Testing the actual code                                                                                                  |
+| TypeScript type checks                             | Compiler handles this                                                                                                    |
 | The file system, when the layout is what is tested | A mocked path answers what the test assumes: the wrong plugin layout passed that way while every published plugin failed |
-| The built bundle | Covered by the local E2E suite, not by unit tests |
+| The built bundle                                   | Covered by the local E2E suite, not by unit tests                                                                        |
 
 ### Mock Pattern
 
@@ -144,21 +145,21 @@ function mockExecResult(overrides = {}) {
 
 ## Layer-Specific Conventions
 
-| Layer | Test Focus | Mock Scope |
-|-------|-----------|------------|
-| `core/` | Types, errors, constants | No mocks needed |
-| `utils/` | Pure function output | Mock external deps only (fs, exec) |
-| `services/` | Business logic branching | Mock utils + logger |
-| `commands/` | CLI integration, option parsing | Mock services + utils + logger |
+| Layer       | Test Focus                      | Mock Scope                         |
+| ----------- | ------------------------------- | ---------------------------------- |
+| `core/`     | Types, errors, constants        | No mocks needed                    |
+| `utils/`    | Pure function output            | Mock external deps only (fs, exec) |
+| `services/` | Business logic branching        | Mock utils + logger                |
+| `commands/` | CLI integration, option parsing | Mock services + utils + logger     |
 
 ## Coverage
 
-| Metric | Threshold |
-|--------|-----------|
-| Lines | 60% |
-| Branches | 60% |
-| Functions | 60% |
-| Statements | 60% |
+| Metric     | Threshold |
+| ---------- | --------- |
+| Lines      | 60%       |
+| Branches   | 60%       |
+| Functions  | 60%       |
+| Statements | 60%       |
 
 Run with coverage: `npx jest --coverage`. The thresholds apply only to a run with coverage; `npm test` does not collect it.
 
@@ -225,11 +226,11 @@ afterEach(() => {
 
 E2E tests validate the full CLI pipeline against real file system and build tools.
 
-| Suite | File | Device Required | Description |
-|-------|------|:---:|-------------|
-| Local | `cli/e2e/local-pipeline.e2e.test.ts` | No | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle |
-| Android | `cli/e2e/android-compile.e2e.test.ts` | No | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug` |
-| Device | `cli/e2e/device-pipeline.e2e.test.ts` | Yes | Android APK build/install/run, iOS xtool build/install |
+| Suite   | File                                  | Device Required | Description                                                                                                             |
+| ------- | ------------------------------------- | :-------------: | ----------------------------------------------------------------------------------------------------------------------- |
+| Local   | `cli/e2e/local-pipeline.e2e.test.ts`  |       No        | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle                |
+| Android | `cli/e2e/android-compile.e2e.test.ts` |       No        | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug` |
+| Device  | `cli/e2e/device-pipeline.e2e.test.ts` |       Yes       | Android APK build/install/run, iOS xtool build/install                                                                  |
 
 The Android suite needs the SDK platform the template compiles against and Java; it is skipped without them. It is the only test that compiles Kotlin, so it is where a plugin that does not build shows.
 
@@ -249,12 +250,12 @@ itIfAndroid()('should build Android APK', async () => {
 
 Run from the repository root. The end-to-end scripts build first: the plugins read the bridge from its build output.
 
-| Command | Purpose |
-|---------|---------|
-| `npm run test` | Unit tests of every package |
-| `npm run test:e2e:local` | Local E2E, on the built bundle; no device |
+| Command                    | Purpose                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm run test`             | Unit tests of every package                                                                      |
+| `npm run test:e2e:local`   | Local E2E, on the built bundle; no device                                                        |
 | `npm run test:e2e:android` | Compiles a generated Android project with every community plugin; needs the Android SDK and Java |
-| `npm run test:e2e:device` | Device E2E; needs a connected device |
-| `npm run test:e2e` | Local, Android and device E2E |
-| `npm run test:all` | Unit tests + local E2E |
-| `npm run verify` | lint + typecheck + unit tests + build |
+| `npm run test:e2e:device`  | Device E2E; needs a connected device                                                             |
+| `npm run test:e2e`         | Local, Android and device E2E                                                                    |
+| `npm run test:all`         | Unit tests + local E2E                                                                           |
+| `npm run verify`           | lint + typecheck + unit tests + build                                                            |

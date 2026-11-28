@@ -31,7 +31,8 @@ export function createBridgeMock(name: string): BridgeMock {
   };
 
   const answerable = (request: BridgeRequest | undefined): BridgeRequest => {
-    const target = request ?? posted.at(-1);
+    const last = posted.length > 0 ? posted[posted.length - 1] : undefined;
+    const target = request ?? last;
     if (target === undefined) {
       throw new Error('The page posted nothing to native: call a bridge method first.');
     }

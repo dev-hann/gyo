@@ -52,11 +52,18 @@ interface Parsed {
   error: string;
 }
 
-/** Throws Commander's errors instead of exiting the process, on every command. */
-function throwing(program: Command): Command {
-  program.exitOverride();
-  program.commands.forEach(throwing);
-  return program;
+/**
+ * Throws Commander's errors instead of exiting the process and keeps what it
+ * writes, on every command. Commander copies the output to a command when the
+ * command is made, so setting it on the program afterwards would leave every
+ * subcommand writing to the real streams.
+ */
+function capture(program: Command, parsed: Parsed): void {
+  program.exitOverride().configureOutput({
+    writeOut: (text) => (parsed.help += text),
+    writeErr: (text) => (parsed.error += text),
+  });
+  program.commands.forEach((command) => capture(command, parsed));
 }
 
 /**
@@ -84,13 +91,10 @@ async function route(argv: string[]): Promise<Parsed> {
   const executed = jest.spyOn(BaseCommand.prototype, 'execute').mockResolvedValue(undefined);
 
   const parsed: Parsed = { routed: [], help: '', error: '' };
+  const program = createProgram();
+  capture(program, parsed);
   try {
-    await throwing(createProgram())
-      .configureOutput({
-        writeOut: (text) => (parsed.help += text),
-        writeErr: (text) => (parsed.error += text),
-      })
-      .parseAsync(['node', 'gyo', ...argv]);
+    await program.parseAsync(['node', 'gyo', ...argv]);
   } catch (error) {
     // Help ends the parse the same way a refusal does.
     if (!(error instanceof CommanderError)) {

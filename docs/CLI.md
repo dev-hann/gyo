@@ -220,11 +220,11 @@ Environment: `ANDROID_HOME` must point to SDK path.
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `commander` | ^12.0 | CLI framework |
-| `chalk` | ^4.1 | Terminal colors |
-| `inquirer` | ^13.1 | Interactive prompts |
-| `fs-extra` | ^11.2 | File system utilities |
-| `ora` | ^5.4 | Spinner UI |
-| `open` | ^9.1 | Open URLs/apps |
+| `commander` | ^15.1 | CLI framework |
+| `chalk` | ^6.0 | Terminal colors |
+| `inquirer` | ^14.3 | Interactive prompts |
+| `fs-extra` | ^11.4 | File system utilities |
+| `ora` | ^10.0 | Spinner UI |
+| `open` | ^11.0 | Open URLs/apps |
 
 > See `cli/package.json` for full dependency list.

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Every dependency is on its latest major: TypeScript 6.0, Jest 30 with ts-jest 29.4 and `@types/jest` 30, tsup 9, ESLint 10.16 with typescript-eslint 8.74, Prettier 3.10 and lint-staged 17; in the CLI, Commander 15, chalk 6, inquirer 14, ora 10, open 11 and `@types/node` 26. TypeScript stays at 6: ts-jest and typescript-eslint do not accept 7 yet
+- The unit tests of the CLI need Node 24.9: `chalk`, `commander`, `ora` and `open` are ESM-only and the tests stay CommonJS, so Jest runs with the VM modules of Node and requires ESM natively. The root `engines.node` says so
+- TypeScript 6 no longer picks `@types/jest` up by itself. `tsconfig.base.json` names it in `types`, once for every package
+
 ## [0.2.0] - 2026-11-27
 
 ### Added

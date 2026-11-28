@@ -29,15 +29,7 @@ type Category = 'Core' | 'Android' | 'iOS';
 
 /** What the install hints and `--fix` know how to get. */
 type Installable =
-  | 'node'
-  | 'npm'
-  | 'git'
-  | 'jdk'
-  | 'android-sdk'
-  | 'adb'
-  | 'xtool'
-  | 'swift'
-  | 'libimobiledevice';
+  'node' | 'npm' | 'git' | 'jdk' | 'android-sdk' | 'adb' | 'xtool' | 'swift' | 'libimobiledevice';
 
 /** The package managers `--fix` can drive. */
 type PackageManager = 'apt' | 'brew';

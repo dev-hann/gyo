@@ -1,5 +1,5 @@
 import * as path from 'path';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import type { GyoConfig } from '../../services/config.service';
 import { loadConfig } from '../../services/config.service';
 import { logger } from '../../utils/logger';
@@ -37,7 +37,7 @@ export interface RegisteredCommand {
 
 export abstract class BaseCommand<T extends BaseCommandOptions = BaseCommandOptions> {
   protected options: T;
-  protected spinner: ora.Ora;
+  protected spinner: Ora;
   protected config: GyoConfig | null;
   protected projectPath: string;
 
