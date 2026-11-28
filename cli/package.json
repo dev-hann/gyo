@@ -29,7 +29,7 @@
     "test:watch": "node --experimental-vm-modules --disable-warning=ExperimentalWarning ../node_modules/jest/bin/jest.js --watch",
     "test:e2e": "npm run test:e2e:local && npm run test:e2e:device",
     "test:e2e:local": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPatterns='local-pipeline'",
-    "test:e2e:device": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPatterns='device-pipeline'",
+    "test:e2e:device": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPatterns='device-pipeline|device-media'",
     "test:e2e:android": "jest --config e2e/jest.config.cjs --runInBand --verbose --testPathPatterns='android-compile'",
     "test:all": "npm run test && npm run test:e2e:local"
   },

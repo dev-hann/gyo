@@ -88,6 +88,26 @@ export async function getAdbDeviceId(): Promise<string | null> {
   return null;
 }
 
+/**
+ * The attached Android devices, emulators first. Read while a test file is
+ * being evaluated, where a skip is decided and nothing can be awaited, so
+ * unlike `getAdbDeviceId` it does not go through a callback.
+ */
+export function adbDeviceIds(): string[] {
+  let output: string;
+  try {
+    output = execSync('adb devices', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 10_000 }).toString();
+  } catch {
+    return [];
+  }
+  const ids = output
+    .split('\n')
+    .slice(1)
+    .map((line) => line.trim().match(/^(\S+)\s+device$/)?.[1])
+    .filter((id): id is string => id !== undefined);
+  return [...ids.filter((id) => id.startsWith('emulator-')), ...ids.filter((id) => !id.startsWith('emulator-'))];
+}
+
 export async function getIosDeviceId(): Promise<string | null> {
   const result = await exec('xtool devices 2>/dev/null || true');
   const match = result.stdout.match(/\b[0-9a-f]{40}\b/);
