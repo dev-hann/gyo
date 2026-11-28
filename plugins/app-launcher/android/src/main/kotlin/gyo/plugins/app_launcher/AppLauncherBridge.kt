@@ -10,6 +10,8 @@ import org.json.JSONObject
 
 class AppLauncherBridge(private val context: Context) : BridgeHandler {
 
+    private val apkInstalls = ApkInstalls(context)
+
     companion object {
         private const val TAG = "Gyo-AppLauncher"
     }
@@ -20,6 +22,9 @@ class AppLauncherBridge(private val context: Context) : BridgeHandler {
             "open_app" -> openApp(data)
             "open_url" -> openUrl(data)
             "search_apps" -> searchApps(data)
+            "can_install_apk" -> apkInstalls.canInstall()
+            "open_install_settings" -> apkInstalls.openInstallSettings()
+            "install_apk" -> apkInstalls.install(data.getString("path"))
             else -> {
                 Log.w(TAG, "Unknown method: $method")
                 null

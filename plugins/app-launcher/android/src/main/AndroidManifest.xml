@@ -9,4 +9,18 @@
         </intent>
     </queries>
 
+    <!-- Hands an APK kept in cache/apk_install to the package installer.
+         The authority follows the app: the manifest merger fills in its application id. -->
+    <application>
+        <provider
+            android:name="gyo.plugins.app_launcher.ApkFileProvider"
+            android:authorities="${applicationId}.gyo.app_launcher"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/gyo_app_launcher_paths" />
+        </provider>
+    </application>
+
 </manifest>

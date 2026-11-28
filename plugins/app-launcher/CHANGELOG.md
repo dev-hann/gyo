@@ -1,5 +1,10 @@
 # @gyo-community/app-launcher
 
+## 0.2.0 - 2026-11-28
+
+- `ApkInstaller`: `canInstall()`, `openInstallSettings()` and `install({ path })` install an APK with the system's installer, for an app that is not in a store. The file is copied into `apk_install/` in the cache and handed over through a `FileProvider` of the module's own class, `ApkFileProvider`: the manifest merger tells providers apart by class, and `@gyo-community/media` brings one named `FileProvider`
+- Declares the permission `REQUEST_INSTALL_PACKAGES`, which the app writes into its manifest; `gyo install` warns while it is missing
+
 ## 0.1.2 - 2026-11-27
 
 - Moved from `@gyo-framework/app-launcher`: the framework keeps its core under `@gyo-framework`, and every add-on feature lives under `@gyo-community`

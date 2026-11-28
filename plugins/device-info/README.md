@@ -41,6 +41,16 @@ deviceInfo.destroy();
 | `isAvailable()` | `boolean` | Check if native bridge is available |
 | `destroy()` | `void` | Clean up resources |
 
+### `PackageInfo`
+
+What Android has of the app itself. `versionName` is what people read and `versionCode` what an update is decided on.
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getInfo()` | `Promise<PackageInfoResult>` | The installed app: its package name, its name and its version |
+| `isAvailable()` | `boolean` | Check if native bridge is available |
+| `destroy()` | `void` | Clean up resources |
+
 ### Types
 
 ```typescript
@@ -61,6 +71,17 @@ interface DeviceInfoType {
 
 interface GetInfoResult {
   info: DeviceInfoType;
+}
+
+interface PackageInfoResult {
+  // The application ID: `com.example.app`
+  packageName: string;
+  // The name under the app's icon
+  appName: string;
+  // What people read, the `versionName` of the build: `1.2.0`
+  versionName: string;
+  // What an update is decided on, the `versionCode` of the build: a newer build has a larger one
+  versionCode: number;
 }
 ```
 

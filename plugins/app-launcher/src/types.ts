@@ -24,3 +24,8 @@ export interface SearchAppsResult {
   apps: AppInfo[];
   count: number;
 }
+
+export interface InstallApkParams {
+  /** Where the APK is: an absolute path, in the cache of the app. */
+  path: string;
+}

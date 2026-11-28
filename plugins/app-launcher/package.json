@@ -1,6 +1,6 @@
 {
   "name": "@gyo-community/app-launcher",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Gyo plugin for launching apps and URLs via Android PackageManager bridge",
   "type": "module",
   "main": "dist/index.js",
@@ -59,7 +59,10 @@
   "gyo": {
     "bridgeName": "app_launcher",
     "android": {
-      "handlerClass": "gyo.plugins.app_launcher.AppLauncherBridge"
+      "handlerClass": "gyo.plugins.app_launcher.AppLauncherBridge",
+      "permissions": [
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ]
     }
   },
   "peerDependencies": {

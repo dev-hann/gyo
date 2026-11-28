@@ -3,6 +3,7 @@ package gyo.plugins.device_info
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.Build
 import android.util.DisplayMetrics
@@ -20,6 +21,7 @@ class DeviceInfoBridge(private val context: Context) : BridgeHandler {
     override fun handle(method: String, data: JSONObject): Any? {
         return when (method) {
             "get_info" -> getInfo()
+            "get_package_info" -> getPackageInfo()
             else -> {
                 Log.w(TAG, "Unknown method: $method")
                 null
@@ -49,6 +51,32 @@ class DeviceInfoBridge(private val context: Context) : BridgeHandler {
         return JSONObject().apply {
             put("info", info)
         }
+    }
+
+    /**
+     * The app as Android installed it. `versionCode` is what an update is
+     * decided on and `versionName` what people read; both are what the build
+     * put in, as gyo wrote them from gyo.config.json.
+     */
+    private fun getPackageInfo(): JSONObject {
+        val pm = context.packageManager
+        @Suppress("DEPRECATION")
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            pm.getPackageInfo(context.packageName, 0)
+        }
+        @Suppress("DEPRECATION")
+        val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            info.versionCode.toLong()
+        }
+        return JSONObject()
+            .put("packageName", context.packageName)
+            .put("appName", context.applicationInfo.loadLabel(pm).toString())
+            .put("versionName", info.versionName ?: "")
+            .put("versionCode", versionCode)
     }
 
     private fun getSecurityPatch(): String {

@@ -295,14 +295,15 @@ interface ScreenFindResult {
 
 ## @gyo-community/app-launcher
 
-App launching and URL opening through Android's `PackageManager` (Android).
+App launching and URL opening through Android's `PackageManager`, and installing an APK with the system's installer (Android).
 
 ### Exports
 
 | Export | Kind | Role |
 |--------|------|------|
 | `AppLauncher` | class | Lists, opens and searches the apps; opens a URL |
-| Types | interfaces | `AppInfo`, `ListAppsResult`, `OpenAppParams`, `OpenUrlParams`, `SearchAppsParams`, `SearchAppsResult` |
+| `ApkInstaller` | class | Installs an APK with the system's installer |
+| Types | interfaces | `AppInfo`, `ListAppsResult`, `OpenAppParams`, `OpenUrlParams`, `SearchAppsParams`, `SearchAppsResult`, `InstallApkParams` |
 
 ```typescript
 class AppLauncher {
@@ -311,6 +312,15 @@ class AppLauncher {
   openApp(params: OpenAppParams): Promise<boolean>
   openUrl(params: OpenUrlParams): Promise<boolean>
   searchApps(params: SearchAppsParams): Promise<SearchAppsResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class ApkInstaller {
+  constructor()
+  canInstall(): Promise<boolean>
+  openInstallSettings(): Promise<boolean>
+  install(params: InstallApkParams): Promise<boolean>
   isAvailable(): boolean
   destroy(): void
 }
@@ -341,6 +351,11 @@ interface SearchAppsResult {
   apps: AppInfo[]
   count: number
 }
+
+interface InstallApkParams {
+  // An absolute path, in the cache of the app
+  path: string
+}
 ```
 
 ### Native Handler
@@ -353,6 +368,9 @@ interface SearchAppsResult {
 | `AppLauncher` | `open_app` | `OpenAppParams` | `boolean` |
 | `AppLauncher` | `open_url` | `OpenUrlParams` | `boolean` |
 | `AppLauncher` | `search_apps` | `SearchAppsParams` | `SearchAppsResult` |
+| `ApkInstaller` | `can_install_apk` | — | `boolean` |
+| `ApkInstaller` | `open_install_settings` | — | `boolean` |
+| `ApkInstaller` | `install_apk` | `InstallApkParams` | `boolean` |
 
 | Rule | Value |
 |------|-------|
@@ -360,13 +378,17 @@ interface SearchAppsResult {
 | `search_apps` | The launchable apps whose name or package name contains `query`, matched without regard to case; all of them for an empty `query` |
 | `open_app` | `false` for an empty `packageName`, for an app without a launch intent, and when the app cannot be started |
 | `open_url` | `Intent.ACTION_VIEW`, answered by the app that takes the URL; `false` for an empty `url` and when no app can take it |
+| `can_install_apk` | `true` before Android 8; from then on whether the reader allowed this app to install APKs |
+| `open_install_settings` | The settings where the app is allowed to install APKs (`ACTION_MANAGE_UNKNOWN_APP_SOURCES`); `false` when they cannot be started |
+| `install_apk` | Throws when there is no file at `path`. Else the file is copied into `apk_install/` in the cache and handed to the system's installer through the module's `FileProvider`: `Intent.ACTION_VIEW` with `application/vnd.android.package-archive`. `true` once the installer was started; what the reader does there is not reported |
 
 ### Setup
 
 | Item | Value |
 |------|-------|
-| Permissions | None |
-| Manifest | The module declares a `<queries>` element for the apps with a launcher icon, which makes them visible on Android 11 and later; the build merges it into the app's manifest |
+| Permissions | `REQUEST_INSTALL_PACKAGES`, which `install_apk` needs from Android 8 on: declared by the app, allowed by the reader in the settings |
+| Manifest | The module declares a `<queries>` element for the apps with a launcher icon, which makes them visible on Android 11 and later, and a `FileProvider` (`gyo.plugins.app_launcher.ApkFileProvider`, authority `${applicationId}.gyo.app_launcher`) that hands out `apk_install/` in the cache and nothing else; the build merges both into the app's manifest |
+| Dependencies | The module brings `androidx.core:core-ktx:1.17.0`, for the provider |
 
 ## @gyo-community/communication
 
@@ -502,20 +524,29 @@ interface CallLogResult {
 
 ## @gyo-community/device-info
 
-Device metadata (Android).
+Device metadata, and what Android has of the app itself (Android).
 
 ### Exports
 
 | Export | Kind | Role |
 |--------|------|------|
 | `DeviceInfo` | class | Reads the device information |
+| `PackageInfo` | class | Reads the installed app: its package name, its name and its version |
 | `GetInfoResult` | interface | What `getInfo()` resolves with |
+| `PackageInfoResult` | interface | What `PackageInfo.getInfo()` resolves with |
 | `DeviceInfoType` | interface | The information itself; exported under this name because the class has the name `DeviceInfo` |
 
 ```typescript
 class DeviceInfo {
   constructor()
   getInfo(): Promise<GetInfoResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class PackageInfo {
+  constructor()
+  getInfo(): Promise<PackageInfoResult>
   isAvailable(): boolean
   destroy(): void
 }
@@ -538,6 +569,17 @@ interface DeviceInfoType {
 interface GetInfoResult {
   info: DeviceInfoType
 }
+
+interface PackageInfoResult {
+  // The application ID: `com.example.app`
+  packageName: string
+  // The name under the app's icon
+  appName: string
+  // What people read, the `versionName` of the build: `1.2.0`
+  versionName: string
+  // What an update is decided on, the `versionCode` of the build: a newer build has a larger one
+  versionCode: number
+}
 ```
 
 ### Native Handler
@@ -547,6 +589,7 @@ interface GetInfoResult {
 | Class | Method | Input | Output |
 |-------|--------|-------|--------|
 | `DeviceInfo` | `get_info` | — | `GetInfoResult` |
+| `PackageInfo` | `get_package_info` | — | `PackageInfoResult` |
 
 | Field | Source |
 |-------|--------|
@@ -555,6 +598,8 @@ interface GetInfoResult {
 | `screenWidth`, `screenHeight` | The window in pixels on Android 11 and later; the real display before |
 | `batteryLevel`, `isCharging` | `BatteryManager`; charging or full |
 | A string the device does not provide | `"Unknown"` |
+| `PackageInfoResult.packageName`, `appName` | The app itself: its application ID and its label |
+| `PackageInfoResult.versionName`, `versionCode` | What the build put in; gyo writes them from `version` and `platforms.android.versionCode` of `gyo.config.json` |
 
 ### Setup
 
@@ -572,14 +617,24 @@ GET requests that run outside the WebView, with the headers the caller chooses (
 | Export | Kind | Role |
 |--------|------|------|
 | `Http` | class | Makes a request |
+| `Downloader` | class | Downloads a file into the cache of the app, telling the page how far it is |
+| `DownloadCancelledError` | class | Why `DownloadTask.result` rejected when the page cancelled the download |
+| `DownloadTask` | interface | What a `download()` returns: the file once it is whole, and the way to stop wanting it |
 | `decodeText` | function | Decodes the body of a response |
 | `base64ToBytes` | function | The body of a response as bytes |
-| Types | interfaces | `HttpRequest`, `HttpResponse` |
+| Types | interfaces | `HttpRequest`, `HttpResponse`, `DownloadRequest`, `DownloadProgress`, `DownloadResult`, `DownloadOptions` |
 
 ```typescript
 class Http {
   constructor()
   request(request: HttpRequest): Promise<HttpResponse>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+class Downloader {
+  constructor()
+  download(request: DownloadRequest, options?: DownloadOptions): DownloadTask
   isAvailable(): boolean
   destroy(): void
 }
@@ -602,6 +657,43 @@ interface HttpResponse {
   bodyBase64: string
 }
 
+interface DownloadRequest {
+  url: string
+  // Sent as given
+  headers?: Record<string, string>
+  // The name of the file in the app's cache; the last part of the address when left out
+  fileName?: string
+}
+
+interface DownloadOptions {
+  // Called as bytes arrive with the progress of the download; not called once it has ended
+  onProgress?: (progress: DownloadProgress) => void
+}
+
+interface DownloadTask {
+  // The file once it is whole; rejects when the download fails, and with a `DownloadCancelledError` when it was cancelled
+  result: Promise<DownloadResult>
+  cancel(): void
+}
+
+interface DownloadProgress {
+  bytesWritten: number
+  // The bytes the server announced; -1 when it did not
+  totalBytes: number
+}
+
+interface DownloadResult {
+  // An absolute path, in the app's cache
+  path: string
+  bytesWritten: number
+  // The status the server answered, once redirects were followed
+  status: number
+  // Where the file came from, once redirects were followed
+  url: string
+  // Response headers by lower-case name
+  headers: Record<string, string>
+}
+
 function decodeText(response: HttpResponse, encoding?: string): string
 function base64ToBytes(base64: string): Uint8Array
 ```
@@ -614,6 +706,12 @@ function base64ToBytes(base64: string): Uint8Array
 | Timeouts | The call rejects on its own after 60 seconds; native gives up after 15 seconds without a connection or 20 seconds without data |
 | `decodeText` | Decodes with the page's `TextDecoder`; `encoding` is `utf-8` by default; malformed bytes become U+FFFD |
 | `bodyBase64` | The raw body; decoding is left to the caller, who knows the charset |
+| `Downloader.download` | GET; redirects are followed; the body is streamed to a file, so nothing is held in memory |
+| `DownloadTask.result` | Resolves once the file is whole. Rejects when the server answers anything but 2xx, when no response arrived, when the file could not be written, and with a `DownloadCancelledError` when `cancel()` ended it |
+| `DownloadTask.cancel` | Ends a download that runs; one that ended already is left as it is |
+| Progress | `onProgress` is called for the events of this download only; the first says 0 bytes, the last how many there are |
+| Where the file is | `downloads/<fileName>` in the cache of the app, a private place that needs no permission; a file there older than a day is deleted at the next download. A file that did not arrive whole is deleted |
+| Timeout | The call rejects after 10 minutes; native gives up after 15 seconds without a connection or 20 seconds without data |
 
 ### Native Handler
 
@@ -622,6 +720,10 @@ function base64ToBytes(base64: string): Uint8Array
 | Class | Method | Input | Output |
 |-------|--------|-------|--------|
 | `Http` | `request` | `HttpRequest` | `HttpResponse` |
+| `Downloader` | `download` | `DownloadRequest` and a `downloadId` of the class | `DownloadResult` |
+| `Downloader` | `cancel_download` | `{ downloadId }` | — |
+
+While `download` runs it publishes the event `{ type: "progress", downloadId, bytesWritten, totalBytes }` for the page, at most every 250 ms and always for the first and the last.
 
 Any other method throws, so the call rejects.
 
@@ -631,6 +733,7 @@ Any other method throws, so the call rejects.
 |------|-------|
 | Permissions | None beyond `INTERNET`, which the manifest of a generated app declares |
 | Services | None; the module's manifest is empty |
+| Files | `downloads/` in the cache of the app |
 | Dependencies | The module brings `com.squareup.okhttp3:okhttp:4.12.0` |
 
 ## @gyo-community/media
@@ -870,6 +973,7 @@ plugins/<name>/                 # @gyo-community/<name>
 6. No dependency on the module of another plugin: the module brings everything its handler needs.
 7. In the repository: a workspace of the root `package.json`, under `plugins/<name>/`, and listed in `plugins/README.md`.
 8. The npm package ships `dist/` and `android/` (`files`): gyo includes the module from where `node_modules` keeps the package.
+9. A handler that tells the page something outside of a call publishes an event, for its own bridge: it takes the way in `attachEvents(publish)`, which it may call from any thread. The event carries what tells the classes of the package whose it is, such as a `downloadId`.
 
 ### Declaration
 
@@ -901,6 +1005,8 @@ The `gyo` field of package.json:
 | Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`, never by the plugin |
 | Dependencies | Declared in the module; the app gets them through it |
 | Another plugin's module | Not depended on. gyo includes every installed plugin as `:gyo-plugin-<name>` and fails the sync when a module names one that is not installed |
+| Events | `BridgeHandler.attachEvents(publish)` gives the handler the way to publish an event to the page for its bridge, and takes it away with `null` while no WebView serves the bridge. Android only |
+| Provider of a module | Under a class of its own (`class XFileProvider : FileProvider()`): the manifest merger tells providers apart by class, so two modules that name `FileProvider` clash |
 
 > See [CLI.md](./CLI.md#plugin-modules) for what a sync writes into the app.
 > See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for `BridgeHandler`.

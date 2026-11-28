@@ -16,3 +16,14 @@ export interface DeviceInfo {
 export interface GetInfoResult {
   info: DeviceInfo;
 }
+
+export interface PackageInfoResult {
+  /** The application ID, as Android names the app: `com.example.app`. */
+  packageName: string;
+  /** The name under the app's icon. */
+  appName: string;
+  /** The version people read, the `versionName` of the build: `4.0.0`. */
+  versionName: string;
+  /** The version Android compares, the `versionCode` of the build: a newer build has a larger one. */
+  versionCode: number;
+}

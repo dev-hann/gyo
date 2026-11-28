@@ -1,5 +1,9 @@
 # @gyo-community/device-info
 
+## 0.2.0 - 2026-11-28
+
+- `PackageInfo.getInfo()`: the installed app as Android has it — `packageName`, `appName`, `versionName` and `versionCode` — through `get_package_info` of `DeviceInfoBridge`. The class is not called `AppInfo`: `@gyo-community/app-launcher` exports a type of that name
+
 ## 0.1.2 - 2026-11-27
 
 - Moved from `@gyo-framework/device-info`: the framework keeps its core under `@gyo-framework`, and every add-on feature lives under `@gyo-community`

@@ -27,4 +27,5 @@ android {
 dependencies {
     // The app brings the bridge module; this one only needs BridgeHandler to compile.
     compileOnly(project(":gyo-bridge"))
+    implementation("androidx.core:core-ktx:1.17.0")
 }

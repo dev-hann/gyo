@@ -10,20 +10,22 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 /**
- * HTTP relay for the web layer: a GET with the headers the caller chooses,
- * answered with the raw body. The WebView cannot make these requests itself:
- * CORS hides cross-origin responses, and many servers answer a WebView's own
- * user agent or a foreign Referer with a redirect or a 403. Decoding and
- * parsing stay on the web side, which knows the charset.
+ * HTTP for the web layer, done outside the WebView: the WebView cannot make
+ * these requests itself. CORS hides cross-origin responses, and many servers
+ * answer a WebView's own user agent or a foreign Referer with a redirect or a
+ * 403. Decoding and parsing stay on the web side, which knows the charset.
  *
  * method "request":
  *   data     { url: String, headers?: Map<String, String>, jar?: String }
  *   returns  { status: Int, url: String, headers: JSONObject, bodyBase64: String }
  *
+ * Answers with whatever status the server sent, 404 and 503 included.
  * Redirects are followed and `url` is where the answer came from. Requests
  * that name the same `jar` share cookies, which outlive the process; a
  * request without `jar` neither stores nor sends cookies. `headers` leaves
  * out `set-cookie`, which the jar owns.
+ *
+ * method "download" and "cancel_download": see [Downloads].
  */
 class HttpBridge(context: Context) : BridgeHandler {
 
@@ -34,11 +36,22 @@ class HttpBridge(context: Context) : BridgeHandler {
         .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
-    override fun handle(method: String, data: JSONObject): Any? {
-        if (method != "request") {
-            throw IllegalArgumentException("Unknown method: $method")
-        }
+    private val downloads = Downloads(context, client)
 
+    override fun handle(method: String, data: JSONObject): Any? {
+        return when (method) {
+            "request" -> request(data)
+            "download" -> downloads.download(data)
+            "cancel_download" -> cancelDownload(data)
+            else -> throw IllegalArgumentException("Unknown method: $method")
+        }
+    }
+
+    override fun attachEvents(publish: ((data: Any?) -> Unit)?) {
+        downloads.events = publish
+    }
+
+    private fun request(data: JSONObject): JSONObject {
         val builder = Request.Builder().url(data.getString("url")).get()
         data.optJSONObject("headers")?.let { headers ->
             headers.keys().forEach { builder.header(it, headers.getString(it)) }
@@ -65,6 +78,10 @@ class HttpBridge(context: Context) : BridgeHandler {
                 .put("headers", headers)
                 .put("bodyBase64", Base64.encodeToString(response.body?.bytes() ?: ByteArray(0), Base64.NO_WRAP))
         }
+    }
+
+    private fun cancelDownload(data: JSONObject) {
+        downloads.cancel(data.getString("downloadId"))
     }
 
     private companion object {

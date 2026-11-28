@@ -1,2 +1,3 @@
 export { DeviceInfo } from './DeviceInfo';
-export type { DeviceInfo as DeviceInfoType, GetInfoResult } from './types';
+export { PackageInfo } from './PackageInfo';
+export type { DeviceInfo as DeviceInfoType, GetInfoResult, PackageInfoResult } from './types';
