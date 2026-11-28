@@ -161,7 +161,7 @@ function mockExecResult(overrides = {}) {
 | Functions  | 60%       |
 | Statements | 60%       |
 
-Run with coverage: `npx jest --coverage`. The thresholds apply only to a run with coverage; `npm test` does not collect it.
+Run with coverage: `npm test -- --coverage`. The thresholds apply only to a run with coverage; `npm test` does not collect it.
 
 ## App Testing with @gyo-framework/bridge/testing
 
