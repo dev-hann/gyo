@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0] - 2026-11-28
+
+### Added
+
+- Android: a handler can publish an event to the page for its bridge. `BridgeHandler.attachEvents(publish)` gives it the
+  way when a WebView starts serving the bridge and takes it away with `null` when none does; `BridgeRegistry` has
+  `attach` and `detach` for that, the bridge of a WebView attaches itself when it is made, and `MainActivity` detaches
+  it in `onDestroy`. The page received events in `Bridge.listen` before; no handler could send one. The native side of
+  the bridge is a template of the CLI: a project made before this version has to take the new `gyo-bridge` sources by
+  hand, as it does any other change to a template
+- `@gyo-community/device-info` 0.2.0: `PackageInfo.getInfo()` — the installed app's package name, name, `versionName`
+  and `versionCode`
+- `@gyo-community/http` 0.2.0: `Downloader.download()` — a file into the cache of the app, with its progress as events
+  on the bridge and `cancel()`
+- `@gyo-community/app-launcher` 0.2.0: `ApkInstaller` — `canInstall()`, `openInstallSettings()` and `install({ path })`,
+  the system's installer for an app that is not in a store
+- E2E: `cli/e2e/device-update.e2e.test.ts` runs the three on a device with Android 8 or later, the progress events
+  included; its two steps that show a screen of the system are skipped on an image that has no installer (ATD)
+- JVM unit tests of the `gyo-bridge` module: `BridgeRegistryEventsTest`, with `testOptions.unitTests.returnDefaultValues`
+  in the module's Gradle file so that the registry's `Log` calls do not fail the tests
+
 ## [0.3.0] - 2026-11-28
 
 ### Added
