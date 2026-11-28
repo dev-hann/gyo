@@ -31,6 +31,7 @@ gyo/
 │   ├── communication/
 │   ├── device-info/
 │   ├── http/
+│   ├── media/
 │   └── notifications/         # Each: src/ for the web side; android/ a Gradle library module
 └── docs/                      # Specifications
 ```

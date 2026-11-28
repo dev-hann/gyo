@@ -32,7 +32,7 @@ gyo run
 gyo/
 ├── cli/          # @gyo-framework/cli — CLI tool and Android/iOS shell templates
 ├── bridge/       # @gyo-framework/bridge — the JS bridge for apps and plugins
-├── plugins/      # Six community plugins (@gyo-community/*), each with an Android module
+├── plugins/      # Seven community plugins (@gyo-community/*), each with an Android module
 └── docs/         # Specifications
 ```
 

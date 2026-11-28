@@ -11,6 +11,7 @@
     "plugins/communication",
     "plugins/notifications",
     "plugins/http",
+    "plugins/media",
     "plugins/accessibility"
   ],
   "scripts": {

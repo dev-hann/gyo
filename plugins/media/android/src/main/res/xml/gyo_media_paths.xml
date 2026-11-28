@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the share provider may hand out: the files of the shares, and nothing else of the app. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="share"
+        path="share/" />
+</paths>

@@ -226,13 +226,16 @@ afterEach(() => {
 
 E2E tests validate the full CLI pipeline against real file system and build tools.
 
-| Suite   | File                                  | Device Required | Description                                                                                                             |
-| ------- | ------------------------------------- | :-------------: | ----------------------------------------------------------------------------------------------------------------------- |
-| Local   | `cli/e2e/local-pipeline.e2e.test.ts`  |       No        | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle                |
-| Android | `cli/e2e/android-compile.e2e.test.ts` |       No        | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug` |
-| Device  | `cli/e2e/device-pipeline.e2e.test.ts` |       Yes       | Android APK build/install/run, iOS xtool build/install                                                                  |
+| Suite   | File                                  | Device Required | Description                                                                                                                                                             |
+| ------- | ------------------------------------- | :-------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local   | `cli/e2e/local-pipeline.e2e.test.ts`  |       No        | `gyo create` → file structure validation → lib build → bridge integration → commands on the built bundle                                                                |
+| Android | `cli/e2e/android-compile.e2e.test.ts` |       No        | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug`                                                 |
+| Device  | `cli/e2e/device-pipeline.e2e.test.ts` |       Yes       | Android APK build/install/run, iOS xtool build/install                                                                                                                  |
+| Device  | `cli/e2e/device-media.e2e.test.ts`    |       Yes       | `@gyo-community/media` on Android 10 and later: a saved image in MediaStore, a network failure, the share sheet for a text and an image, five saves of one name at once |
 
 The Android suite needs the SDK platform the template compiles against and Java; it is skipped without them. It is the only test that compiles Kotlin, so it is where a plugin that does not build shows.
+
+The media suite is the only one that runs a plugin's native side on a device. It needs Android 10 or later, where saving takes no permission, and takes an emulator before a phone. Its page and the image it saves come from a server of the test, so it needs no internet.
 
 ### Skip Handling
 

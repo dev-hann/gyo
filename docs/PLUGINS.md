@@ -633,6 +633,116 @@ Any other method throws, so the call rejects.
 | Services | None; the module's manifest is empty |
 | Dependencies | The module brings `com.squareup.okhttp3:okhttp:4.12.0` |
 
+## @gyo-community/media
+
+Saving images and videos to the device, and sharing media and text with other apps (Android). The WebView can do neither itself: a page cannot read the bytes of the image it shows, and the Web Share API does not exist there.
+
+### Exports
+
+| Export | Kind | Role |
+|--------|------|------|
+| `Media` | class | Saves a file to the gallery; shares a file or a text |
+| Types | interfaces and type aliases | `SaveRequest`, `ShareRequest`, `MediaFailure`, `MediaFailureKind`, `SavedResult`, `SharedResult`, `FailedResult`, `SaveResult`, `ShareResult` |
+
+```typescript
+class Media {
+  constructor()
+  saveToGallery(request: SaveRequest): Promise<SaveResult>
+  share(request: ShareRequest): Promise<ShareResult>
+  isAvailable(): boolean
+  destroy(): void
+}
+
+interface SaveRequest {
+  url: string
+  // As the server names it; null when it does not
+  mimeType?: string | null
+  // File name without a path; made up from the url when missing
+  filename?: string
+  // The user agent the download is made with. Send the page's own: sites block unknown clients
+  userAgent?: string
+  // Folder inside Pictures, Movies or Downloads
+  folder?: string
+}
+
+type ShareRequest = SaveRequest | { text: string }
+
+interface MediaFailure {
+  kind: MediaFailureKind
+  message: string
+}
+
+type MediaFailureKind = 'network' | 'unsupported' | 'permission' | 'storage' | 'canceled'
+
+interface SavedResult {
+  status: 'saved'
+  // The content uri of the stored file
+  uri: string
+  // The MIME type the file was stored under
+  mimeType: string
+}
+
+interface SharedResult {
+  status: 'shared'
+}
+
+interface FailedResult {
+  status: 'failed'
+  error: MediaFailure
+}
+
+type SaveResult = SavedResult | FailedResult
+type ShareResult = SharedResult | FailedResult
+```
+
+| Rule | Value |
+|------|-------|
+| Method | GET; redirects are followed |
+| Resolves | With what native answers: `saved`, `shared` or `failed`. A failure is a value, never a rejection |
+| Rejects | Only for a fault of the bridge itself: no native object, a timeout, an unknown method |
+| Timeouts | The call rejects on its own after 5 minutes; native gives up after 15 seconds without a connection or 30 seconds without data |
+| `share` | Resolves once the chooser is open. What the user does there is not reported, and `canceled` is not answered |
+| `share` with `text` | Shared as `text/plain`, in place of a `url` |
+| Release build | Plain `http` is refused, as it is everywhere in a release build but to `localhost` and `10.0.2.2`: `network`, with the message of the system |
+
+### Native Handler
+
+**Android**: `gyo.plugins.media.MediaBridge`, behind the bridge `media`.
+
+| Class | Method | Input | Output |
+|-------|--------|-------|--------|
+| `Media` | `save_to_gallery` | `SaveRequest` | `SaveResult` |
+| `Media` | `share` | `ShareRequest` | `ShareResult` |
+
+Any other method throws, so the call rejects.
+
+| Step | Rule |
+|------|-------|
+| MIME type | The server's `Content-Type`. When it is missing or `application/octet-stream`: the request's `mimeType`, then the extension of the final url, then `application/octet-stream` |
+| File name | The request's `filename`, else the last segment of the final url. Without a path, without a character a file name cannot hold, and ending in an extension the system knows |
+| Folder | The request's `folder` as a path of safe names: a leading separator and `..` do not survive |
+| Destination | `image/*` to `Pictures/<folder>`, `video/*` to `Movies/<folder>`, the rest to `Download/<folder>` |
+| Android 10 and later | Through `MediaStore`, one save at a time: an entry written as pending and published once the last byte is written. No permission |
+| Before Android 10 | The public folder of the same name, then the media scanner. `WRITE_EXTERNAL_STORAGE` |
+| Cache | A download is written to the cache before it is stored or shared: `cache/save` while a save lasts, `cache/share` for a share. A save needs room there for the file. Files older than a day are deleted at the next call |
+| Share | The file is offered from `cache/share` with `ACTION_SEND` through a `FileProvider` |
+
+| Kind | When |
+|------|------|
+| `network` | The server could not be reached or timed out, answered outside 2xx, or sent an empty body |
+| `unsupported` | No `url`; an address that is not `http` or `https`, such as a `blob:` url; a web page (`text/html`) in place of a file; a file the media store refuses |
+| `permission` | Before Android 10 only: `WRITE_EXTERNAL_STORAGE` is not granted |
+| `storage` | The file could not be written. Also when the media store refuses a file, which it does now and then when more than a few dozen of one name are stored in a folder within a second |
+| `canceled` | Never on Android |
+
+### Setup
+
+| Item | Value |
+|------|-------|
+| Permissions | None from Android 10 on. Before: `android.permission.WRITE_EXTERNAL_STORAGE`, declared by the app in `android/app/src/main/AndroidManifest.xml` with `android:maxSdkVersion="28"` and asked for with `requestPermissions()`; `save_to_gallery` answers `permission` until it is granted |
+| Provider | A `FileProvider` for `<applicationId>.gyo.media`, declared by the module's manifest. It grants `cache/share` and nothing else |
+| Dependencies | The module brings `com.squareup.okhttp3:okhttp:4.12.0` and `androidx.core:core-ktx:1.17.0` |
+
 ## @gyo-community/notifications
 
 The notification listener service, and the active notifications read through it (Android). The two classes post to the one `notifications` bridge; each creates its own `Bridge`.
@@ -787,7 +897,7 @@ The `gyo` field of package.json:
 | Sources | `src/main/kotlin/`, declared as a source directory of `main` |
 | Bridge | `compileOnly(project(":gyo-bridge"))`; the app brings the module |
 | Handler | One class implementing `BridgeHandler`, taking a `Context` in its constructor; `PluginRegistry.kt` registers it under the `bridgeName` |
-| Manifest | Install-time declarations only, such as `<queries>` and services; merged into the app's |
+| Manifest | Install-time declarations only, such as `<queries>`, services and providers; merged into the app's |
 | Run-time permissions | Declared by the app in `android/app/src/main/AndroidManifest.xml`, never by the plugin |
 | Dependencies | Declared in the module; the app gets them through it |
 | Another plugin's module | Not depended on. gyo includes every installed plugin as `:gyo-plugin-<name>` and fails the sync when a module names one that is not installed |

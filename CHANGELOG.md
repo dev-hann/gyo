@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- `@gyo-community/media` plugin: `saveToGallery()` stores an image, a video or any other download through `MediaStore`, without a permission from Android 10 on, and `share()` offers a downloaded file or a text through the system chooser. A failure resolves as a value that names its kind, because the bridge rejects with a message only
+
 ### Changed
 
 - Every dependency is on its latest major: TypeScript 6.0, Jest 30 with ts-jest 29.4 and `@types/jest` 30, tsup 9, ESLint 10.16 with typescript-eslint 8.74, Prettier 3.10 and lint-staged 17; in the CLI, Commander 15, chalk 6, inquirer 14, ora 10, open 11 and `@types/node` 26. TypeScript stays at 6: ts-jest and typescript-eslint do not accept 7 yet
