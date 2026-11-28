@@ -145,7 +145,10 @@ Web (JS/TS)                              Native (Kotlin/Swift)
     │                                         │ handler.execute()
     │  Promise<T>                             │
     │◀────────────────────────────────────────│
-```
+    │                                         │
+    │  an event (Android)                     │ handler.attachEvents(publish)
+    │◀────────────────────────────────────────│
+    │  bridge.listen(callback)                │
 
 > See [BRIDGE_INTEGRATION.md](./BRIDGE_INTEGRATION.md) for native handler protocols.
 

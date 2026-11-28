@@ -34,9 +34,15 @@ internal fun toJson(value: Any?): String = when (value) {
  * a frame of any other origin, third-party iframes included. A WebView
  * without that feature gets [MainFrameCheckedInterface] instead.
  */
-class AndroidBridgeInterface(private val webView: WebView) : WebViewCompat.WebMessageListener {
+class AndroidBridgeInterface(private val webView: WebView) : WebViewCompat.WebMessageListener,
+    BridgeEventSink {
 
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    init {
+        // From here on the handlers can publish events to this WebView's page.
+        BridgeRegistry.attach(this)
+    }
 
     /** Handlers run off the main thread; a slow one must not hold up the others. */
     private val executor = Executors.newCachedThreadPool()
@@ -114,9 +120,9 @@ class AndroidBridgeInterface(private val webView: WebView) : WebViewCompat.WebMe
     }
 
     /**
-     * Publish an event to web listeners
+     * Publish an event to the listeners of the bridge, from any thread: the script runs on the main one.
      */
-    fun publish(bridgeName: String, data: Any?) {
+    override fun publish(bridgeName: String, data: Any?) {
         handler.post {
             webView.evaluateJavascript(BridgeScripts.publish(bridgeName, toJson(data)), null)
         }

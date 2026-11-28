@@ -16,6 +16,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    testOptions {
+        // Android's Log is a stub in JVM unit tests. The registry logs; the tests only need it to return.
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {

@@ -49,6 +49,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var retryButton: Button
     private lateinit var permissionBridge: PermissionBridge
 
+    /** The native half of the bridge for the WebView on screen: null before it is made and after it is gone. */
+    private var bridgeInterface: AndroidBridgeInterface? = null
+
     /** Null when gyo-config.json is missing or unreadable: nothing can be loaded then. */
     private var gyoConfig: GyoConfig? = null
     private var fullscreenView: View? = null
@@ -144,6 +147,12 @@ class MainActivity : AppCompatActivity() {
         loadApp(config)
     }
 
+    override fun onDestroy() {
+        // The WebView goes away with the activity: the handlers must not publish into it from here on.
+        bridgeInterface?.let(BridgeRegistry::detach)
+        super.onDestroy()
+    }
+
     /**
      * Android 15 and later draw the app edge to edge. Keep the content clear
      * of the system bars, the cutout and the keyboard; a page then scrolls
@@ -190,7 +199,7 @@ class MainActivity : AppCompatActivity() {
 
         // The native half of the bridge, for the origin of serverUrl only:
         // Android does not inject it into any other frame, iframe included.
-        val bridgeInterface = AndroidBridgeInterface(webView)
+        val bridgeInterface = AndroidBridgeInterface(webView).also { bridgeInterface = it }
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
                 webView,

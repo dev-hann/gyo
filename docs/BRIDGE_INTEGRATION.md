@@ -45,11 +45,16 @@ A quote, a backslash or a newline inside an embedded value must not break the st
 interface BridgeHandler {
     fun handle(method: String, data: JSONObject): Any?
     fun handleAsync(method: String, data: JSONObject, call: PendingCall): Boolean
+    fun attachEvents(publish: ((data: Any?) -> Unit)?)
 }
 
 interface PendingCall {
     fun resolve(result: Any?)
     fun reject(message: String)
+}
+
+interface BridgeEventSink {
+    fun publish(bridgeName: String, data: Any?)
 }
 ```
 
@@ -57,6 +62,7 @@ interface PendingCall {
 |------|-------|
 | `handle` | Returns what the web side receives; a thrown exception rejects the call |
 | `handleAsync` | For a call answered later, such as one that waits for the user; answers `call` once, from any thread; returns false for a method it does not take |
+| `attachEvents` | Gives the handler the way to publish an event to the page for its bridge, to call from any thread; `null` takes it away while no WebView serves the bridge |
 | Return value | Object, array, string, number, boolean or null |
 | Thread | Off the main thread; a slow handler does not hold up the others |
 
@@ -70,9 +76,17 @@ The bridge is the `gyo-bridge` Gradle module of the generated Android project. T
 
 ```kotlin
 BridgeRegistry.register(name: String, handler: BridgeHandler)
+BridgeRegistry.attach(sink: BridgeEventSink)
+BridgeRegistry.detach(sink: BridgeEventSink)
 ```
 
 The handlers of installed plugins are registered by `PluginRegistry.kt` in the app module, which gyo writes.
+
+| Rule | Value |
+|------|-------|
+| `attach` | The bridge of a WebView tells the registry that it serves the bridge now; every registered handler is given the way to publish to that WebView, and a handler registered later is given it on registration |
+| `detach` | The WebView no longer serves the bridge: every handler loses the way. Another WebView's attach is not undone by it |
+| An event | Published for one bridge name; the page receives it in the listeners of the `Bridge` of that name |
 
 > See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/BridgeRegistry.kt`
 > See [CLI.md](./CLI.md#plugin-modules) for `PluginRegistry.kt`.
@@ -109,7 +123,7 @@ Release builds minify with R8. The `@JavascriptInterface` methods of the fallbac
 
 ### AndroidBridgeInterface
 
-Receives messages from the WebView, dispatches them to registered handlers and answers on the main thread.
+Receives messages from the WebView, dispatches them to registered handlers and answers on the main thread. It is the `BridgeEventSink` the registry knows: it attaches itself when made, and the app's `MainActivity` detaches it in `onDestroy`.
 
 > See `cli/templates/android/gyo-bridge/src/main/java/gyo/plugins/bridge/AndroidBridgeInterface.kt`
 
