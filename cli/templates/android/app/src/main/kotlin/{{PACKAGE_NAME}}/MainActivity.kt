@@ -68,16 +68,20 @@ class MainActivity : AppCompatActivity() {
             callback.onReceiveValue(chosenUris(result))
         }
 
-    /** Back closes full-screen video, then leaves the previous page, then the app. */
+    /**
+     * Back closes full-screen video, then leaves the previous page, then the
+     * app. It leaves it as Android 12 and later leave a launcher activity:
+     * the task goes behind the one in front and keeps its state. The handler
+     * stays on. Switching it off to let the system end the activity worked
+     * when that finished the activity; it no longer does, so the handler
+     * stayed off and Back never went back in the page again.
+     */
     private val backHandler = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
             when {
                 fullscreenView != null -> hideFullscreen()
                 webView.canGoBack() -> webView.goBack()
-                else -> {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                }
+                else -> moveTaskToBack(true)
             }
         }
     }

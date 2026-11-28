@@ -12,6 +12,11 @@
 - The unit tests of the CLI need Node 24.9: `chalk`, `commander`, `ora` and `open` are ESM-only and the tests stay CommonJS, so Jest runs with the VM modules of Node and requires ESM natively. The root `engines.node` says so
 - TypeScript 6 no longer picks `@types/jest` up by itself. `tsconfig.base.json` names it in `types`, once for every package
 
+### Fixed
+
+- Android: Back stopped going back in the page once it had left the app. Since Android 12 the system moves an app to the back instead of finishing it, so a back handler that switched itself off stayed off for good. It leaves the app as the system does and stays on
+- Android 13 to 15: the back gesture has the system's animation
+
 ## [0.2.0] - 2026-11-27
 
 ### Added
