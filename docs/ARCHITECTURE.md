@@ -132,6 +132,8 @@ The native bridge is origin-restricted: only the origin (scheme, host and port) 
 | A link the WebView cannot show | Downloads it: to Downloads on Android 10 and later, to the app's own folder before |
 | Dark mode, font size, keyboard, rotation | Keeps the page: the Activity is not recreated |
 | System bars and keyboard | Keeps the page clear of them |
+| The back button or the back gesture | Closes full-screen video, then asks the page, then goes to the previous page, then puts the app behind the one in front and keeps its state |
+| The page takes the back press | On Android, the app dispatches `gyo:backbutton` on `window` before acting; a page that calls `preventDefault()` keeps it from acting. Nothing is asynchronous: the decision is taken when the event arrives |
 
 ## Communication Flow
 

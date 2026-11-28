@@ -34,6 +34,55 @@ describe('Android shell', () => {
   afterEach(() => project.remove());
 
   describe('the back button', () => {
+    /** The page's `window`, as far as the script is concerned: where the event goes and who hears it. */
+    let page: EventTarget;
+
+    beforeEach(() => {
+      page = new EventTarget();
+      Object.assign(globalThis, { window: page });
+    });
+
+    afterEach(() => {
+      delete (globalThis as { window?: unknown }).window;
+    });
+
+    /** Runs what the shell asks the page when Back is pressed; true when the page takes it. */
+    function askThePage(): unknown {
+      const script = activity().match(/askThePageAboutBack = """([\s\S]*?)"""/)?.[1];
+      if (script === undefined) {
+        throw new Error('The shell does not ask the page about Back');
+      }
+      // As a script, for its completion value: that is what evaluateJavascript hands back.
+      return (0, eval)(script);
+    }
+
+    it('should leave the back press to the shell when nothing on the page takes it', () => {
+      expect(askThePage()).toBe(false);
+    });
+
+    it('should let the page take the back press, as a modal that must stay open does', () => {
+      const stay = (event: Event): void => event.preventDefault();
+      page.addEventListener('gyo:backbutton', stay);
+
+      expect(askThePage()).toBe(true);
+
+      page.removeEventListener('gyo:backbutton', stay);
+    });
+
+    it('should tell the page with a cancelable event on window', () => {
+      const heard: Event[] = [];
+      const listen = (event: Event): void => {
+        heard.push(event);
+      };
+      page.addEventListener('gyo:backbutton', listen);
+
+      askThePage();
+
+      expect(heard).toHaveLength(1);
+      expect(heard[0]).toMatchObject({ type: 'gyo:backbutton', cancelable: true });
+      page.removeEventListener('gyo:backbutton', listen);
+    });
+
     it('should not be switched off once it has left the app', () => {
       // Android 12 and later move a launcher activity to the back instead of
       // finishing it. A handler that switched itself off before that stayed

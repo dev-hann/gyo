@@ -152,6 +152,8 @@ describe('CreateCommand', () => {
     expect(readme).toContain('├── android/');
     // The add-on features of the framework live under the community scope.
     expect(readme).toContain('npm install @gyo-community/http');
+    // And how the app can take the back button.
+    expect(readme).toContain('gyo:backbutton');
     expect(readme).not.toContain('{{');
   });
 

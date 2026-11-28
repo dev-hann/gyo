@@ -4,6 +4,7 @@
 
 ### Added
 
+- Android: the page can take the back button. The app tells it with a cancelable `gyo:backbutton` event on `window` before acting on Back; a page that calls `preventDefault()` keeps the app from acting, for a modal that closes on back or one that has to stay open. Unless the page takes it, Back closes full-screen video, then goes to the previous page, then puts the app behind the one in front
 - `@gyo-community/media` plugin: `saveToGallery()` stores an image, a video or any other download through `MediaStore`, without a permission from Android 10 on, and `share()` offers a downloaded file or a text through the system chooser. A failure resolves as a value that names its kind, because the bridge rejects with a message only
 
 ### Changed

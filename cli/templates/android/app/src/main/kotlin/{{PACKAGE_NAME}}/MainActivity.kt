@@ -69,19 +69,41 @@ class MainActivity : AppCompatActivity() {
         }
 
     /**
-     * Back closes full-screen video, then leaves the previous page, then the
-     * app. It leaves it as Android 12 and later leave a launcher activity:
-     * the task goes behind the one in front and keeps its state. The handler
-     * stays on. Switching it off to let the system end the activity worked
-     * when that finished the activity; it no longer does, so the handler
-     * stayed off and Back never went back in the page again.
+     * Asks the page about Back. The page may take it, for a modal that should
+     * close or one that has to stay open: it listens for `gyo:backbutton` on
+     * `window` and calls `preventDefault()`. Tells whether it did.
+     */
+    private val askThePageAboutBack = """
+        (function () {
+            var event = new Event('gyo:backbutton', { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        })();
+    """
+
+    /**
+     * Back closes full-screen video, then asks the page, then leaves the
+     * previous page, then the app. It leaves it as Android 12 and later
+     * leave a launcher activity: the task goes behind the one in front and
+     * keeps its state. The handler stays on. Switching it off to let the
+     * system end the activity worked when that finished the activity; it no
+     * longer does, so the handler stayed off and Back never went back in the
+     * page again.
      */
     private val backHandler = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            when {
-                fullscreenView != null -> hideFullscreen()
-                webView.canGoBack() -> webView.goBack()
-                else -> moveTaskToBack(true)
+            if (fullscreenView != null) {
+                hideFullscreen()
+                return
+            }
+            // The page answers a moment later; nothing happens until it has.
+            webView.evaluateJavascript(askThePageAboutBack) { taken ->
+                if (taken != "true") {
+                    when {
+                        webView.canGoBack() -> webView.goBack()
+                        else -> moveTaskToBack(true)
+                    }
+                }
             }
         }
     }

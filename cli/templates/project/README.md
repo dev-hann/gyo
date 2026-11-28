@@ -62,6 +62,28 @@ cd lib && npm install @gyo-community/http
 
 Permissions the system has to ask the user for, such as contacts or SMS, go in `android/app/src/main/AndroidManifest.xml`. `gyo install` lists the ones an installed plugin needs.
 
+## The back button
+
+On Android, the back button and the back gesture first close a full-screen video, then go to the previous page, then put the app behind the one in front.
+
+A page can take the back press itself. The app dispatches `gyo:backbutton` on `window`; call `preventDefault()` to keep the app from acting on it.
+
+```typescript
+// A modal that has to stay open: the back press does nothing.
+window.addEventListener('gyo:backbutton', (event) => {
+  if (mandatoryDialog.open) event.preventDefault();
+});
+
+// A modal that closes on back: close it and take the press.
+window.addEventListener('gyo:backbutton', (event) => {
+  if (!drawer.open) return;
+  drawer.close();
+  event.preventDefault();
+});
+```
+
+Nothing is asynchronous here: the decision is taken when the event arrives. To decide later, call `preventDefault()` and then `window.history.back()` yourself.
+
 ## Project Structure
 
 ```
