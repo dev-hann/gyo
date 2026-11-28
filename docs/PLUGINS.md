@@ -661,7 +661,8 @@ interface DownloadRequest {
   url: string
   // Sent as given
   headers?: Record<string, string>
-  // The name of the file in the app's cache; the last part of the address when left out
+  // The name of the file in the app's cache; when left out, the last part of the address the server
+  // answered from, once redirects were followed
   fileName?: string
 }
 
@@ -710,7 +711,7 @@ function base64ToBytes(base64: string): Uint8Array
 | `DownloadTask.result` | Resolves once the file is whole. Rejects when the server answers anything but 2xx, when no response arrived, when the file could not be written, and with a `DownloadCancelledError` when `cancel()` ended it |
 | `DownloadTask.cancel` | Ends a download that runs; one that ended already is left as it is |
 | Progress | `onProgress` is called for the events of this download only; the first says 0 bytes, the last how many there are |
-| Where the file is | `downloads/<fileName>` in the cache of the app, a private place that needs no permission; a file there older than a day is deleted at the next download. A file that did not arrive whole is deleted |
+| Where the file is | `downloads/<fileName>` in the cache of the app, a private place that needs no permission; a file there older than a day is deleted at the next download. A file that did not arrive whole is deleted. Left out, the name is the last part of the address the server answered from once redirects were followed: GitHub sends a release asset to an address that ends in an id, so a page that wants the asset's own name passes `fileName` |
 | Timeout | The call rejects after 10 minutes; native gives up after 15 seconds without a connection or 20 seconds without data |
 
 ### Native Handler

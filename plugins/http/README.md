@@ -46,3 +46,5 @@ try {
 | `onProgress` | Called with `{ bytesWritten, totalBytes }` for this download only; `totalBytes` is -1 when the server did not say |
 
 The progress reaches the page as an event the native handler publishes: the first says 0 bytes, the last how many there are, and at most one every 250 ms in between.
+
+Left out, `fileName` is the last part of the address the server answered from, once redirects were followed. GitHub sends a release asset to an address that ends in an id, so pass `fileName` when the file is to keep the name it was asked under.

@@ -170,7 +170,7 @@ internal class Downloads(context: Context, private val client: OkHttpClient) {
         return directory
     }
 
-    /** The name the page asked for, with what would make it a path taken out; else the last part of the address; else the id. */
+    /** The name the page asked for, with what would make it a path taken out; else the last part of the address the server answered from, once redirects were followed; else the id. */
     private fun fileNameFor(requested: String?, url: HttpUrl, downloadId: String): String {
         val asked = requested?.substringAfterLast('/')?.substringAfterLast('\\')?.trim()
         if (!asked.isNullOrEmpty() && asked != "." && asked != "..") return asked

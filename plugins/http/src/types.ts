@@ -23,7 +23,11 @@ export interface DownloadRequest {
   url: string;
   /** Request headers, sent as given. */
   headers?: Record<string, string>;
-  /** The name of the file in the app's cache. Left out, it is the last part of the address. */
+  /**
+   * The name of the file in the app's cache. Left out, it is the last part of the address the server
+   * answered from, once redirects were followed: a page that wants the name of the address it asked
+   * for passes it.
+   */
   fileName?: string;
 }
 
