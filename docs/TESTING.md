@@ -232,10 +232,15 @@ E2E tests validate the full CLI pipeline against real file system and build tool
 | Android | `cli/e2e/android-compile.e2e.test.ts` |       No        | `gyo create` with every community plugin that brings an Android module → `gyo install` → `./gradlew :app:assembleDebug`                                                 |
 | Device  | `cli/e2e/device-pipeline.e2e.test.ts` |       Yes       | Android APK build/install/run, iOS xtool build/install                                                                                                                  |
 | Device  | `cli/e2e/device-media.e2e.test.ts`    |       Yes       | `@gyo-community/media` on Android 10 and later: a saved image in MediaStore, a network failure, the share sheet for a text and an image, five saves of one name at once |
+| Device  | `cli/e2e/device-update.e2e.test.ts`   |       Yes       | `@gyo-community/device-info`, `http` and `app-launcher` on Android 8 and later: the installed app, the app's own APK downloaded into the cache with its progress reaching the page, a cancelled download, a 404, the install permission, the system's installer |
 
 The Android suite needs the SDK platform the template compiles against and Java; it is skipped without them. It is the only test that compiles Kotlin, so it is where a plugin that does not build shows.
 
-The media suite is the only one that runs a plugin's native side on a device. It needs Android 10 or later, where saving takes no permission, and takes an emulator before a phone. Its page and the image it saves come from a server of the test, so it needs no internet.
+The media and the update suites are the only ones that run a plugin's native side on a device. Both need an emulator or a phone, and their pages and files come from a server of the test, so they need no internet.
+
+The media suite needs Android 10 or later, where saving takes no permission.
+
+The update suite needs Android 8 or later, where installing an APK is a permission: the installed app, the app's own APK downloaded with the progress events reaching the page, a cancelled download that keeps no file, a 404, the install permission before and after it is allowed, the settings where it is given, and the system's installer handed the APK. Its two steps that show a screen of the system, the install settings and the package installer, are skipped on an image made for tests only (ATD), which has neither.
 
 ### Skip Handling
 
