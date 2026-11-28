@@ -1,6 +1,6 @@
 {
   "name": "@gyo-framework/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CLI tool for Gyo framework - Build cross-platform apps with web technologies",
   "type": "module",
   "main": "dist/index.js",
